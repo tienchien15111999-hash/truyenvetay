@@ -638,7 +638,7 @@ async function testVbee() {
     const res = await fetch(VBEE_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok, 'App-Id': appId },
-      body: JSON.stringify({ text: 'Xin chào', mode: 'sync', voiceCode: code, outputFormat: 'mp3', bitrate: 128 })
+      body: JSON.stringify({ text: 'Xin chào', mode: 'sync', voiceCode: code })
     });
     if (!res.ok) {
       out.style.color = '#dc2626';
@@ -664,7 +664,7 @@ async function vbeeRaw(text) {
         res = await fetch(VBEE_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok, 'App-Id': appId },
-          body: JSON.stringify({ text: t, mode: 'sync', voiceCode: code, outputFormat: 'mp3', bitrate: 128 })
+          body: JSON.stringify({ text: t, mode: 'sync', voiceCode: code })
         });
       } catch (e) { res = null; lastNetErr = e; }
       if (res && res.status !== 429) break;
