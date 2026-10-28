@@ -1,0 +1,951 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tạo video vẽ tay kể chuyện (Bản Ổn Định & Nhanh)</title>
+<style>
+body{font:16px/1.5 system-ui,sans-serif;margin:0;background:#f1f1ef;color:#111}
+main{max-width:800px;margin:0 auto;padding:20px}
+h1{font-size:26px;margin:0 0 4px}
+.box{background:#fff;border:2px solid #111;border-radius:6px;padding:14px;margin:14px 0}
+label{display:block;font-weight:600;margin:10px 0 4px}
+textarea,select,input:not([type=checkbox]){width:100%;box-sizing:border-box;font:inherit;padding:8px;border:1.5px solid #888;border-radius:4px}
+textarea{min-height:90px}
+.row{display:flex;gap:12px;flex-wrap:wrap}.row>div{flex:1;min-width:150px}
+.chk{display:flex;gap:8px;align-items:center;font-weight:400;margin:8px 0;cursor:pointer}
+button{font:inherit;font-weight:700;padding:10px 16px;border:2px solid #111;background:#1d4ed8;color:#fff;border-radius:6px;cursor:pointer;margin:8px 8px 0 0}
+button.w{background:#fff;color:#111}
+button.warn{background:#d97706;color:#fff}
+button.sm{padding:6px 12px;font-size:14px}
+button:disabled{opacity:.5;cursor:not-allowed}
+#log{white-space:pre-wrap;font-size:14px;max-height:260px;overflow:auto;background:#111;color:#9f9;padding:10px;border-radius:4px;margin-top:10px;font-family:monospace}
+canvas,video{width:100%;background:#fff;border:2px solid #111;border-radius:4px;display:block}
+.bar{height:10px;background:#ddd;border-radius:5px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:#1d4ed8;transition:width .25s}
+summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px 0}#go{font-size:18px;padding:14px 24px}
+</style>
+</head>
+<body>
+<main>
+<h1>Tạo video vẽ tay kể chuyện</h1>
+<p>Nhập truyện hoặc ý tưởng. Tool tự viết kịch bản, vẽ tranh đen trắng, bàn tay cầm bút vẽ từng nét, rồi xuất ra video.</p>
+
+<details class="box" id="set" open onchange="saveSet()">
+  <summary><b>⚙ Cài đặt</b> (nhập một lần, tool tự nhớ trên máy bạn)</summary>
+  <label>API key Gemini (nhiều key thì mỗi key một dòng)</label>
+  <textarea id="keys" style="min-height:60px" placeholder="AIzaSy..."></textarea>
+
+  <label>Cách vẽ tranh (Tất cả đều có bàn tay cầm bút vẽ từng nét)</label>
+  <select id="isrc" onchange="vui()">
+    <option value="svg_ink">✒️ Vẽ tranh nét mực đen trắng bằng AI (Miễn phí 100%, nhanh & ổn định nhất)</option>
+    <option value="free_img">🎨 Tạo ảnh AI nét vẽ tay (Tự động dùng Gemini Image / Flux / Vẽ nét mực dự phòng)</option>
+    <option value="svg">🏃 Nét đơn giản kiểu người que phân màu (Miễn phí - Bản gốc)</option>
+    <option value="img">💎 Tạo ảnh bằng Gemini (Ưu tiên Nano Banana 2.1 / 3.1 Image + Tự động dự phòng)</option>
+  </select>
+
+  <div id="hfBox" hidden>
+    <label>Hugging Face Token (Tùy chọn - Để trống vẫn chạy bình thường)</label>
+    <input id="hftok" type="password" placeholder="hf_... (Nếu có sẽ hỗ trợ vẽ ảnh bằng FLUX.1-schnell cực nhanh)">
+  </div>
+  <p class="hint">Chế độ "Vẽ tranh nét mực đen trắng" và "Tạo ảnh AI" đều tự động tách nét mực để bàn tay vẽ từng nét và không bao giờ bị trống cảnh.</p>
+
+  <div class="row">
+    <div>
+      <label>Nguồn giọng đọc</label>
+      <select id="vsrc" onchange="vui()">
+        <option value="gem">Gemini (Ổn định, miễn phí)</option>
+        <option value="vbee">Vbee</option>
+        <option value="none">Không có giọng đọc</option>
+      </select>
+    </div>
+    <div id="gv">
+      <label>Giọng Gemini (hoặc giọng dự phòng)</label>
+      <select id="voice">
+        <option value="Kore">Nữ (Kore - Ấm áp)</option>
+        <option value="Aoede">Nữ (Aoede - Tự nhiên)</option>
+        <option value="Sulafat">Nữ (Sulafat - Truyền cảm)</option>
+        <option value="Charon">Nam (Charon - Trầm ấm)</option>
+        <option value="Puck">Nam (Puck - Nhanh nhẹn)</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="vb" hidden>
+    <div class="row">
+      <div><label>Vbee: App ID</label><input id="vapp" placeholder="Nhập App ID..."></div>
+      <div><label>Vbee: Token (Bearer)</label><input id="vtok" type="password" placeholder="Dán Token Vbee..."></div>
+    </div>
+    <label>Vbee: mã giọng</label>
+    <input id="vcode" value="hn_female_ngochuyen_full_48k-fhg">
+    <label class="chk">
+      <input type="checkbox" id="vfall" checked>
+      Tự động chuyển sang giọng Gemini nếu Vbee hết hạn Token hoặc bị trình duyệt chặn
+    </label>
+    <button type="button" class="w sm" onclick="testVbee()">🔍 Kiểm tra Vbee</button>
+    <span id="vtestResult" class="hint" style="margin-left:8px"></span>
+  </div>
+</details>
+
+<div class="box">
+  <label>Câu chuyện hoặc ý tưởng</label>
+  <textarea id="idea" placeholder="Ví dụ: Chuyện cậu bé nghèo nhặt được chiếc ví đầy tiền và quyết định đi tìm người đánh rơi để trả lại..."></textarea>
+  <div class="row">
+    <div>
+      <label>Độ dài video</label>
+      <select id="min">
+        <option value="1">1 phút (chạy thử - ~7 cảnh)</option>
+        <option value="2">2 phút (~13 cảnh)</option>
+        <option value="3">3 phút (~20 cảnh)</option>
+        <option value="4" selected>4 phút (~26 cảnh)</option>
+        <option value="5">5 phút (~33 cảnh)</option>
+      </select>
+    </div>
+  </div>
+  <label class="chk"><input type="checkbox" id="sub" checked>Hiện phụ đề</label>
+  <button id="go" onclick="start(false)">Bắt đầu tạo video</button>
+  <button id="retryBtn" class="warn" onclick="start(true)" hidden>🔄 Chạy bù các cảnh lỗi</button>
+  <button id="stp" class="w" onclick="stopGen()" hidden>■ Dừng tạo</button>
+</div>
+
+<div class="box">
+  <div class="bar"><i id="bar"></i></div>
+  <div id="log">Chưa chạy.</div>
+</div>
+
+<div class="box" id="pl" hidden>
+  <canvas id="cv" width="1280" height="720"></canvas>
+  <button onclick="play(0)">▶ Xem thử</button>
+  <button class="w" onclick="stopFlag=true">■ Dừng xem / xuất</button>
+  <button onclick="play(1)">🎬 Xuất video</button>
+  <p class="hint">Xuất video chạy theo thời lượng thực của video. Đã tối ưu bộ đếm nên bạn có thể chuyển sang tab khác trong lúc chờ xuất video.</p>
+  <div id="out"></div>
+</div>
+</main>
+
+<script>
+const W = 1280, H = 720, C = 16;
+
+// Bộ model thế hệ 3.x mới nhất đang hoạt động ổn định (tuyệt đối không dùng 2.0-flash và 2.5-flash đã bị Google ngừng cấp cho key mới)
+const TXT_MODELS = [
+  'gemini-3.6-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.8-flash',
+  'gemini-3.1-flash-lite',
+  'gemini-3.5-flash'
+];
+const GEM_IMG_MODELS = [
+  'gemini-nano-banana-2.1',
+  'gemini-3.1-flash-image',
+  'gemini-2.5-flash-image'
+];
+const TTS_MODELS = [
+  'gemini-3.8-flash-lite-tts',
+  'gemini-3.8-flash-tts',
+  'gemini-2.5-flash-preview-tts'
+];
+const retiredModels = new Set();
+
+const $ = i => document.getElementById(i);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let scenes = [], keys = [], ki = 0, ctxA = null, stopFlag = false, playing = false, sub = true, chars = '', abortGen = false;
+let vbeeDeadInSession = false, gemImgDeadInSession = false;
+const ctl = new Set();
+
+const nap = async ms => { for (let t = 0; t < ms && !abortGen; t += 250) await sleep(250); };
+function stopGen() { abortGen = true; ctl.forEach(c => c.abort()); log('⏹ Đang dừng...'); }
+const log = m => {
+  const el = $('log');
+  el.textContent += '\n' + m;
+  el.scrollTop = el.scrollHeight;
+};
+const A = () => ctxA || (ctxA = new (window.AudioContext || window.webkitAudioContext)());
+
+const CF = ['keys', 'isrc', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'vfall'];
+function saveSet() {
+  try {
+    const o = {};
+    CF.forEach(i => { if ($(i)) o[i] = $(i).type === 'checkbox' ? $(i).checked : $(i).value; });
+    localStorage.setItem('cfg_v3', JSON.stringify(o));
+  } catch (e) {}
+}
+function vui() {
+  const v = $('vsrc').value;
+  $('vb').hidden = v !== 'vbee';
+  const mode = $('isrc').value;
+  $('hfBox').hidden = !(mode === 'free_img' || mode === 'img');
+}
+try {
+  const o = JSON.parse(localStorage.getItem('cfg_v3') || localStorage.getItem('cfg') || '{}');
+  CF.forEach(i => {
+    if (o[i] != null && $(i)) {
+      if ($(i).type === 'checkbox') $(i).checked = !!o[i];
+      else $(i).value = o[i];
+    }
+  });
+  if (o.keys) $('set').open = false;
+} catch (e) {}
+vui();
+
+async function gem(model, body, timeout = 80000) {
+  if (retiredModels.has(model)) throw new Error(`404 Model ${model} đã ngừng hỗ trợ`);
+  let err = '';
+  for (let r = 0; r < 2; r++) {
+    for (let i = 0; i < keys.length; i++) {
+      if (abortGen) throw new Error('Đã dừng');
+      const k = keys[(ki + i) % keys.length];
+      const ac = new AbortController();
+      const to = setTimeout(() => ac.abort(), timeout);
+      ctl.add(ac);
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${k}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: ac.signal
+        });
+        clearTimeout(to);
+        ctl.delete(ac);
+        if (res.ok) {
+          ki = (ki + i + 1) % keys.length;
+          return await res.json();
+        }
+        const txt = await res.text();
+        err = res.status + ' ' + txt.slice(0, 140);
+        if (res.status === 404) {
+          // Chỉ khóa vĩnh viễn nếu model thực sự bị ngừng cung cấp
+          if (/no longer available|not found for API version/i.test(txt)) {
+            retiredModels.add(model);
+          }
+          throw new Error(err);
+        }
+        if (res.status === 400 && !/API key/i.test(err)) throw new Error(err);
+      } catch (e) {
+        clearTimeout(to);
+        ctl.delete(ac);
+        if (abortGen) throw new Error('Đã dừng');
+        err = e.name === 'AbortError' ? 'quá thời gian' : e.message;
+        if (/^(400|404)/.test(err)) throw new Error(err);
+      }
+    }
+    await nap(2500 * (r + 1));
+  }
+  throw new Error(err);
+}
+
+async function gemMulti(models, body, timeout = 80000) {
+  let lastErr = '';
+  for (const m of models) {
+    if (retiredModels.has(m)) continue;
+    try {
+      return await gem(m, body, timeout);
+    } catch (e) {
+      if (abortGen) throw e;
+      lastErr = e.message;
+    }
+  }
+  throw new Error(lastErr || 'Không kết nối được các model Gemini');
+}
+
+async function makeScript(idea, min) {
+  const n = Math.round(min * 60 / 9), total = Math.round(min * 60 * 3.2);
+  const p = `Bạn là biên kịch video kể chuyện vẽ tay. Từ nội dung bên dưới, tạo kịch bản video dài ${min} phút: khoảng ${total} từ lời kể, chia đúng ${n} cảnh, mỗi cảnh khoảng ${Math.round(total / n)} từ. Nếu nội dung đã là truyện hoàn chỉnh thì giữ nguyên lời văn, chỉ chia cảnh. Nếu chỉ là ý tưởng thì viết thành truyện hay có mở đầu, cao trào, kết.
+Chỉ trả về JSON: {"characters":"mỗi nhân vật một ý, tiếng Anh, ngắn gọn, ghi rõ vai trò MAIN (nhân vật chính), SECOND (phản diện hoặc nhân vật xuất hiện nhiều), CROWD (quần chúng) và ngoại hình đặc trưng (mũ, tóc, kính, quần áo)","scenes":[{"text":"lời kể tiếng Việt của cảnh","image":"mô tả cảnh để vẽ tranh, tiếng Anh, 1 câu ngắn gọn rõ ràng, ghi rõ vai trò MAIN/SECOND/CROWD của từng người xuất hiện, hành động và bối cảnh tối giản"}]}
+Nội dung: ${idea}`;
+
+  const d = await gemMulti(TXT_MODELS, {
+    contents: [{ parts: [{ text: p }] }],
+    generationConfig: { responseMimeType: 'application/json' }
+  }, 95000);
+
+  const t = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('').replace(/```json|```/g, '').trim();
+  const a = t.indexOf('{'), b = t.lastIndexOf('}');
+  const j = JSON.parse(a >= 0 && b > a ? t.slice(a, b + 1) : t);
+  if (!j.scenes || !j.scenes.length) throw new Error('Kịch bản trả về trống');
+  return j;
+}
+
+const loadImg = s => new Promise((ok, no) => {
+  const i = new Image();
+  i.onload = () => ok(i);
+  i.onerror = () => no(new Error('Lỗi giải mã ảnh'));
+  i.src = s;
+});
+
+let ref = null;
+const STY = 'Simple black ink line drawing on a pure white background, hand-drawn whiteboard doodle style, clean thick black outlines, minimalist comic sketch, no color, no gray shading, no text, lots of white space';
+
+// Nguồn 1: Gemini Image (Nano Banana 2.1 / 3.1 Flash Image / 2.5 Flash Image)
+async function genGeminiImg(p, withRef) {
+  if (gemImgDeadInSession) throw new Error('Key chưa bật thanh toán cho Gemini Image');
+  const parts = [];
+  if (withRef && ref) parts.push({ inlineData: ref });
+  parts.push({ text: p });
+
+  let lastErr = '';
+  for (const m of GEM_IMG_MODELS) {
+    if (retiredModels.has(m)) continue;
+    try {
+      let body = {
+        contents: [{ parts }],
+        generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: '16:9' } }
+      };
+      let d;
+      try {
+        d = await gem(m, body, 60000);
+      } catch (e) {
+        if (/^400/.test(e.message)) {
+          body = { contents: [{ parts }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } };
+          d = await gem(m, body, 60000);
+        } else throw e;
+      }
+      const part = (d.candidates?.[0]?.content?.parts || []).find(x => x.inlineData);
+      if (part) return part.inlineData;
+    } catch (e) {
+      if (abortGen) throw e;
+      lastErr = e.message;
+      if (/429|403|limit:\s*0/i.test(lastErr)) retiredModels.add(m);
+    }
+  }
+  gemImgDeadInSession = true;
+  throw new Error(lastErr || 'Key không hỗ trợ Gemini Image miễn phí');
+}
+
+// Nguồn 2: Hugging Face API (FLUX.1-schnell) nếu có nhập HF Token
+async function genHfImg(prompt) {
+  const tok = $('hftok').value.trim();
+  if (!tok) throw new Error('Không có HF Token');
+  const ac = new AbortController();
+  const to = setTimeout(() => ac.abort(), 45000);
+  ctl.add(ac);
+  try {
+    const res = await fetch('https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + tok.replace(/^Bearer\s+/i, ''),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ inputs: prompt }),
+      signal: ac.signal
+    });
+    clearTimeout(to);
+    ctl.delete(ac);
+    if (!res.ok) throw new Error('HF HTTP ' + res.status);
+    const blob = await res.blob();
+    const b64 = await new Promise((ok, no) => {
+      const r = new FileReader();
+      r.onloadend = () => ok(r.result.split(',')[1]);
+      r.onerror = no;
+      r.readAsDataURL(blob);
+    });
+    return { mimeType: blob.type || 'image/jpeg', data: b64 };
+  } catch (e) {
+    clearTimeout(to);
+    ctl.delete(ac);
+    throw e;
+  }
+}
+
+// Nguồn 3: Ảnh AI miễn phí qua Pollinations Flux
+async function genFreeFluxImg(sceneText, seedNum) {
+  const cleanScene = sceneText.replace(/[^\w\s,.()-]/g, ' ').slice(0, 200);
+  const prompt = `Pure white background, simple black ink whiteboard marker line drawing, minimalist doodle sketch, thick black outlines, no shading, no text: ${cleanScene}`;
+  const seed = (seedNum || 1) * 137 + Math.floor(Math.random() * 999);
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=576&nologo=true&seed=${seed}`;
+
+  const im = await new Promise((ok, no) => {
+    const i = new Image();
+    i.crossOrigin = 'anonymous';
+    const to = setTimeout(() => { i.src = ''; no(new Error('Quá thời gian chờ máy chủ ảnh miễn phí')); }, 30000);
+    i.onload = () => { clearTimeout(to); ok(i); };
+    i.onerror = () => { clearTimeout(to); no(new Error('Máy chủ ảnh miễn phí bận')); };
+    i.src = url;
+  });
+
+  const c = document.createElement('canvas');
+  c.width = im.naturalWidth || 1024;
+  c.height = im.naturalHeight || 576;
+  const x = c.getContext('2d');
+  x.fillStyle = '#fff';
+  x.fillRect(0, 0, c.width, c.height);
+  x.drawImage(im, 0, 0);
+  return { mimeType: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.88).split(',')[1] };
+}
+
+// Nguồn 4: Vẽ tranh nét mực đen trắng hoặc người que phân màu bằng Gemini 3.6/3.5/3.8 Flash
+const SVGR_COLOR = 'Draw a simple whiteboard-animation style illustration as SVG code. Rules: viewBox 0 0 1600 900, transparent background, stroke-width 6 to 8, stroke-linecap round, stroke-linejoin round, fill="none" or fill="#fff", no gradients, no text, no images. People are expressive stick figures (circle head, simple face eyes/mouth, hat/hair, line body, arms and legs in action). Color code by role: MAIN character strokes #E63946 (red), SECOND character strokes #1D4ED8 (blue), CROWD people strokes #9CA3AF (gray). Everything else (ground, props) uses black #000 strokes. Minimal background: only a ground line and 2 simple props. Centered with 80px margin, at most 35 shapes. Output only the <svg> code.';
+
+const SVGR_INK = `Draw a clean hand-drawn whiteboard marker comic illustration as valid SVG code ONLY.
+Rules:
+- viewBox="0 0 1600 900", width="1600", height="900", transparent background.
+- All strokes are pure black #111111, stroke-width="7", stroke-linecap="round", stroke-linejoin="round", fill="#ffffff" or fill="none".
+- NO <text>, NO <image>, NO gradients.
+- Draw expressive cartoon/doodle characters (head with clear eyes/mouth expression, distinct hair/hat/clothes outline, body and limbs in clear action pose) and 2 to 3 detailed scene props on a ground line.
+- Keep within 80px margin, 20 to 40 shapes total. Output ONLY <svg>...</svg>.`;
+
+function sanitizeSvg(raw) {
+  const a = raw.indexOf('<svg'), b = raw.lastIndexOf('</svg>');
+  if (a < 0 || b < 0) throw new Error('Không có thẻ SVG');
+  return raw.slice(a, b + 6)
+    .replace(/<svg[^>]*>/i, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900">')
+    .replace(/<(script|foreignObject|image|text)[\s\S]*?<\/\1>/gi, '')
+    .replace(/<(image|use|text)[^>]*\/?>/gi, '')
+    .replace(/&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/g, '&amp;');
+}
+
+async function svgImage(s, blackInkOnly = false) {
+  const rule = blackInkOnly ? SVGR_INK : SVGR_COLOR;
+  const d = await gemMulti(TXT_MODELS, {
+    contents: [{ parts: [{ text: `${rule}\nCharacters: ${chars}\nScene: ${s.image}` }] }]
+  }, 75000);
+  const t = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('');
+  const svg = sanitizeSvg(t);
+  return await inkify({ mimeType: 'image/svg+xml', data: btoa(unescape(encodeURIComponent(svg))) });
+}
+
+async function makeImage(s, sceneNo) {
+  const mode = $('isrc').value;
+  if (mode === 'svg' || mode === 'svg_ink') {
+    return await svgImage(s, mode === 'svg_ink');
+  }
+
+  const fullPrompt = `${STY}, wide 16:9 landscape composition. Characters: ${chars}. Scene: ${s.image}`;
+
+  if ($('hftok').value.trim()) {
+    try {
+      return await inkify(await genHfImg(fullPrompt));
+    } catch (e) {
+      if (abortGen) throw e;
+    }
+  }
+
+  if ((mode === 'img' || mode === 'free_img') && !gemImgDeadInSession) {
+    try {
+      return await inkify(await genGeminiImg(fullPrompt, true));
+    } catch (e) {
+      if (abortGen) throw e;
+      if (mode === 'img') log(`  ⚠ Cảnh ${sceneNo}: Key chưa bật thanh toán cho Gemini Image -> Tự động chuyển sang vẽ nét mực miễn phí.`);
+    }
+  }
+
+  if (mode === 'free_img') {
+    try {
+      return await inkify(await genFreeFluxImg(s.image, sceneNo));
+    } catch (e) {
+      if (abortGen) throw e;
+    }
+  }
+
+  // Luôn bọc lót bằng vẽ nét mực đen trắng để đảm bảo 100% thành công
+  return await svgImage(s, true);
+}
+
+async function inkify(b) {
+  const im = await loadImg(`data:${b.mimeType};base64,${b.data}`);
+  const svgm = b.mimeType === 'image/svg+xml', h = sub ? 590 : 700, c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  if (!svgm) {
+    x.fillStyle = '#fff';
+    x.fillRect(0, 0, W, H);
+  }
+  const sc = Math.min((W - 40) / im.width, h / im.height), w = im.width * sc, hh = im.height * sc;
+  x.drawImage(im, (W - w) / 2, 10 + (h - hh) / 2, w, hh);
+  const d = x.getImageData(0, 0, W, H), p = d.data;
+  if (!svgm) {
+    for (let i = 0; i < p.length; i += 4) {
+      const l = (p[i] + p[i + 1] + p[i + 2]) / 3;
+      p[i] = p[i + 1] = p[i + 2] = 0;
+      p[i + 3] = Math.max(0, Math.min(255, (215 - l) * 3.2));
+    }
+    x.putImageData(d, 0, 0);
+  }
+  const cells = [];
+  for (let cy = 0; cy < H; cy += C) {
+    for (let cx = 0; cx < W; cx += C) {
+      let n = 0;
+      for (let y = cy; y < cy + C; y += 2) {
+        for (let xx = cx; xx < cx + C; xx += 2) {
+          const q = (y * W + xx) * 4;
+          if (p[q + 3] > 100 && (!svgm || p[q] + p[q + 1] + p[q + 2] < 720)) n++;
+        }
+      }
+      if (n > 1) cells.push([cx, cy]);
+    }
+  }
+  const ord = [], used = new Uint8Array(cells.length);
+  let cur = 0;
+  for (let k = 0; k < cells.length; k++) {
+    used[cur] = 1;
+    ord.push(cells[cur]);
+    let bj = -1, bd = 1e9;
+    const cx0 = cells[cur][0], cy0 = cells[cur][1];
+    for (let j = 0; j < cells.length; j++) {
+      if (!used[j]) {
+        const dx = cells[j][0] - cx0, dy = cells[j][1] - cy0, dd = dx * dx + dy * dy;
+        if (dd < bd) {
+          bd = dd;
+          bj = j;
+          if (dd <= C * C * 2) break;
+        }
+      }
+    }
+    if (bj < 0) break;
+    cur = bj;
+  }
+  return { cv: c, ord };
+}
+
+// Giải mã âm thanh thông minh: Hỗ trợ cả WAV (Gemini 3.8 TTS) và PCM 24kHz (Gemini 2.5 TTS)
+let gemTtsQueue = Promise.resolve();
+async function gemVoiceRaw(text) {
+  let lastErr = '';
+  for (const m of TTS_MODELS) {
+    if (retiredModels.has(m)) continue;
+    try {
+      const is38 = m.includes('3.8');
+      const spokenText = is38 ? text : ('Đọc bằng tiếng Việt, giọng kể chuyện ấm áp, tốc độ vừa phải: ' + text);
+      const d = await gem(m, {
+        contents: [{ parts: [{ text: spokenText }] }],
+        generationConfig: {
+          responseModalities: ['AUDIO'],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: $('voice').value } } }
+        }
+      }, 85000);
+
+      const part = (d.candidates?.[0]?.content?.parts || []).find(x => x.inlineData);
+      if (!part) throw new Error('Không có dữ liệu âm thanh');
+      const bin = atob(part.inlineData.data);
+
+      // Kiểm tra nếu có header RIFF WAV (44 bytes đầu) thì bỏ qua header để đọc PCM chuẩn 24kHz
+      const isRiff = bin.slice(0, 4) === 'RIFF';
+      const offset = isRiff ? 44 : 0;
+      const n = (bin.length - offset) >> 1;
+      const buf = A().createBuffer(1, n, 24000), ch = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) {
+        const idx = offset + 2 * i;
+        let v = bin.charCodeAt(idx) | (bin.charCodeAt(idx + 1) << 8);
+        if (v > 32767) v -= 65536;
+        ch[i] = v / 32768;
+      }
+      return buf;
+    } catch (e) {
+      if (abortGen) throw e;
+      lastErr = e.message;
+    }
+  }
+  throw new Error(lastErr || 'Tất cả model TTS đều lỗi');
+}
+
+function gemVoice(text) {
+  const r = gemTtsQueue.then(async () => {
+    const res = await gemVoiceRaw(text);
+    if (keys.length < 2) await nap(900);
+    return res;
+  });
+  gemTtsQueue = r.catch(() => {});
+  return r;
+}
+
+function splitText(t, max = 350) {
+  const out = [];
+  let cur = '';
+  for (const s of t.split(/(?<=[.!?…;:])\s+/)) {
+    if ((cur + ' ' + s).trim().length <= max) cur = (cur + ' ' + s).trim();
+    else {
+      if (cur) out.push(cur);
+      cur = s;
+      while (cur.length > max) {
+        let k = cur.lastIndexOf(' ', max);
+        if (k < 1) k = max;
+        out.push(cur.slice(0, k));
+        cur = cur.slice(k).trim();
+      }
+    }
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
+function joinBufs(b) {
+  if (b.length === 1) return b[0];
+  const n = b.reduce((a, x) => a + x.length, 0);
+  const o = A().createBuffer(1, n, b[0].sampleRate);
+  let p = 0;
+  for (const x of b) {
+    o.getChannelData(0).set(x.getChannelData(0), p);
+    p += x.length;
+  }
+  return o;
+}
+
+// Khi chạy trên web (Vercel) thì gọi qua cầu nối /api/vbee để không bị chặn; mở file trực tiếp thì gọi thẳng
+const VBEE_URL = location.protocol.startsWith('http') ? '/api/vbee' : 'https://api.vbee.vn/v1/tts';
+
+function cleanVbeeToken() {
+  return $('vtok').value.trim().replace(/^Bearer\s+/i, '').trim();
+}
+
+async function vbeeErr(res) {
+  let m = '';
+  try { const j = await res.clone().json(); m = (j.error && j.error.message) || j.message || ''; } catch (e) {}
+  return 'Vbee HTTP ' + res.status + (m ? ' - ' + m : '');
+}
+
+async function testVbee() {
+  const out = $('vtestResult');
+  const appId = $('vapp').value.trim(), tok = cleanVbeeToken(), code = $('vcode').value.trim();
+  if (!appId || !tok || !code) {
+    out.style.color = '#dc2626';
+    out.textContent = 'Điền đủ App ID, Token, Mã giọng.';
+    return;
+  }
+  out.style.color = '#1d4ed8';
+  out.textContent = 'Đang kiểm tra...';
+  try {
+    const res = await fetch(VBEE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok, 'App-Id': appId },
+      body: JSON.stringify({ text: 'Xin chào', mode: 'sync', voiceCode: code, outputFormat: 'mp3', bitrate: 128 })
+    });
+    if (!res.ok) {
+      out.style.color = '#dc2626';
+      out.textContent = '❌ ' + await vbeeErr(res);
+      return;
+    }
+    out.style.color = '#16a34a';
+    out.textContent = '✔ Kết nối Vbee tốt!';
+  } catch (e) {
+    out.style.color = '#dc2626';
+    out.textContent = '❌ Trình duyệt chặn không cho gọi Vbee (' + (e && e.message ? e.message : 'lỗi mạng') + '). Hãy đưa file lên Vercel (kèm thư mục api) để chạy qua cầu nối.';
+  }
+}
+
+async function vbeeRaw(text) {
+  const bufs = [];
+  const tok = cleanVbeeToken(), appId = $('vapp').value.trim(), code = $('vcode').value.trim();
+  for (const t of splitText(text, 250)) {
+    let res = null, lastNetErr = null;
+    for (let a = 0; a < 2; a++) {
+      if (abortGen) throw new Error('Đã dừng');
+      try {
+        res = await fetch(VBEE_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok, 'App-Id': appId },
+          body: JSON.stringify({ text: t, mode: 'sync', voiceCode: code, outputFormat: 'mp3', bitrate: 128 })
+        });
+      } catch (e) { res = null; lastNetErr = e; }
+      if (res && res.status !== 429) break;
+      await nap(2000 * (a + 1));
+    }
+    if (!res) throw new Error('Trình duyệt chặn gọi Vbee (' + (lastNetErr && lastNetErr.message || 'lỗi mạng') + ')');
+    if (!res.ok) throw new Error(await vbeeErr(res));
+    bufs.push(await A().decodeAudioData(await res.arrayBuffer()));
+  }
+  return joinBufs(bufs);
+}
+
+let vq = Promise.resolve();
+const vbeeVoice = t => {
+  const r = vq.then(() => vbeeRaw(t));
+  vq = r.catch(() => {});
+  return r;
+};
+
+async function makeVoice(t, no) {
+  if ($('vsrc').value === 'vbee' && !vbeeDeadInSession) {
+    try {
+      return await vbeeVoice(t);
+    } catch (e) {
+      if (abortGen) throw e;
+      if ($('vfall').checked) {
+        vbeeDeadInSession = true;
+        log(`  ⚠ Cảnh ${no}: ${e.message} -> Tự động chuyển toàn bộ phiên sang giọng Gemini.`);
+        return await gemVoice(t);
+      }
+      throw e;
+    }
+  }
+  return gemVoice(t);
+}
+
+async function start(isRetry = false) {
+  saveSet();
+  keys = $('keys').value.split(/\s+/).filter(k => k.length > 20);
+  if (!keys.length) {
+    $('set').open = true;
+    return alert('Dán API key Gemini vào phần Cài đặt nhé.');
+  }
+  if ($('vsrc').value === 'vbee' && !($('vapp').value.trim() && $('vtok').value.trim() && $('vcode').value.trim())) {
+    $('set').open = true;
+    return alert('Điền đủ App ID, Token và mã giọng Vbee trong phần Cài đặt nhé.');
+  }
+  const idea = $('idea').value.trim();
+  if (!isRetry && !idea) return alert('Nhập câu chuyện hoặc ý tưởng nhé.');
+
+  abortGen = false;
+  vbeeDeadInSession = false;
+  gemImgDeadInSession = false;
+  $('stp').hidden = false;
+  $('go').disabled = true;
+  $('retryBtn').hidden = true;
+  sub = $('sub').checked;
+  const wantVoice = $('vsrc').value !== 'none';
+  A();
+
+  try {
+    if (!isRetry || !scenes.length) {
+      $('log').textContent = '⏳ Đang viết kịch bản...';
+      $('bar').style.width = '0%';
+      const sc = await makeScript(idea, +$('min').value);
+      chars = sc.characters || '';
+      scenes = sc.scenes.map(s => ({
+        text: s.text || '',
+        image: s.image || s.text,
+        ord: [],
+        cv: null,
+        buf: null,
+        dur: 5,
+        ok: false
+      }));
+      log(`✅ Đã tạo kịch bản gồm ${scenes.length} cảnh. Bắt đầu vẽ tranh và thu giọng đọc...`);
+      ref = null;
+    } else {
+      log('\n🔄 Đang chạy bù các cảnh còn thiếu...');
+    }
+
+    let idx = 0;
+    let done = scenes.filter(s => s.cv && (!wantVoice || s.buf)).length;
+    $('bar').style.width = (done / scenes.length * 100) + '%';
+
+    const worker = async () => {
+      while (idx < scenes.length && !abortGen) {
+        const i = idx++;
+        const s = scenes[i], no = i + 1;
+        const needImg = !s.cv;
+        const needVoice = wantVoice && !s.buf;
+        if (!needImg && !needVoice) continue;
+
+        const imgTask = (async () => {
+          if (!needImg) return;
+          for (let t = 0; t < 3 && !s.cv && !abortGen; t++) {
+            try {
+              Object.assign(s, await makeImage(s, no));
+              log(`  🎨 Đã vẽ xong tranh cảnh ${no}/${scenes.length}`);
+            } catch (e) {
+              if (abortGen) break;
+              log(`  ⚠ Cảnh ${no} (thử ${t + 1}/3) lỗi vẽ: ${e.message.slice(0, 110)}`);
+              await nap(2500 * (t + 1));
+            }
+          }
+        })();
+
+        const voiceTask = (async () => {
+          if (!needVoice) return;
+          try {
+            s.buf = await makeVoice(s.text, no);
+            log(`  🔊 Đã thu xong giọng đọc cảnh ${no}/${scenes.length}`);
+          } catch (e) {
+            if (!abortGen) log(`  ❌ Cảnh ${no} lỗi giọng đọc: ${e.message.slice(0, 110)}`);
+          }
+        })();
+
+        await Promise.all([imgTask, voiceTask]);
+        if (abortGen) break;
+
+        s.dur = s.buf ? s.buf.duration + 0.9 : Math.max(5, s.text.split(/\s+/).length / 2.6 + 1.5);
+        s.ok = true;
+        done++;
+        $('bar').style.width = Math.min(100, (done / scenes.length * 100)) + '%';
+        log(`✔ Hoàn tất cảnh ${no}/${scenes.length} (${done}/${scenes.length})`);
+      }
+    };
+
+    await Promise.all([worker(), worker()]);
+
+    const badImg = scenes.filter(s => !s.cv).length;
+    const badVoice = wantVoice ? scenes.filter(s => !s.buf).length : 0;
+    if (badImg > 0 || badVoice > 0) $('retryBtn').hidden = false;
+
+    if (abortGen) {
+      const okCount = scenes.filter(s => s.ok).length;
+      log(okCount ? `⏹ Đã dừng. Giữ lại ${okCount} cảnh đã xong.` : '⏹ Đã dừng.');
+      if (okCount) $('pl').hidden = false;
+    } else {
+      const tot = scenes.reduce((a, s) => a + s.dur, 0);
+      log(`🎉 Xong! Video dài khoảng ${Math.round(tot / 6) / 10} phút.` +
+        (badImg || badVoice ? ` (Còn ${badImg} cảnh thiếu tranh, ${badVoice} cảnh thiếu giọng -> bấm "Chạy bù các cảnh lỗi" để hoàn thiện).` : ''));
+      $('pl').hidden = false;
+    }
+  } catch (e) {
+    log(abortGen ? '⏹ Đã dừng.' : '❌ LỖI: ' + e.message);
+  }
+  $('go').disabled = false;
+  $('stp').hidden = true;
+}
+
+function wrap(x, t, w) {
+  const L = [];
+  let l = '';
+  for (const a of t.split(' ')) {
+    const m = l ? l + ' ' + a : a;
+    if (x.measureText(m).width > w && l) {
+      L.push(l);
+      l = a;
+    } else l = m;
+  }
+  if (l) L.push(l);
+  return L;
+}
+
+function cap(x, x1, y1, x2, y2, w, col, ol) {
+  x.lineCap = 'round';
+  x.beginPath();
+  x.moveTo(x1, y1);
+  x.lineTo(x2, y2);
+  x.strokeStyle = ol;
+  x.lineWidth = w + 6;
+  x.stroke();
+  x.strokeStyle = col;
+  x.lineWidth = w;
+  x.stroke();
+}
+
+function hand(x, px, py) {
+  const SK = '#f2c6a2', OL = '#8a5a3c';
+  const a = Math.max(0.52, Math.min(1.05, Math.atan2(H + 500 - py, W + 300 - px))) + Math.sin(performance.now() / 110) * 0.02;
+  x.save();
+  x.translate(px, py);
+  x.rotate(a);
+  x.lineJoin = 'round';
+  x.shadowColor = 'rgba(0,0,0,.28)';
+  x.shadowBlur = 10;
+  x.shadowOffsetX = 5;
+  x.shadowOffsetY = 7;
+  cap(x, 380, 34, 1100, 34, 118, '#374151', '#1f2937');
+  cap(x, 250, 32, 420, 32, 72, SK, OL);
+  x.shadowColor = 'transparent';
+  cap(x, 150, 36, 250, 36, 100, SK, OL);
+  cap(x, 178, 80, 135, 88, 32, SK, OL);
+  cap(x, 205, 94, 165, 102, 30, SK, OL);
+  cap(x, 0, 0, 30, 0, 6, '#111', '#111');
+  cap(x, 30, 0, 320, 0, 17, '#2563eb', '#1e3a8a');
+  cap(x, 40, -4, 300, -4, 3, 'rgba(255,255,255,.55)', 'rgba(0,0,0,0)');
+  cap(x, 108, 0, 114, 0, 19, '#d1d5db', '#6b7280');
+  cap(x, 165, -16, 58, -9, 27, SK, OL);
+  cap(x, 185, 52, 76, 15, 26, SK, OL);
+  x.restore();
+}
+
+function play(rec) {
+  const validScenes = scenes.filter(s => s.ok || s.cv || s.buf);
+  if (playing || !validScenes.length) return;
+  playing = true;
+  stopFlag = false;
+  const ac = A(), cv = $('cv'), x = cv.getContext('2d'), dest = ac.createMediaStreamDestination();
+  ac.resume().then(() => {
+    const t0 = ac.currentTime + 0.5, st = [];
+    let tot = 0;
+    validScenes.forEach(s => { st.push(tot); tot += s.dur; });
+    const srcs = [];
+    validScenes.forEach((s, i) => {
+      if (s.buf) {
+        const n = ac.createBufferSource();
+        n.buffer = s.buf;
+        n.connect(ac.destination);
+        n.connect(dest);
+        n.start(t0 + st[i] + 0.3);
+        srcs.push(n);
+      }
+    });
+    let mr = null, chunks = [], mime = '', ext = 'webm';
+    if (rec) {
+      mime = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m)) || '';
+      ext = mime.includes('mp4') ? 'mp4' : 'webm';
+      const ms = cv.captureStream(30);
+      dest.stream.getAudioTracks().forEach(t => ms.addTrack(t));
+      mr = new MediaRecorder(ms, mime ? { mimeType: mime, videoBitsPerSecond: 4e6 } : {});
+      mr.ondataavailable = e => e.data.size && chunks.push(e.data);
+      mr.onstop = () => {
+        const u = URL.createObjectURL(new Blob(chunks, { type: mime || 'video/webm' }));
+        $('out').innerHTML = `<video controls src="${u}"></video><a download="video-ve-tay.${ext}" href="${u}"><button>⬇ Tải video về máy</button></a>`;
+      };
+      mr.start(1000);
+      $('out').textContent = 'Đang xuất video, vui lòng đợi...';
+    }
+    const rv = document.createElement('canvas');
+    rv.width = W;
+    rv.height = H;
+    const rx = rv.getContext('2d');
+    let cur = -1, ptr = 0, pos = [W + 200, H + 300];
+    const end = () => {
+      srcs.forEach(n => { try { n.stop(); } catch (e) {} });
+      if (mr && mr.state !== 'inactive') mr.stop();
+      playing = false;
+    };
+    const nextTick = fn => {
+      if (rec || document.hidden) setTimeout(fn, 1000 / 30);
+      else requestAnimationFrame(fn);
+    };
+    const frame = () => {
+      const t = ac.currentTime - t0;
+      if (stopFlag || t >= tot + 0.4) return end();
+      let i = 0;
+      while (i < validScenes.length - 1 && t >= st[i + 1]) i++;
+      const s = validScenes[i], lt = Math.max(0, t - st[i]);
+      if (i !== cur) {
+        cur = i;
+        ptr = 0;
+        rx.clearRect(0, 0, W, H);
+      }
+      x.fillStyle = '#fff';
+      x.fillRect(0, 0, W, H);
+      const pr = Math.min(1, lt / s.dur), ez = pr * pr * (3 - 2 * pr), cx = W / 2, cy = sub ? 330 : H / 2, kd = i % 4;
+      let z = 1, dx = 0;
+      if (kd === 0) z = 1 + 0.06 * ez;
+      else if (kd === 1) { z = 1.05; dx = 24 - 48 * ez; }
+      else if (kd === 2) z = 1.06 - 0.06 * ez;
+      else { z = 1.05; dx = -24 + 48 * ez; }
+      x.save();
+      x.translate(cx + dx, cy);
+      x.scale(z, z);
+      x.translate(-cx, -cy);
+      const N = s.ord ? s.ord.length : 0, k = Math.min(1, lt / (s.dur * 0.7)) * N, kf = Math.floor(k);
+      if (s.cv) {
+        while (ptr < Math.min(kf, N)) {
+          const c = s.ord[ptr++];
+          rx.drawImage(s.cv, c[0], c[1], C, C, c[0], c[1], C, C);
+        }
+        x.drawImage(rv, 0, 0);
+      }
+      let tg = [W + 200, H + 300];
+      if (s.cv && N && kf < N) {
+        const c = s.ord[kf], f = k - kf;
+        if (f > 0.02) x.drawImage(s.cv, c[0], c[1], C * f, C, c[0], c[1], C * f, C);
+        tg = [c[0] + C * f, c[1] + C / 2];
+      }
+      const sp = tg[0] > W ? 0.07 : 0.5;
+      pos = [pos[0] + (tg[0] - pos[0]) * sp, pos[1] + (tg[1] - pos[1]) * sp];
+      hand(x, pos[0], pos[1]);
+      x.restore();
+      const fo = Math.min(1, Math.max(0, lt - (s.dur - 0.5)) / 0.5);
+      if (fo > 0) {
+        x.fillStyle = `rgba(255,255,255,${fo})`;
+        x.fillRect(0, 0, W, H);
+      }
+      if (sub && s.text) {
+        x.globalAlpha = Math.max(0, Math.min(1, lt / 0.3, (s.dur - lt) / 0.3));
+        x.fillStyle = '#111';
+        x.font = '600 26px system-ui,sans-serif';
+        x.textAlign = 'center';
+        wrap(x, s.text, 1180).slice(0, 3).forEach((l, j) => x.fillText(l, W / 2, 640 + j * 31));
+        x.globalAlpha = 1;
+      }
+      nextTick(frame);
+    };
+    nextTick(frame);
+  });
+}
+</script>
+</body>
+</html>
