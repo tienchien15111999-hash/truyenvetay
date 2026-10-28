@@ -249,7 +249,7 @@ async function gemMulti(models, body, timeout = 80000) {
 async function makeScript(idea, min) {
   const n = Math.round(min * 60 / 9), total = Math.round(min * 60 * 3.2);
   const p = `Bạn là biên kịch video kể chuyện vẽ tay. Từ nội dung bên dưới, tạo kịch bản video dài ${min} phút: khoảng ${total} từ lời kể, chia đúng ${n} cảnh, mỗi cảnh khoảng ${Math.round(total / n)} từ. Nếu nội dung đã là truyện hoàn chỉnh thì giữ nguyên lời văn, chỉ chia cảnh. Nếu chỉ là ý tưởng thì viết thành truyện hay có mở đầu, cao trào, kết.
-Chỉ trả về JSON: {"characters":"mỗi nhân vật một ý, tiếng Anh, ngắn gọn, ghi rõ vai trò MAIN (nhân vật chính), SECOND (phản diện hoặc nhân vật xuất hiện nhiều), CROWD (quần chúng) và ngoại hình đặc trưng (mũ, tóc, kính, quần áo)","scenes":[{"text":"lời kể tiếng Việt của cảnh","image":"mô tả cảnh để vẽ tranh, tiếng Anh, 1 câu ngắn gọn rõ ràng, ghi rõ vai trò MAIN/SECOND/CROWD của từng người xuất hiện, hành động và bối cảnh tối giản"}]}
+Chỉ trả về JSON: {"story":"tóm tắt cốt truyện 1-2 câu, tiếng Anh","setting":"bối cảnh chung (thời gian, địa điểm, không khí), tiếng Anh","characters":"mỗi nhân vật một ý, tiếng Anh, ngắn gọn, ghi rõ vai trò MAIN (nhân vật chính), SECOND (phản diện hoặc nhân vật xuất hiện nhiều), CROWD (quần chúng) và ngoại hình đặc trưng (mũ, tóc, kính, quần áo)","scenes":[{"text":"lời kể tiếng Việt của cảnh","image":"mô tả cảnh để vẽ tranh, tiếng Anh, 2 câu: vẽ đúng khoảnh khắc cụ thể nhìn thấy được trong lời kể của cảnh này, nêu rõ các vật/địa điểm/hành động được nhắc đến, vai trò MAIN/SECOND/CROWD của từng người và cảm xúc"}]}
 Nội dung: ${idea}`;
 
   const d = await gemMulti(TXT_MODELS, {
@@ -262,6 +262,38 @@ Nội dung: ${idea}`;
   const j = JSON.parse(a >= 0 && b > a ? t.slice(a, b + 1) : t);
   if (!j.scenes || !j.scenes.length) throw new Error('Kịch bản trả về trống');
   return j;
+}
+
+let storyCtx = '', settingCtx = '';
+
+function sceneCtx(s) {
+  return `Story: ${storyCtx}\nSetting: ${settingCtx}\nCharacters: ${chars}\nNarration of this scene (Vietnamese, the picture MUST show what it says): ${s.text}\nPrevious scene picture: ${s.prev || 'none (this is the first scene)'}\nScene to draw: ${s.image}`;
+}
+
+// Bước đạo diễn: đọc cả truyện rồi viết lại mô tả vẽ cho từng cảnh khớp với lời kể
+async function refineImages(sc) {
+  const list = sc.scenes.map((x, i) => `${i + 1}. ${x.text}`).join('\n');
+  const p = `Bạn là đạo diễn hình ảnh cho video kể chuyện vẽ nét mực đen trắng. Dưới đây là cốt truyện, nhân vật và lời kể từng cảnh. Với MỖI cảnh, viết mô tả để vẽ tranh bằng tiếng Anh (2-3 câu) theo quy tắc:
+1) Chọn khoảnh khắc cụ thể nhất NHÌN THẤY ĐƯỢC trong lời kể, không vẽ ý trừu tượng.
+2) Nêu đúng các vật, địa điểm, hành động được nhắc trong lời kể.
+3) Dùng đúng vai trò MAIN/SECOND/CROWD và ngoại hình nhân vật trong danh sách, giống nhau ở mọi cảnh.
+4) Nêu nét mặt cảm xúc và tư thế của nhân vật.
+5) Bối cảnh liền mạch với cảnh trước; nếu đổi địa điểm thì nói rõ.
+Chỉ trả về JSON: {"images":["mô tả cảnh 1","mô tả cảnh 2"]} với đúng ${sc.scenes.length} phần tử theo thứ tự.
+Cốt truyện: ${sc.story || ''}
+Bối cảnh: ${sc.setting || ''}
+Nhân vật: ${sc.characters || ''}
+Các cảnh:
+${list}`;
+  const d = await gemMulti(TXT_MODELS, {
+    contents: [{ parts: [{ text: p }] }],
+    generationConfig: { responseMimeType: 'application/json' }
+  }, 95000);
+  const t = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('').replace(/```json|```/g, '').trim();
+  const a = t.indexOf('{'), b = t.lastIndexOf('}');
+  const j = JSON.parse(a >= 0 && b > a ? t.slice(a, b + 1) : t);
+  if (!Array.isArray(j.images) || j.images.length !== sc.scenes.length) throw new Error('Số mô tả không khớp số cảnh');
+  return j.images;
 }
 
 const loadImg = s => new Promise((ok, no) => {
@@ -372,14 +404,14 @@ async function genFreeFluxImg(sceneText, seedNum) {
 }
 
 // Nguồn 4: Vẽ tranh nét mực đen trắng hoặc người que phân màu bằng Gemini 3.6/3.5/3.8 Flash
-const SVGR_COLOR = 'Draw a simple whiteboard-animation style illustration as SVG code. Rules: viewBox 0 0 1600 900, transparent background, stroke-width 6 to 8, stroke-linecap round, stroke-linejoin round, fill="none" or fill="#fff", no gradients, no text, no images. People are expressive stick figures (circle head, simple face eyes/mouth, hat/hair, line body, arms and legs in action). Color code by role: MAIN character strokes #E63946 (red), SECOND character strokes #1D4ED8 (blue), CROWD people strokes #9CA3AF (gray). Everything else (ground, props) uses black #000 strokes. Minimal background: only a ground line and 2 simple props. Centered with 80px margin, at most 35 shapes. Output only the <svg> code.';
+const SVGR_COLOR = 'Draw a simple whiteboard-animation style illustration as SVG code. Rules: viewBox 0 0 1600 900, transparent background, stroke-width 6 to 8, stroke-linecap round, stroke-linejoin round, fill="none" or fill="#fff", no gradients, no text, no images. People are expressive stick figures (circle head, simple face eyes/mouth, hat/hair, line body, arms and legs in action). Color code by role: MAIN character strokes #E63946 (red), SECOND character strokes #1D4ED8 (blue), CROWD people strokes #9CA3AF (gray). Everything else (ground, props) uses black #000 strokes. Minimal background: a ground line plus the props named in the scene description (every important object, place and action in "Scene to draw" must be clearly visible and recognizable). Centered with 80px margin, at most 35 shapes. Output only the <svg> code.';
 
 const SVGR_INK = `Draw a clean hand-drawn whiteboard marker comic illustration as valid SVG code ONLY.
 Rules:
 - viewBox="0 0 1600 900", width="1600", height="900", transparent background.
 - All strokes are pure black #111111, stroke-width="7", stroke-linecap="round", stroke-linejoin="round", fill="#ffffff" or fill="none".
 - NO <text>, NO <image>, NO gradients.
-- Draw expressive cartoon/doodle characters (head with clear eyes/mouth expression, distinct hair/hat/clothes outline, body and limbs in clear action pose) and 2 to 3 detailed scene props on a ground line.
+- Draw expressive cartoon/doodle characters (head with clear eyes/mouth expression, distinct hair/hat/clothes outline, body and limbs in clear action pose) and the scene props on a ground line. Every important object, place and action named in "Scene to draw" MUST be clearly visible and recognizable; draw exactly that moment.
 - Keep within 80px margin, 20 to 40 shapes total. Output ONLY <svg>...</svg>.`;
 
 function sanitizeSvg(raw) {
@@ -395,7 +427,7 @@ function sanitizeSvg(raw) {
 async function svgImage(s, blackInkOnly = false) {
   const rule = blackInkOnly ? SVGR_INK : SVGR_COLOR;
   const d = await gemMulti(TXT_MODELS, {
-    contents: [{ parts: [{ text: `${rule}\nCharacters: ${chars}\nScene: ${s.image}` }] }]
+    contents: [{ parts: [{ text: `${rule}\n${sceneCtx(s)}` }] }]
   }, 75000);
   const t = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('');
   const svg = sanitizeSvg(t);
@@ -408,7 +440,7 @@ async function makeImage(s, sceneNo) {
     return await svgImage(s, mode === 'svg_ink');
   }
 
-  const fullPrompt = `${STY}, wide 16:9 landscape composition. Characters: ${chars}. Scene: ${s.image}`;
+  const fullPrompt = `${STY}, wide 16:9 landscape composition.\n${sceneCtx(s)}`;
 
   if ($('hftok').value.trim()) {
     try {
@@ -699,7 +731,19 @@ async function start(isRetry = false) {
       $('bar').style.width = '0%';
       const sc = await makeScript(idea, +$('min').value);
       chars = sc.characters || '';
+      storyCtx = sc.story || '';
+      settingCtx = sc.setting || '';
+      try {
+        $('log').textContent = '🎬 Đang ghép hình ảnh cho khớp với lời kể...';
+        const imgs = await refineImages(sc);
+        sc.scenes.forEach((x, i) => { if (imgs[i] && String(imgs[i]).trim()) x.image = String(imgs[i]).trim(); });
+      } catch (e) {
+        if (abortGen) throw e;
+        log('  ⚠ Chưa ghép được hình theo lời kể, dùng mô tả có sẵn: ' + e.message);
+      }
+      sc.scenes.forEach((x, i) => { x.prev = i ? (sc.scenes[i - 1].image || '') : ''; });
       scenes = sc.scenes.map(s => ({
+        prev: s.prev || '',
         text: s.text || '',
         image: s.image || s.text,
         ord: [],
