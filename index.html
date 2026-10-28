@@ -34,6 +34,8 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   <summary><b>⚙ Cài đặt</b> (nhập một lần, tool tự nhớ trên máy bạn)</summary>
   <label>API key Gemini (nhiều key thì mỗi key một dòng)</label>
   <textarea id="keys" style="min-height:60px" placeholder="AIzaSy..."></textarea>
+  <button type="button" class="w sm" onclick="testGemini()">🔍 Kiểm tra key Gemini</button>
+  <div id="gtestResult" class="hint" style="white-space:pre-wrap"></div>
 
   <label>Cách vẽ tranh (Tất cả đều có bàn tay cầm bút vẽ từng nét)</label>
   <select id="isrc" onchange="vui()">
@@ -42,6 +44,19 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
     <option value="svg">🏃 Người que đen trắng nét bút lông (Miễn phí - đã nâng cấp)</option>
     <option value="img">💎 Tạo ảnh bằng Gemini (Ưu tiên Nano Banana 2.1 / 3.1 Image + Tự động dự phòng)</option>
   </select>
+
+  <label>Phong cách vẽ (tất cả đều đen trắng)</label>
+  <select id="style">
+    <option value="stick">🏃 Người que bảng trắng (đơn giản, dễ hiểu)</option>
+    <option value="doodle" selected>✏️ Doodle hoạt hình (đầu to, dễ thương)</option>
+    <option value="marker">🖊️ Bút lông marker nét đậm</option>
+    <option value="pencil">✎ Phác thảo bút chì (nét mảnh, đan nét đổ bóng)</option>
+    <option value="manga">📖 Truyện tranh manga nét mực</option>
+    <option value="brush">🖌️ Cọ mực Tàu (nét to nhỏ, mảng đen)</option>
+    <option value="minimal">▫️ Tối giản nét mảnh (nhiều khoảng trắng)</option>
+    <option value="kids">🧒 Nét vẽ trẻ con ngây ngô</option>
+  </select>
+  <p class="hint" id="styleHint"></p>
 
   <div id="hfBox" hidden>
     <label>Hugging Face Token (Tùy chọn - Để trống vẫn chạy bình thường)</label>
@@ -160,7 +175,7 @@ const log = m => {
 };
 const A = () => ctxA || (ctxA = new (window.AudioContext || window.webkitAudioContext)());
 
-const CF = ['keys', 'isrc', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'vfall'];
+const CF = ['keys', 'isrc', 'style', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'vfall'];
 function saveSet() {
   try {
     const o = {};
@@ -303,6 +318,38 @@ const loadImg = s => new Promise((ok, no) => {
   i.src = s;
 });
 
+
+// ===== PHONG CÁCH VẼ (đều đen trắng) =====
+const STYLES = {
+  stick:  { sw: 7,  wob: 5, hint: 'Nhân vật là người que, đầu tròn, tay chân hai khúc. Rõ ràng nhất, hợp truyện giải thích.',
+    svg: '', img: 'simple black stick figure whiteboard drawing, round heads, line bodies, clean uniform black outlines, minimal props' },
+  doodle: { sw: 7,  wob: 5, hint: 'Nhân vật hoạt hình đầu to, thân tròn, biểu cảm rõ. Hợp truyện kể chung.',
+    svg: 'STYLE: cute cartoon doodle. Characters have a big round head (about 1/3 of body height), simple rounded body and clothes outline, small hands and feet, very expressive eyebrows, eyes and mouth. Objects are rounded and friendly.',
+    img: 'cute hand-drawn cartoon doodle, big round heads, rounded bodies, expressive faces, clean thick black outlines, whiteboard marker style' },
+  marker: { sw: 11, wob: 7, hint: 'Nét to đậm như bút lông bảng, ít chi tiết, nhìn từ xa vẫn rõ.',
+    svg: 'STYLE: bold whiteboard marker. Very thick strokes, very few details, big simple shapes, characters drawn as chunky doodles, strongly readable at tiny size, at most 30 shapes.',
+    img: 'bold thick whiteboard marker drawing, chunky simple shapes, very few details, heavy black outlines' },
+  pencil: { sw: 4,  wob: 9, hint: 'Nét mảnh như bút chì, có đan nét chéo để đổ bóng, hơi lem và rung.',
+    svg: 'STYLE: pencil sketch. Thin strokes (stroke-width 3 to 5), each important outline drawn twice slightly offset to look sketchy, add groups of short parallel diagonal hatching lines for shadows under objects and on clothes, loose proportions. Use 50 to 80 shapes.',
+    img: 'pencil sketch on white paper, thin sketchy double outlines, diagonal hatching for shadow, loose hand-drawn lines, black graphite only' },
+  manga:  { sw: 5,  wob: 3, hint: 'Nét mực sắc, tóc và bóng đổ tô đen đặc, bố cục như truyện tranh.',
+    svg: 'STYLE: manga ink. Realistic-ish proportions (head 1/7 of body), sharp thin outlines (stroke-width 4 to 6), solid black filled hair, solid black filled shadow shapes and dark clothing (use fill="#111111"), speed lines for motion, dramatic eyes. Use 40 to 70 shapes.',
+    img: 'black and white manga ink illustration, sharp clean line art, solid black hair and shadow areas, speed lines, no gray tones, screentone-free' },
+  brush:  { sw: 9,  wob: 8, hint: 'Nét cọ mực Tàu đậm nhạt, có mảng đen lớn, cảm giác thư pháp.',
+    svg: 'STYLE: Chinese ink brush. Calligraphic strokes: draw thick strokes as filled closed tapered shapes (fill="#111111", pointed at both ends) mixed with thin strokes; large solid black masses for hair, robes and rocks; leave lots of white space; simple elegant composition with few details.',
+    img: 'Chinese black ink brush painting, calligraphic tapered strokes, bold solid black masses, lots of white space, sumi-e style, monochrome' },
+  minimal:{ sw: 4,  wob: 2, hint: 'Nét đơn mảnh, rất ít chi tiết, nhiều khoảng trắng, thanh lịch.',
+    svg: 'STYLE: minimal line art. Thin single-weight strokes (stroke-width 4), extremely few shapes (15 to 25), geometric simple figures, huge white space, no filled areas except white.',
+    img: 'minimalist single-line art, thin uniform black lines, extremely simple, huge white space, no shading' },
+  kids:   { sw: 9,  wob: 10,hint: 'Nét run run như trẻ em vẽ: người méo, tay chân dài ngắn lệch nhau, rất ngộ nghĩnh.',
+    svg: 'STYLE: naive childlike drawing. Wobbly uneven shapes, wonky proportions, huge head, stick arms and legs of different lengths, houses and trees drawn like a child would, big smiles, sun with rays, deliberately imperfect but charming.',
+    img: 'naive childlike crayon-style drawing in black only, wonky shapes, uneven proportions, big smiles, charming imperfect lines on white paper' }
+};
+const curStyle = () => STYLES[$('style').value] || STYLES.doodle;
+function styleUI() { const st = curStyle(); if ($('styleHint')) $('styleHint').textContent = st.hint; }
+$('style').addEventListener('change', () => { styleUI(); saveSet(); });
+styleUI();
+
 let ref = null;
 const STY = 'Simple black ink line drawing on a pure white background, hand-drawn whiteboard doodle style, clean thick black outlines, minimalist comic sketch, no color, no gray shading, no text, lots of white space';
 
@@ -380,7 +427,7 @@ async function genHfImg(prompt) {
 // Nguồn 3: Ảnh AI miễn phí qua Pollinations Flux
 async function genFreeFluxImg(sceneText, seedNum) {
   const cleanScene = sceneText.replace(/[^\w\s,.()-]/g, ' ').slice(0, 200);
-  const prompt = `Pure white background, simple black ink whiteboard marker line drawing, minimalist doodle sketch, thick black outlines, no shading, no text: ${cleanScene}`;
+  const prompt = `Pure white background, black ink only, no color, no text, ${curStyle().img}: ${cleanScene}`;
   const seed = (seedNum || 1) * 137 + Math.floor(Math.random() * 999);
   const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=576&nologo=true&seed=${seed}`;
 
@@ -426,7 +473,7 @@ Rules:
 - Draw expressive cartoon/doodle characters (head with clear eyes/mouth expression, distinct hair/hat/clothes outline, body and limbs in clear action pose) and the scene props on a ground line. Every important object, place and action named in "Scene to draw" MUST be clearly visible and recognizable; draw exactly that moment.
 - Keep within 80px margin, 20 to 40 shapes total. Output ONLY <svg>...</svg>.`;
 
-function sanitizeSvg(raw) {
+function sanitizeSvg(raw, wob = 5) {
   const a = raw.indexOf('<svg'), b = raw.lastIndexOf('</svg>');
   if (a < 0 || b < 0) throw new Error('Không có thẻ SVG');
   let inner = raw.slice(a, b + 6)
@@ -453,18 +500,20 @@ function sanitizeSvg(raw) {
     .replace(/\s(opacity|fill-opacity|stroke-opacity)="[^"]*"/gi, '')
     .replace(/\sfilter="[^"]*"/gi, '');
   // Bộ lọc làm nét rung nhẹ như vẽ tay bằng bút lông
-  const defs = '<defs><filter id="wob" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G"/></filter></defs>';
+  const defs = '<defs><filter id="wob" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="'+wob+'" xChannelSelector="R" yChannelSelector="G"/></filter></defs>';
   return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900">' + defs +
     '<g filter="url(#wob)" stroke-linecap="round" stroke-linejoin="round">' + inner + '</g></svg>';
 }
 
 async function svgImage(s, blackInkOnly = false) {
-  const rule = blackInkOnly ? SVGR_INK : SVGR_COLOR; // cả hai đều đen trắng
+  const st = curStyle(), isStick = $('style').value === 'stick';
+  const base = isStick ? SVGR_COLOR : SVGR_INK;
+  const rule = base + (st.svg ? `\n${st.svg}` : '') + `\nOVERRIDE: use stroke-width="${st.sw}" for outlines (this replaces any earlier stroke-width). Still ONLY black and white.`;
   const d = await gemMulti(TXT_MODELS, {
     contents: [{ parts: [{ text: `${rule}\n${sceneCtx(s)}` }] }]
   }, 75000);
   const t = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('');
-  const svg = sanitizeSvg(t);
+  const svg = sanitizeSvg(t, curStyle().wob);
   return await inkify({ mimeType: 'image/svg+xml', data: btoa(unescape(encodeURIComponent(svg))) });
 }
 
@@ -474,7 +523,7 @@ async function makeImage(s, sceneNo) {
     return await svgImage(s, mode === 'svg_ink');
   }
 
-  const fullPrompt = `${STY}, wide 16:9 landscape composition.\n${sceneCtx(s)}`;
+  const fullPrompt = `Pure white background, black ink only, no color, no gray fill, no text, ${curStyle().img}, wide 16:9 landscape composition.\n${sceneCtx(s)}`;
 
   if ($('hftok').value.trim()) {
     try {
@@ -656,6 +705,72 @@ async function vbeeErr(res) {
   let m = '';
   try { const j = await res.clone().json(); m = (j.error && j.error.message) || j.message || ''; } catch (e) {}
   return 'Vbee HTTP ' + res.status + (m ? ' - ' + m : '');
+}
+
+// Kiểm tra key Gemini: thử từng key với model chữ, giọng đọc, và model ảnh (nếu chế độ đang chọn cần ảnh)
+async function gemProbe(model, key, body) {
+  const ac = new AbortController();
+  const to = setTimeout(() => ac.abort(), 25000);
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ac.signal
+    });
+    if (res.ok) return { ok: true };
+    const t = await res.text();
+    return { ok: false, status: res.status, msg: t.slice(0, 120) };
+  } catch (e) {
+    return { ok: false, status: 0, msg: e.name === 'AbortError' ? 'quá thời gian' : e.message };
+  } finally { clearTimeout(to); }
+}
+async function firstWorking(models, key, body) {
+  let last = null;
+  for (const m of models) {
+    const r = await gemProbe(m, key, body(m));
+    if (r.ok) return { model: m };
+    last = r;
+    if (r.status === 400 && /API key|API_KEY/i.test(r.msg)) break; // key sai thì khỏi thử tiếp
+    if (r.status === 429) return { model: m, limited: true };       // key đúng nhưng hết hạn mức
+  }
+  return { fail: last };
+}
+async function testGemini() {
+  const out = $('gtestResult');
+  const ks = $('keys').value.split(/\s+/).filter(k => k.length > 20);
+  if (!ks.length) { out.style.color = '#dc2626'; out.textContent = 'Chưa nhập API key Gemini.'; return; }
+  const mode = $('isrc').value, needImg = mode === 'img' || mode === 'free_img', needVoice = $('vsrc').value !== 'none';
+  out.style.color = '#1d4ed8';
+  out.textContent = 'Đang kiểm tra ' + ks.length + ' key...';
+  const lines = [];
+  for (let i = 0; i < ks.length; i++) {
+    const k = ks[i], tag = `Key ${i + 1} (…${k.slice(-4)})`;
+    const t = await firstWorking(TXT_MODELS, k, () => ({ contents: [{ parts: [{ text: 'Trả lời: ok' }] }] }));
+    if (t.fail) {
+      const bad = t.fail.status === 400 || t.fail.status === 403;
+      lines.push(`❌ ${tag}: ${bad ? 'key sai hoặc bị chặn' : 'lỗi'} - ${t.fail.status} ${t.fail.msg}`);
+      out.textContent = lines.join('\n');
+      continue;
+    }
+    let l = `✔ ${tag}: chữ OK (${t.model})${t.limited ? ' - nhưng đang hết hạn mức tạm thời (429)' : ''}`;
+    if (needVoice) {
+      const v = await firstWorking(TTS_MODELS, k, m => ({
+        contents: [{ parts: [{ text: 'Xin chào' }] }],
+        generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: $('voice').value } } } }
+      }));
+      l += v.fail ? ` | giọng đọc ❌ ${v.fail.status}` : v.limited ? ' | giọng đọc: hết hạn mức (429)' : ` | giọng đọc OK (${v.model})`;
+    }
+    if (needImg) {
+      const im = await firstWorking(GEM_IMG_MODELS, k, () => ({
+        contents: [{ parts: [{ text: 'a black ink line drawing of a cat on white background' }] }],
+        generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }
+      }));
+      l += im.fail ? ` | ảnh AI ❌ ${im.fail.status} (chưa bật thanh toán, sẽ tự chuyển sang vẽ nét mực)` : ` | ảnh AI OK (${im.model})`;
+    }
+    lines.push(l);
+    out.textContent = lines.join('\n');
+  }
+  const allOk = lines.every(x => x.startsWith('✔'));
+  out.style.color = allOk ? '#16a34a' : '#dc2626';
+  out.textContent = lines.join('\n');
 }
 
 async function testVbee() {
