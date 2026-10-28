@@ -39,7 +39,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   <select id="isrc" onchange="vui()">
     <option value="svg_ink">✒️ Vẽ tranh nét mực đen trắng bằng AI (Miễn phí 100%, nhanh & ổn định nhất)</option>
     <option value="free_img">🎨 Tạo ảnh AI nét vẽ tay (Tự động dùng Gemini Image / Flux / Vẽ nét mực dự phòng)</option>
-    <option value="svg">🏃 Nét đơn giản kiểu người que phân màu (Miễn phí - Bản gốc)</option>
+    <option value="svg">🏃 Người que đen trắng nét bút lông (Miễn phí - đã nâng cấp)</option>
     <option value="img">💎 Tạo ảnh bằng Gemini (Ưu tiên Nano Banana 2.1 / 3.1 Image + Tự động dự phòng)</option>
   </select>
 
@@ -403,8 +403,20 @@ async function genFreeFluxImg(sceneText, seedNum) {
   return { mimeType: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.88).split(',')[1] };
 }
 
-// Nguồn 4: Vẽ tranh nét mực đen trắng hoặc người que phân màu bằng Gemini 3.6/3.5/3.8 Flash
-const SVGR_COLOR = 'Draw a simple whiteboard-animation style illustration as SVG code. Rules: viewBox 0 0 1600 900, transparent background, stroke-width 6 to 8, stroke-linecap round, stroke-linejoin round, fill="none" or fill="#fff", no gradients, no text, no images. People are expressive stick figures (circle head, simple face eyes/mouth, hat/hair, line body, arms and legs in action). Color code by role: MAIN character strokes #E63946 (red), SECOND character strokes #1D4ED8 (blue), CROWD people strokes #9CA3AF (gray). Everything else (ground, props) uses black #000 strokes. Minimal background: a ground line plus the props named in the scene description (every important object, place and action in "Scene to draw" must be clearly visible and recognizable). Centered with 80px margin, at most 35 shapes. Output only the <svg> code.';
+// Nguồn 4: Vẽ tranh nét mực đen trắng hoặc người que đen trắng bằng Gemini 3.6/3.5/3.8 Flash
+const SVGR_COLOR = `Draw ONE clean black-and-white whiteboard stick-figure illustration as valid SVG code ONLY.
+HARD RULES:
+- viewBox="0 0 1600 900", transparent background. ONLY black (#111111) and white (#ffffff). NEVER use any other color, gray, gradient, opacity, text or image.
+- Every shape: stroke="#111111" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"; fill="#ffffff" for closed shapes (so objects hide what is behind them) or fill="none" for lines.
+- Draw in this order: ground line, big props/buildings, then people on top.
+- STICK FIGURE TEMPLATE (copy proportions, scale ~1.0 for a main person, 0.7 for far/background people): head circle r=34 with two small eye dots (r=4 filled #111111) and a mouth path matching the emotion (smile / flat / frown / open O), neck-less body line 110px long from under the head, two arms each made of 2 segments (shoulder-elbow-hand) bent to match the action, two legs each 2 segments (hip-knee-foot) with a short foot line. Poses MUST show the action (running = legs apart and body leaning, pointing = one arm straight, carrying = both arms up holding the object, sad = head down and drooped arms, shouting = open mouth and raised arms).
+- Role marking WITHOUT color: MAIN character gets a distinctive hat or hair tuft plus slightly larger scale; SECOND character gets a different hat/glasses/beard; CROWD people are smaller, plain heads, in the background.
+- Props must be simple but recognizable (house = square + triangle roof + door; tree = trunk + cloud-like crown; car, boat, sword, bag of money, table, bed, phone, etc. drawn with 3-8 strokes). Add small detail strokes (window, door handle, motion lines, sparkles, speech-bubble shapes WITHOUT text, sweat drops, tears) to make emotion and action obvious.
+- Composition: fill the frame well, 80px margin, characters in the lower two thirds, 25 to 50 shapes total, clearly readable at small size.
+- Every important object, place and action named in "Scene to draw" MUST be visible and recognizable. Draw exactly that moment.
+EXAMPLE of one person (adapt pose and position, do not copy blindly):
+<g stroke="#111111" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"><circle cx="400" cy="500" r="34" fill="#ffffff"/><circle cx="388" cy="494" r="4" fill="#111111" stroke="none"/><circle cx="412" cy="494" r="4" fill="#111111" stroke="none"/><path d="M388 512 Q400 524 412 512"/><path d="M400 534 L400 640"/><path d="M400 558 L360 600 L330 590"/><path d="M400 558 L440 590 L475 560"/><path d="M400 640 L370 700 L345 760 L320 760"/><path d="M400 640 L430 700 L440 760 L468 760"/><path d="M364 478 Q400 440 436 478" fill="#ffffff"/></g>
+Output ONLY the <svg>...</svg> code.`;
 
 const SVGR_INK = `Draw a clean hand-drawn whiteboard marker comic illustration as valid SVG code ONLY.
 Rules:
@@ -417,15 +429,37 @@ Rules:
 function sanitizeSvg(raw) {
   const a = raw.indexOf('<svg'), b = raw.lastIndexOf('</svg>');
   if (a < 0 || b < 0) throw new Error('Không có thẻ SVG');
-  return raw.slice(a, b + 6)
-    .replace(/<svg[^>]*>/i, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900">')
-    .replace(/<(script|foreignObject|image|text)[\s\S]*?<\/\1>/gi, '')
+  let inner = raw.slice(a, b + 6)
+    .replace(/<svg[^>]*>/i, '')
+    .replace(/<\/svg>\s*$/i, '')
+    .replace(/<(script|foreignObject|image|text|style|linearGradient|radialGradient)[\s\S]*?<\/\1>/gi, '')
     .replace(/<(image|use|text)[^>]*\/?>/gi, '')
     .replace(/&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/g, '&amp;');
+  // Ép mọi màu về đen/trắng: màu sáng -> trắng, màu còn lại -> đen
+  const toBW = v => {
+    v = (v || '').trim().toLowerCase();
+    if (v === 'none' || v === 'transparent') return 'none';
+    if (v === 'white' || v === '#fff' || v === '#ffffff') return '#ffffff';
+    let r, g, bl, m;
+    if ((m = v.match(/^#([0-9a-f]{3})$/))) { r = parseInt(m[1][0] + m[1][0], 16); g = parseInt(m[1][1] + m[1][1], 16); bl = parseInt(m[1][2] + m[1][2], 16); }
+    else if ((m = v.match(/^#([0-9a-f]{6})$/))) { r = parseInt(m[1].slice(0, 2), 16); g = parseInt(m[1].slice(2, 4), 16); bl = parseInt(m[1].slice(4, 6), 16); }
+    else if ((m = v.match(/^rgb\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/))) { r = +m[1]; g = +m[2]; bl = +m[3]; }
+    else return v.startsWith('url') ? 'none' : '#111111';
+    return (r + g + bl) / 3 > 235 ? '#ffffff' : '#111111';
+  };
+  inner = inner
+    .replace(/\s(fill|stroke)="([^"]*)"/gi, (_, k, v) => ` ${k}="${toBW(v)}"`)
+    .replace(/\s(fill|stroke)='([^']*)'/gi, (_, k, v) => ` ${k}="${toBW(v)}"`)
+    .replace(/\s(opacity|fill-opacity|stroke-opacity)="[^"]*"/gi, '')
+    .replace(/\sfilter="[^"]*"/gi, '');
+  // Bộ lọc làm nét rung nhẹ như vẽ tay bằng bút lông
+  const defs = '<defs><filter id="wob" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G"/></filter></defs>';
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900">' + defs +
+    '<g filter="url(#wob)" stroke-linecap="round" stroke-linejoin="round">' + inner + '</g></svg>';
 }
 
 async function svgImage(s, blackInkOnly = false) {
-  const rule = blackInkOnly ? SVGR_INK : SVGR_COLOR;
+  const rule = blackInkOnly ? SVGR_INK : SVGR_COLOR; // cả hai đều đen trắng
   const d = await gemMulti(TXT_MODELS, {
     contents: [{ parts: [{ text: `${rule}\n${sceneCtx(s)}` }] }]
   }, 75000);
