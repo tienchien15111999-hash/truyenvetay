@@ -641,10 +641,25 @@ async function testVbee() {
       body: JSON.stringify({ text: 'Xin chào', mode: 'sync', voiceCode: code })
     });
     if (!res.ok) {
+      const msg = await vbeeErr(res);
+      if (isPkgErr(msg)) {
+        out.textContent = 'Gói không có Realtime, đang thử Batch...';
+        try {
+          await vbeeBatchOne('Xin chào', tok, appId, code);
+          vbeeUseBatch = true;
+          out.style.color = '#16a34a';
+          out.textContent = '✔ Vbee chạy được qua Batch (chậm hơn Realtime một chút).';
+        } catch (e2) {
+          out.style.color = '#dc2626';
+          out.textContent = '❌ ' + msg + ' | ' + e2.message;
+        }
+        return;
+      }
       out.style.color = '#dc2626';
-      out.textContent = '❌ ' + await vbeeErr(res);
+      out.textContent = '❌ ' + msg;
       return;
     }
+    vbeeUseBatch = false;
     out.style.color = '#16a34a';
     out.textContent = '✔ Kết nối Vbee tốt!';
   } catch (e) {
@@ -653,9 +668,52 @@ async function testVbee() {
   }
 }
 
+// ===== Vbee Batch (bất đồng bộ): dùng khi gói không có Realtime =====
+let vbeeUseBatch = false;
+const isPkgErr = m => /not supported in user package/i.test(m || '');
+
+async function vbeeBatchOne(text, tok, appId, code) {
+  const hdr = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok, 'App-Id': appId };
+  const res = await fetch(VBEE_URL, {
+    method: 'POST', headers: hdr,
+    body: JSON.stringify({ text, mode: 'async', voiceCode: code, outputFormat: 'mp3' })
+  });
+  if (!res.ok) throw new Error('Batch: ' + await vbeeErr(res));
+  const ct = res.headers.get('content-type') || '';
+  if (ct.startsWith('audio/')) return await A().decodeAudioData(await res.arrayBuffer());
+  const j = await res.json();
+  const r = j.result || j;
+  const id = r.requestId || r.request_id || r.id;
+  if (!id) throw new Error('Batch: Vbee không trả requestId. Phản hồi: ' + JSON.stringify(j).slice(0, 200));
+  let link = r.audioLink || r.audio_link;
+  for (let i = 0; i < 90 && !link; i++) {
+    if (abortGen) throw new Error('Đã dừng');
+    await nap(1500);
+    const g = await fetch(VBEE_URL + '?id=' + encodeURIComponent(id), { headers: { 'Authorization': 'Bearer ' + tok, 'App-Id': appId } });
+    if (!g.ok) throw new Error('Batch: ' + await vbeeErr(g));
+    const gj = await g.json(), gr = gj.result || gj;
+    const st = String(gr.status || '').toUpperCase();
+    if (st === 'FAILED' || st === 'FAILURE' || st === 'ERROR') throw new Error('Batch: Vbee báo thất bại - ' + (gr.error_message || gr.errorMessage || (gj.error && gj.error.message) || ''));
+    link = gr.audioLink || gr.audio_link;
+  }
+  if (!link) throw new Error('Batch: quá thời gian chờ Vbee (không có audioLink)');
+  let ab;
+  try {
+    const d = await fetch(link);
+    if (!d.ok) throw new Error('direct ' + d.status);
+    ab = await d.arrayBuffer();
+  } catch (e) {
+    const d2 = await fetch(VBEE_URL + '?audio=' + encodeURIComponent(link));
+    if (!d2.ok) throw new Error('Batch: không tải được file âm thanh (HTTP ' + d2.status + ')');
+    ab = await d2.arrayBuffer();
+  }
+  return await A().decodeAudioData(ab);
+}
+
 async function vbeeRaw(text) {
-  const bufs = [];
   const tok = cleanVbeeToken(), appId = $('vapp').value.trim(), code = $('vcode').value.trim();
+  if (vbeeUseBatch) return await vbeeBatchOne(text, tok, appId, code);
+  const bufs = [];
   for (const t of splitText(text, 250)) {
     let res = null, lastNetErr = null;
     for (let a = 0; a < 2; a++) {
@@ -671,7 +729,15 @@ async function vbeeRaw(text) {
       await nap(2000 * (a + 1));
     }
     if (!res) throw new Error('Trình duyệt chặn gọi Vbee (' + (lastNetErr && lastNetErr.message || 'lỗi mạng') + ')');
-    if (!res.ok) throw new Error(await vbeeErr(res));
+    if (!res.ok) {
+      const msg = await vbeeErr(res);
+      if (isPkgErr(msg)) {
+        vbeeUseBatch = true;
+        log('  ℹ Gói Vbee không có Realtime -> chuyển sang Batch.');
+        return await vbeeBatchOne(text, tok, appId, code);
+      }
+      throw new Error(msg);
+    }
     bufs.push(await A().decodeAudioData(await res.arrayBuffer()));
   }
   return joinBufs(bufs);
