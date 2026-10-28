@@ -676,7 +676,7 @@ async function vbeeBatchOne(text, tok, appId, code) {
   const hdr = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok, 'App-Id': appId };
   const res = await fetch(VBEE_URL, {
     method: 'POST', headers: hdr,
-    body: JSON.stringify({ text, mode: 'async', voiceCode: code, outputFormat: 'mp3' })
+    body: JSON.stringify({ text, mode: 'async', voiceCode: code, outputFormat: 'mp3', webhookUrl: location.origin + '/api/webhook' })
   });
   if (!res.ok) throw new Error('Batch: ' + await vbeeErr(res));
   const ct = res.headers.get('content-type') || '';
