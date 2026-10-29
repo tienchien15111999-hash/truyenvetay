@@ -56,6 +56,8 @@ AI vẽ người bằng SVG thường méo và mỗi cảnh một kiểu. Nên v
 6. **Bỏ 2 lựa chọn "Cách vẽ tranh"**: `free_img` (Gemini Image/Flux/Pollinations) và `img` (Gemini Image trả phí). Còn `svg_ink` và `svg`. Cài đặt cũ đã lưu giá trị bị bỏ sẽ tự về `svg_ink`. Các hàm `genGeminiImg`, `genHfImg`, `genFreeFluxImg`, ô `hftok` vẫn nằm trong code nhưng không còn đường nào gọi tới (`makeImage` luôn vào `svgImage`). Có thể xóa cho gọn.
 7. **Ô "Số tranh"** (`nimg`): trống = tự động ≈ 1 tranh/9 giây; gõ số thì kịch bản chia đúng số cảnh đó. Giới hạn 3-20 giây/tranh và tối đa 80 tranh (`imgCount`). Đã bỏ chữ "(~N cảnh)" trong ô Độ dài.
 
+8. **Khung "💾 Lưu cài đặt & key"** cuối phần ⚙ Cài đặt: tự lưu mỗi khi gõ/dán (`saveSet`, nghe sự kiện `input`), hiện tình trạng đã lưu (`updStat`), nút Lưu (`saveNow`), Tải/Nạp file sao lưu `.json` (`exportSet`/`importSet`), Xóa key (`clearKeys`). Vẫn dùng `localStorage['cfg_v3']`, thêm trường `_t` là giờ lưu.
+
 Đã có từ các bản trước (người dùng hoặc AI khác làm): nhiều phong cách vẽ, giọng Vbee qua `/api/vbee` (Realtime + Batch, tự chuyển giọng Gemini nếu lỗi), xoay nhiều key Gemini, nút kiểm tra key.
 
 ## 7. Lưu ý khi sửa (bẫy đã gặp)
