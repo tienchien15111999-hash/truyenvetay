@@ -115,10 +115,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
     </div>
     <label>Vbee: mã giọng</label>
     <input id="vcode" value="hn_female_ngochuyen_full_48k-fhg">
-    <label class="chk">
-      <input type="checkbox" id="vfall" checked>
-      Tự động chuyển sang giọng Gemini nếu Vbee hết hạn Token hoặc bị trình duyệt chặn
-    </label>
+    <p class="hint">Nếu Vbee bị lỗi, tool sẽ hỏi bạn có muốn thử lại hay dừng. Tool KHÔNG tự đổi sang giọng Gemini, để cả video chỉ có một giọng.</p>
     <button type="button" class="w sm" onclick="testVbee()">🔍 Kiểm tra Vbee</button>
     <span id="vtestResult" class="hint" style="margin-left:8px"></span>
   </div>
@@ -178,6 +175,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   <p class="hint">Tranh nào chưa ưng thì bấm 🔄 Vẽ lại (muốn đổi nội dung tranh thì mở "Sửa mô tả tranh", sửa rồi bấm Vẽ lại). Khi ưng hết thì bấm nút xanh bên dưới để tạo giọng đọc và video.</p>
   <div id="gal" class="gal"></div>
   <button id="mkBtn" onclick="makeVideo()">✅ Ưng rồi, tạo giọng đọc và video</button>
+  <button type="button" class="w" onclick="remakeVoices()">🔁 Tạo lại toàn bộ giọng</button>
 </div>
 
 <div class="box" id="pl" hidden>
@@ -185,6 +183,23 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   <button onclick="play(0)">▶ Xem thử</button>
   <button class="w" onclick="stopFlag=true">■ Dừng xem / xuất</button>
   <button onclick="play(1)">🎬 Xuất video</button>
+  <div style="margin:10px 0;display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+    <label><input type="checkbox" id="musicOn" checked onchange="saveSet()"> 🎵 Nhạc nền tự tạo</label>
+    <label>Âm lượng <input type="range" id="musicVol" min="0" max="100" value="50" style="width:120px;vertical-align:middle" onchange="saveSet()"></label>
+    <label>Tâm trạng
+      <select id="musicMood" onchange="saveSet()">
+        <option value="auto">Tự động theo nội dung</option>
+        <option value="calm">Êm dịu</option>
+        <option value="sad">Buồn</option>
+        <option value="tense">Căng thẳng</option>
+        <option value="mystery">Bí ẩn</option>
+        <option value="happy">Vui tươi</option>
+        <option value="epic">Hùng tráng</option>
+        <option value="hopeful">Hy vọng</option>
+      </select>
+    </label>
+  </div>
+  <p class="hint">Nhạc nền do tool tự tạo (không cần file nhạc, không dính bản quyền), tự hạ nhỏ khi có giọng đọc. Bấm "Xem thử" để nghe trước, chỉnh âm lượng rồi hãy xuất video.</p>
   <p class="hint">Xuất video chạy theo thời lượng thực của video. Đã tối ưu bộ đếm nên bạn có thể chuyển sang tab khác trong lúc chờ xuất video.</p>
   <div id="out"></div>
 </div>
@@ -229,7 +244,7 @@ const log = m => {
 };
 const A = () => ctxA || (ctxA = new (window.AudioContext || window.webkitAudioContext)());
 
-const CF = ['fmt', 'nimg', 'keys', 'isrc', 'style', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'vfall'];
+const CF = ['fmt', 'nimg', 'keys', 'isrc', 'style', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'musicOn', 'musicVol', 'musicMood'];
 function setFmt() {
   const v = $('fmt').value === 'v';
   W = v ? 720 : 1280; H = v ? 1280 : 720;
@@ -406,7 +421,7 @@ async function gemMulti(models, body, timeout = 80000) {
 async function makeScript(idea, min) {
   const n = imgCount(), total = Math.round(min * 60 * 3.2);
   const p = `Bạn là biên kịch video kể chuyện vẽ tay. Từ nội dung bên dưới, tạo kịch bản video dài ${min} phút: khoảng ${total} từ lời kể, chia đúng ${n} cảnh, mỗi cảnh khoảng ${Math.round(total / n)} từ. Nếu nội dung đã là truyện hoàn chỉnh thì giữ nguyên lời văn, chỉ chia cảnh. Nếu chỉ là ý tưởng thì viết thành truyện hay có mở đầu, cao trào, kết.
-Chỉ trả về JSON: {"story":"tóm tắt cốt truyện 1-2 câu, tiếng Anh","setting":"bối cảnh chung (thời gian, địa điểm, không khí), tiếng Anh","characters":"mỗi nhân vật một ý, tiếng Anh, ngắn gọn, ghi rõ vai trò MAIN (nhân vật chính), SECOND, THIRD, FOURTH (các nhân vật khác xuất hiện nhiều, mỗi người một vai riêng, không dùng chung), CROWD (quần chúng) và tên/đặc điểm nhận diện (mũ, tóc, kính, họa tiết áo)","scenes":[{"text":"lời kể tiếng Việt của cảnh","image":"mô tả cảnh để vẽ tranh, tiếng Anh, 2 câu: vẽ đúng khoảnh khắc cụ thể nhìn thấy được trong lời kể của cảnh này, nêu rõ các vật/địa điểm/hành động được nhắc đến, vai trò MAIN/SECOND/THIRD/FOURTH/CROWD của từng người và cảm xúc"}]}
+Chỉ trả về JSON: {"story":"tóm tắt cốt truyện 1-2 câu, tiếng Anh","setting":"bối cảnh chung (thời gian, địa điểm, không khí), tiếng Anh","characters":"mỗi nhân vật một ý, tiếng Anh, ngắn gọn, ghi rõ vai trò MAIN (nhân vật chính), SECOND, THIRD, FOURTH (các nhân vật khác xuất hiện nhiều, mỗi người một vai riêng, không dùng chung), CROWD (quần chúng) và tên/đặc điểm nhận diện (mũ, tóc, kính, họa tiết áo)","scenes":[{"text":"lời kể tiếng Việt của cảnh","image":"mô tả cảnh để vẽ tranh, tiếng Anh, 2 câu: vẽ đúng khoảnh khắc cụ thể nhìn thấy được trong lời kể của cảnh này, nêu rõ các vật/địa điểm/hành động được nhắc đến, vai trò MAIN/SECOND/THIRD/FOURTH/CROWD của từng người và cảm xúc","mood":"tâm trạng của cảnh để chọn nhạc nền, chỉ chọn MỘT trong: calm, sad, tense, mystery, happy, epic, hopeful"}]}
 Nội dung: ${idea}`;
 
   const d = await gemMulti(TXT_MODELS, {
@@ -1074,40 +1089,84 @@ async function inkify(b) {
 
 // Giải mã âm thanh thông minh: Hỗ trợ cả WAV (Gemini 3.8 TTS) và PCM 24kHz (Gemini 2.5 TTS)
 let gemTtsQueue = Promise.resolve();
+// Giữ MỘT model giọng cho cả video (đổi model giữa chừng làm giọng nghe khác hẳn nhau)
+let ttsPinned = '';
+const ttsNoTemp = new Set();
+
+// Chuẩn hóa giọng từng cảnh: cắt khoảng lặng thừa đầu/cuối và đưa về cùng mức to nhỏ
+function normVoice(buf) {
+  const ch = buf.getChannelData(0), n = ch.length, sr = buf.sampleRate, th = 0.012;
+  let a = 0, b = n - 1;
+  while (a < n && Math.abs(ch[a]) < th) a++;
+  while (b > a && Math.abs(ch[b]) < th) b--;
+  if (b - a < 2400) return buf;
+  const pad = Math.round(sr * 0.04);
+  a = Math.max(0, a - pad); b = Math.min(n - 1, b + pad);
+  const m = b - a + 1, out = A().createBuffer(1, m, sr), o = out.getChannelData(0);
+  // Cổng giảm nhiễu nhẹ: đoạn rất nhỏ (tiếng xì nền của TTS ở khoảng lặng và đuôi câu) bị hạ còn 25%
+  let env = 0, gs = 1, ss = 0, cnt = 0;
+  for (let i = 0; i < m; i++) {
+    const v = ch[a + i], av = Math.abs(v);
+    env = av > env ? av : env * 0.9995;
+    gs += ((env < 0.02 ? 0.25 : 1) - gs) * (env < 0.02 ? 0.0015 : 0.02);
+    o[i] = v * gs;
+    if (Math.abs(o[i]) > th) { ss += o[i] * o[i]; cnt++; }
+  }
+  const rms = Math.sqrt(ss / Math.max(1, cnt));
+  const g = rms > 0 ? Math.max(0.3, Math.min(3, 0.12 / rms)) : 1;
+  const fi = Math.round(sr * 0.03), fo = Math.round(sr * 0.12);
+  for (let i = 0; i < m; i++) {
+    let v = 0.9 * Math.tanh(o[i] * g / 0.9);
+    if (i < fi) v *= i / fi;
+    if (i > m - fo) v *= (m - i) / fo;
+    o[i] = v;
+  }
+  return out;
+}
+
 async function gemVoiceRaw(text) {
   let lastErr = '';
-  for (const m of TTS_MODELS) {
+  const order = ttsPinned ? [ttsPinned, ...TTS_MODELS.filter(m => m !== ttsPinned)] : TTS_MODELS;
+  for (const m of order) {
     if (retiredModels.has(m)) continue;
-    try {
-      const is38 = m.includes('3.8');
-      const spokenText = is38 ? text : ('Đọc bằng tiếng Việt, giọng kể chuyện ấm áp, tốc độ vừa phải: ' + text);
-      const d = await gem(m, {
-        contents: [{ parts: [{ text: spokenText }] }],
-        generationConfig: {
-          responseModalities: ['AUDIO'],
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: $('voice').value } } }
+    for (let tr = 0; tr < 2; tr++) {
+      const useTemp = !ttsNoTemp.has(m);
+      try {
+        const is38 = m.includes('3.8');
+        const spokenText = is38 ? text : ('Đọc bằng tiếng Việt, giọng kể chuyện ấm áp, tốc độ vừa phải: ' + text);
+        const d = await gem(m, {
+          contents: [{ parts: [{ text: spokenText }] }],
+          generationConfig: {
+            responseModalities: ['AUDIO'],
+            ...(useTemp ? { temperature: 0.3 } : {}),
+            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: $('voice').value } } }
+          }
+        }, 85000);
+
+        const part = (d.candidates?.[0]?.content?.parts || []).find(x => x.inlineData);
+        if (!part) throw new Error('Không có dữ liệu âm thanh');
+        const bin = atob(part.inlineData.data);
+
+        // Kiểm tra nếu có header RIFF WAV (44 bytes đầu) thì bỏ qua header để đọc PCM chuẩn 24kHz
+        const isRiff = bin.slice(0, 4) === 'RIFF';
+        const offset = isRiff ? 44 : 0;
+        const n = (bin.length - offset) >> 1;
+        const buf = A().createBuffer(1, n, 24000), ch = buf.getChannelData(0);
+        for (let i = 0; i < n; i++) {
+          const idx = offset + 2 * i;
+          let v = bin.charCodeAt(idx) | (bin.charCodeAt(idx + 1) << 8);
+          if (v > 32767) v -= 65536;
+          ch[i] = v / 32768;
         }
-      }, 85000);
-
-      const part = (d.candidates?.[0]?.content?.parts || []).find(x => x.inlineData);
-      if (!part) throw new Error('Không có dữ liệu âm thanh');
-      const bin = atob(part.inlineData.data);
-
-      // Kiểm tra nếu có header RIFF WAV (44 bytes đầu) thì bỏ qua header để đọc PCM chuẩn 24kHz
-      const isRiff = bin.slice(0, 4) === 'RIFF';
-      const offset = isRiff ? 44 : 0;
-      const n = (bin.length - offset) >> 1;
-      const buf = A().createBuffer(1, n, 24000), ch = buf.getChannelData(0);
-      for (let i = 0; i < n; i++) {
-        const idx = offset + 2 * i;
-        let v = bin.charCodeAt(idx) | (bin.charCodeAt(idx + 1) << 8);
-        if (v > 32767) v -= 65536;
-        ch[i] = v / 32768;
+        if (ttsPinned && ttsPinned !== m) log(`  ⚠ Giọng đọc đã chuyển sang model ${m} (model trước bị lỗi), có thể khác giọng các cảnh trước. Nếu nghe lệch, bấm "Tạo lại toàn bộ giọng".`);
+        ttsPinned = m;
+        return normVoice(buf);
+      } catch (e) {
+        if (abortGen) throw e;
+        lastErr = e.message;
+        // Model không nhận tham số temperature thì bỏ tham số này rồi thử lại cùng model
+        if (useTemp && /^400|INVALID_ARGUMENT|temperature|Unknown name/i.test(lastErr)) ttsNoTemp.add(m);
       }
-      return buf;
-    } catch (e) {
-      if (abortGen) throw e;
-      lastErr = e.message;
     }
   }
   throw new Error(lastErr || 'Tất cả model TTS đều lỗi');
@@ -1361,19 +1420,8 @@ const vbeeVoice = t => {
 };
 
 async function makeVoice(t, no) {
-  if ($('vsrc').value === 'vbee' && !vbeeDeadInSession) {
-    try {
-      return await vbeeVoice(t);
-    } catch (e) {
-      if (abortGen) throw e;
-      if ($('vfall').checked) {
-        vbeeDeadInSession = true;
-        log(`  ⚠ Cảnh ${no}: ${e.message} -> Tự động chuyển toàn bộ phiên sang giọng Gemini.`);
-        return await gemVoice(t);
-      }
-      throw e;
-    }
-  }
+  // Vbee lỗi thì báo lỗi lên cho người dùng quyết định, KHÔNG tự đổi sang giọng Gemini (tránh lẫn 2 giọng trong một video)
+  if ($('vsrc').value === 'vbee') return await vbeeVoice(t);
   return gemVoice(t);
 }
 
@@ -1424,6 +1472,7 @@ async function start(isRetry = false) {
         prev: s.prev || '',
         text: s.text || '',
         image: s.image || s.text,
+        mood: s.mood || '',
         ord: [],
         cv: null,
         buf: null,
@@ -1553,6 +1602,14 @@ async function redraw(i) {
   if (!ok && !s.cv) s.failed = true;
   updateCard(i);
 }
+function remakeVoices() {
+  if (!scenes.length) return;
+  if (!confirm('Thu lại giọng đọc của TẤT CẢ các cảnh (giữ nguyên tranh)?')) return;
+  scenes.forEach(s => { s.buf = null; });
+  ttsPinned = '';
+  makeVideo();
+}
+
 async function makeVideo() {
   if (!scenes.length) return;
   const miss = scenes.filter(s => !s.cv).length;
@@ -1574,16 +1631,34 @@ async function makeVideo() {
   A();
   log(wantVoice ? '\n🔊 Tranh đã chốt. Đang tạo giọng đọc...' : '\n🎬 Tranh đã chốt (không dùng giọng đọc).');
   const need = Math.max(1, scenes.filter(s => wantVoice && !s.buf).length);
-  let idx = 0, done = 0;
+  let idx = 0, done = 0, voiceHalt = false, dlg = Promise.resolve();
+  // Hỏi người dùng khi giọng đọc lỗi (xếp hàng từng hộp thoại, không hiện chồng nhau)
+  const askRetry = (no, msg) => {
+    const r = dlg.then(() => {
+      if (voiceHalt || abortGen) return false;
+      const vb = $('vsrc').value === 'vbee';
+      return confirm(`${vb ? 'Giọng Vbee' : 'Giọng đọc'} bị lỗi ở cảnh ${no}:\n${msg}\n\nBấm OK = thử lại cảnh này.\nBấm Hủy = dừng tạo giọng (tool KHÔNG tự đổi sang giọng khác; các cảnh chưa có giọng để trống, bạn xử lý lỗi rồi bấm lại nút xanh để chạy bù).`);
+    });
+    dlg = r.then(() => {}, () => {});
+    return r;
+  };
   const worker = async () => {
     while (idx < scenes.length && !abortGen) {
       const i = idx++, s = scenes[i];
-      if (wantVoice && !s.buf) {
-        try {
-          s.buf = await makeVoice(s.text, i + 1);
-          log(`  🔊 Đã thu xong giọng đọc cảnh ${i + 1}/${scenes.length}`);
-        } catch (e) {
-          if (!abortGen) log(`  ❌ Cảnh ${i + 1} lỗi giọng đọc: ${(e.message || '').slice(0, 110)}`);
+      if (wantVoice && !s.buf && !voiceHalt) {
+        while (!s.buf && !abortGen && !voiceHalt) {
+          try {
+            s.buf = await makeVoice(s.text, i + 1);
+            log(`  🔊 Đã thu xong giọng đọc cảnh ${i + 1}/${scenes.length}`);
+          } catch (e) {
+            if (abortGen) break;
+            const msg = (e.message || '').slice(0, 160);
+            log(`  ❌ Cảnh ${i + 1} lỗi giọng đọc: ${msg}`);
+            if (!(await askRetry(i + 1, msg))) {
+              if (!voiceHalt) log('  ⏸ Đã dừng tạo giọng theo ý bạn. Không đổi sang giọng khác.');
+              voiceHalt = true;
+            }
+          }
         }
         done++;
         $('bar').style.width = Math.min(100, done / need * 100) + '%';
@@ -1682,6 +1757,110 @@ function hand(x, px, py) {
   x.restore();
 }
 
+// ===== NHẠC NỀN TỰ TẠO (WebAudio, không cần file nhạc) =====
+const MUSIC_MOODS = {
+  calm:    { root: 55, bpm: 66, prog: [[0, 'maj7'], [9, 'min7'], [5, 'maj7'], [7, 'sus']], scale: [0, 2, 4, 7, 9], pad: 'sine', cut: 1500, padG: 0.07, mel: 0.35, melWave: 'sine', melG: 0.10, melLen: 2, bassG: 0.10 },
+  sad:     { root: 57, bpm: 56, prog: [[0, 'min'], [8, 'maj'], [3, 'maj'], [10, 'maj']], scale: [0, 2, 3, 5, 7, 8, 10], pad: 'triangle', cut: 1000, padG: 0.07, mel: 0.30, melWave: 'triangle', melG: 0.11, melLen: 2.5, bassG: 0.11 },
+  tense:   { root: 52, bpm: 84, prog: [[0, 'min'], [1, 'maj'], [0, 'min'], [6, 'dim']], scale: [0, 1, 3, 5, 7, 8, 10], pad: 'sawtooth', cut: 650, padG: 0.045, mel: 0.12, melWave: 'sine', melG: 0.08, melLen: 1.5, bassG: 0.13, heart: 1 },
+  mystery: { root: 50, bpm: 60, prog: [[0, 'min7'], [10, 'maj'], [0, 'min7'], [7, 'min']], scale: [0, 2, 3, 5, 7, 9, 10], pad: 'triangle', cut: 1800, padG: 0.06, mel: 0.30, melWave: 'sine', melG: 0.12, melLen: 3, bassG: 0.08 },
+  happy:   { root: 60, bpm: 104, prog: [[0, 'maj'], [7, 'maj'], [9, 'min'], [5, 'maj']], scale: [0, 2, 4, 5, 7, 9, 11], pad: 'triangle', cut: 3000, padG: 0.04, mel: 0.55, melWave: 'triangle', melG: 0.10, melLen: 1, bassG: 0.10, arp: 1, bounce: 1 },
+  epic:    { root: 50, bpm: 90, prog: [[0, 'min'], [8, 'maj'], [3, 'maj'], [10, 'maj']], scale: [0, 2, 3, 5, 7, 8, 10], pad: 'sawtooth', cut: 1200, padG: 0.05, mel: 0.45, melWave: 'sawtooth', melG: 0.06, melLen: 3, bassG: 0.14, drum: 1 },
+  hopeful: { root: 52, bpm: 76, prog: [[0, 'maj'], [7, 'maj'], [9, 'min'], [5, 'maj']], scale: [0, 2, 4, 7, 9], pad: 'triangle', cut: 2200, padG: 0.06, mel: 0.50, melWave: 'triangle', melG: 0.10, melLen: 1.5, bassG: 0.10 }
+};
+const CHORD_T = { maj: [0, 4, 7], min: [0, 3, 7], maj7: [0, 4, 7, 11], min7: [0, 3, 7, 10], sus: [0, 2, 7], dim: [0, 3, 6] };
+function normMood(m) {
+  m = String(m || '').toLowerCase();
+  if (MUSIC_MOODS[m]) return m;
+  if (/sad|sorrow|melanch|grief|lonely/.test(m)) return 'sad';
+  if (/tense|danger|suspense|fear|dark|thriller|anx/.test(m)) return 'tense';
+  if (/myst|eerie|strange|curious/.test(m)) return 'mystery';
+  if (/happy|joy|fun|cheer|comic|playful/.test(m)) return 'happy';
+  if (/epic|hero|triumph|action|battle|power/.test(m)) return 'epic';
+  if (/hope|inspir|warm|uplift|love/.test(m)) return 'hopeful';
+  return 'calm';
+}
+// Gộp các cảnh cùng tâm trạng; đoạn ngắn dưới 14 giây nhập vào đoạn kế bên để không đổi nhạc liên tục
+function musicPlan(vs, st) {
+  const forced = $('musicMood').value, segs = [];
+  vs.forEach((s, i) => {
+    const mood = forced !== 'auto' ? forced : normMood(s.mood), last = segs[segs.length - 1];
+    if (last && last.mood === mood) last.t1 = st[i] + s.dur;
+    else segs.push({ mood, t0: st[i], t1: st[i] + s.dur });
+  });
+  const merge = () => {
+    for (let i = 1; i < segs.length; i++) if (segs[i].mood === segs[i - 1].mood) { segs[i - 1].t1 = segs[i].t1; segs.splice(i, 1); i--; }
+  };
+  for (let i = 1; i < segs.length;) {
+    if (segs[i].t1 - segs[i].t0 < 14) { segs[i - 1].t1 = segs[i].t1; segs.splice(i, 1); } else i++;
+  }
+  if (segs.length > 1 && segs[0].t1 - segs[0].t0 < 14) { segs[1].t0 = segs[0].t0; segs.shift(); }
+  merge();
+  return segs;
+}
+function startMusic(ac, dest, vs, st, tot, t0) {
+  const oscs = [], vol = (+$('musicVol').value || 0) / 100;
+  const bus = ac.createGain(), duck = ac.createGain(), comp = ac.createDynamicsCompressor();
+  bus.gain.value = vol; duck.gain.value = 1;
+  bus.connect(duck); duck.connect(comp); comp.connect(ac.destination); comp.connect(dest);
+  // Hạ nhạc khi có giọng đọc
+  vs.forEach((s, i) => {
+    if (!s.buf) return;
+    const a = t0 + st[i] + 0.3, b = a + s.buf.duration;
+    duck.gain.setTargetAtTime(0.5, Math.max(0, a - 0.2), 0.15);
+    duck.gain.setTargetAtTime(1, b + 0.1, 0.4);
+  });
+  const mid = n => 440 * Math.pow(2, (n - 69) / 12);
+  const mk = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const tone = (type, f, s, d, g, a, r, dst, cut, det) => {
+    const o = ac.createOscillator(), e = ac.createGain();
+    o.type = type; o.frequency.value = f; if (det) o.detune.value = det;
+    let node = o;
+    if (cut) { const fl = ac.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = cut; o.connect(fl); node = fl; }
+    node.connect(e); e.connect(dst);
+    const hold = Math.max(s + a + 0.01, s + d);
+    e.gain.setValueAtTime(0, s); e.gain.linearRampToValueAtTime(g, s + a);
+    e.gain.setValueAtTime(g, hold); e.gain.linearRampToValueAtTime(0, hold + r);
+    o.start(s); o.stop(hold + r + 0.05); oscs.push(o);
+  };
+  const thump = (s, f0, f1, g, dst) => {
+    const o = ac.createOscillator(), e = ac.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(f0, s); o.frequency.exponentialRampToValueAtTime(f1, s + 0.25);
+    e.gain.setValueAtTime(g, s); e.gain.linearRampToValueAtTime(0, s + 0.7);
+    o.connect(e); e.connect(dst); o.start(s); o.stop(s + 0.75); oscs.push(o);
+  };
+  const segs = musicPlan(vs, st);
+  segs.forEach((sg, si) => {
+    const m = MUSIC_MOODS[sg.mood], rnd = mk(1234 + si * 77), last = si === segs.length - 1;
+    const a = t0 + sg.t0, b = t0 + sg.t1, g = ac.createGain();
+    g.connect(bus);
+    const fo = last ? Math.max(a + 2, t0 + tot - 2) : b;
+    g.gain.setValueAtTime(0, a); g.gain.linearRampToValueAtTime(1, a + 2.5);
+    g.gain.setValueAtTime(1, Math.max(a + 2.5, fo - 1)); g.gain.linearRampToValueAtTime(0, Math.max(a + 2.5, fo - 1) + (last ? 3 : 2.5));
+    const beat = 60 / m.bpm, len = 4 * beat, S = m.scale;
+    let k = 0, mi = S.length;
+    for (let ct = a; ct < b; ct += len, k++) {
+      const [cr, ctype] = m.prog[k % m.prog.length], iv = CHORD_T[ctype];
+      const base = m.root + 12 + cr;
+      iv.forEach((x, j) => tone(m.pad, mid(base + x), ct, len, m.padG, 1.2, 1.0, g, m.cut, (j - 1) * 7));
+      tone('sine', mid(m.root - 12 + cr), ct, len, m.bassG, 0.4, 0.8, g);
+      for (let bt = 0; bt < 4; bt++) {
+        const tb = ct + bt * beat;
+        if (m.bounce && bt % 2 === 0) tone('sine', mid(m.root - 12 + cr + (bt ? 7 : 0)), tb, beat * 0.5, m.bassG * 0.9, 0.02, 0.25, g);
+        if (m.arp) for (let e = 0; e < 2; e++) tone('triangle', mid(base + 12 + iv[(bt * 2 + e) % iv.length]), tb + e * beat / 2, beat * 0.25, 0.05, 0.01, 0.35, g, 3500);
+        if (m.drum && bt % 2 === 0) thump(tb, 110, 46, 0.32, g);
+        if (m.heart && bt % 2 === 0) { thump(tb, 80, 42, 0.30, g); thump(tb + beat * 0.3, 70, 40, 0.20, g); }
+        if (rnd() < m.mel) {
+          mi = Math.max(S.length, Math.min(S.length * 2 + 2, mi + Math.floor(rnd() * 5) - 2));
+          const n = m.root + 12 + S[mi % S.length] + 12 * Math.floor(mi / S.length - 1);
+          const off = rnd() < 0.3 ? beat / 2 : 0;
+          tone(m.melWave, mid(n + 12), tb + off, beat * m.melLen * 0.5, m.melG, 0.03, beat * m.melLen * 0.6, g, 2600, 0);
+        }
+      }
+    }
+  });
+  return { stop() { oscs.forEach(o => { try { o.stop(); } catch (e) {} }); try { bus.disconnect(); duck.disconnect(); comp.disconnect(); } catch (e) {} } };
+}
+
 function play(rec) {
   const validScenes = scenes.filter(s => s.ok || s.cv || s.buf);
   if (playing || !validScenes.length) return;
@@ -1703,6 +1882,7 @@ function play(rec) {
         srcs.push(n);
       }
     });
+    const mus = $('musicOn').checked ? startMusic(ac, dest, validScenes, st, tot, t0) : null;
     let mr = null, chunks = [], mime = '', ext = 'webm';
     if (rec) {
       mime = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m)) || '';
@@ -1725,6 +1905,7 @@ function play(rec) {
     let cur = -1, ptr = 0, pos = [W + 200, H + 300];
     const end = () => {
       srcs.forEach(n => { try { n.stop(); } catch (e) {} });
+      if (mus) mus.stop();
       if (mr && mr.state !== 'inactive') mr.stop();
       playing = false;
     };

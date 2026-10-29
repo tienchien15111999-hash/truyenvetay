@@ -19,7 +19,7 @@ Tool tạo video kể chuyện 1-5 phút kiểu whiteboard: nhập truyện/ý t
 ## 3. Dữ liệu chính
 - Mỗi cảnh `scenes[i] = {text, image, prev, cv, ord, buf, dur, ok, busy, failed}`: `text` lời kể (tiếng Việt); `image` mô tả vẽ (tiếng Anh); `cv` canvas nét mực đã tách (nền trong suốt) kích thước W×H; `ord` thứ tự các ô 16px để tay vẽ theo (greedy gần nhất); `buf` AudioBuffer giọng đọc; `dur` giây.
 - `fm` (khung hình, đặt trong `setFmt()` mỗi lần `start()`): `{v, ar, ah, cy, vw, sw, fs, lh, ml, sy}` = dọc?, tỉ lệ, chiều cao vùng tranh, tâm camera, bề ngang viewBox SVG (chiều cao luôn 900), chiều rộng/cỡ chữ/dòng/số dòng/vị trí phụ đề. Ngang: W×H = 1280×720; dọc: 720×1280. `W,H` là `let` toàn cục.
-- Cài đặt lưu `localStorage['cfg_v3']` theo danh sách `CF` (ô nhập id trùng tên): fmt, nimg, keys, isrc, style, hftok, vsrc, voice, vapp, vtok, vcode, vfall, kèm `_t` (giờ lưu). Ảnh mẫu phong cách lưu riêng ở `localStorage['refimg_v1']` (JPEG data URL ≤896px). `saveSet` chạy mỗi khi gõ (sự kiện `input`) và khi đổi ô (`change`).
+- Cài đặt lưu `localStorage['cfg_v3']` theo danh sách `CF` (ô nhập id trùng tên): fmt, nimg, keys, isrc, style, hftok, vsrc, voice, vapp, vtok, vcode, musicOn, musicVol, musicMood (ô `vfall` đã bỏ, xem mục 14), kèm `_t` (giờ lưu). Ảnh mẫu phong cách lưu riêng ở `localStorage['refimg_v1']` (JPEG data URL ≤896px). `saveSet` chạy mỗi khi gõ (sự kiện `input`) và khi đổi ô (`change`).
 - Biến cờ: `abortGen` (nút Dừng tạo), `stopFlag` (dừng xem/xuất), `ctl` (AbortController đang chạy).
 
 ## 4. Bản đồ code `index.html` (số dòng xấp xỉ, bản hiện tại)
@@ -39,6 +39,10 @@ Tool tạo video kể chuyện 1-5 phút kiểu whiteboard: nhập truyện/ý t
 | Tạo tranh 1 cảnh | `svgImage`, `makeImage` | 922-975 |
 | SVG/ảnh → canvas nét mực + thứ tự vẽ | `inkify` | 977 |
 | Giọng đọc Gemini / Vbee | `gemVoice`, `vbeeRaw`, `vbeeBatchOne`, `makeVoice` | ~1000-1340 |
+| Chuẩn hóa giọng Gemini (cổng nhiễu, fade, cùng mức to), khóa model giọng | `normVoice`, `gemVoiceRaw`, `ttsPinned` | ~1095-1170 |
+| Hỏi người dùng khi giọng lỗi, tạo lại toàn bộ giọng | `askRetry` trong `makeVideo`, `remakeVoices` | ~1480-1560 |
+| Chốt chặn mảng đen quá lớn trong SVG | `whitenBigBlack` (gọi cuối `sanitizeSvg`) | ~940 |
+| Nhạc nền tự tạo | `MUSIC_MOODS`, `normMood`, `musicPlan`, `startMusic` (ngay trước `play`) | ~1700+ |
 | Nút kiểm tra key | `testGemini`, `testVbee` | 1156+ |
 | Luồng chính | `start`, `makeVideo` | 1339, 1515 |
 | Xem trước tranh | `renderGallery`, `updateCard`, `redraw` | 1460-1514 |
@@ -64,7 +68,7 @@ AI vẽ người/nhà/cây bằng SVG thường méo và mỗi cảnh một ki�
 10. **Thư viện đồ vật vẽ sẵn** (`PROPS`, `propSvg`, `groundSvg`, `expandProps`, trước `MACRO_STYLES`): ~45 loại (nhà, cây, núi, mặt trời, bàn ghế, xe, thuyền, chó mèo...) AI chỉ đặt thẻ `<prop type x y size facing/>` và `<ground y kind/>`, tool vẽ sạch cùng nét với người que. `k` là hệ số tỉ lệ từng loại, `f:1` là đồ lơ lửng (x,y là tâm). Thêm đồ vật mới: thêm vào `PROPS` (gốc tọa độ ở chân, hướng lên là âm) + tên vào danh sách trong `SVGR_SCENE`. Prompt cấm tô đen mảng lớn.
 11. **Bàn tay cầm bút mới** (`hand`, ~dòng 1596+): vẽ bằng `Path2D` (đường cong) thay cho các nét `cap` hình xúc xích: tay áo + cổ tay, mu bàn tay, ngón trỏ có móng, ngón cái, 3 ngón co lại. Gốc tọa độ = ngòi bút, trục +x dọc thân bút; góc xoay `a` và chữ ký hàm giữ nguyên nên `play()` không phải sửa. Đổi màu da/viền ở `SK`, `SKD`, `OL`; màu thân bút là `#2563eb`. Hàm `cap` không còn được `hand` dùng.
 
-Đã có từ các bản trước (người dùng hoặc AI khác làm): nhiều phong cách vẽ, giọng Vbee qua `/api/vbee` (Realtime + Batch, tự chuyển giọng Gemini nếu lỗi), xoay nhiều key Gemini, nút kiểm tra key.
+Đã có từ các bản trước (người dùng hoặc AI khác làm): nhiều phong cách vẽ, giọng Vbee qua `/api/vbee` (Realtime + Batch, trước đây tự chuyển Gemini nếu lỗi, NAY ĐÃ BỎ: lỗi thì hỏi người dùng, xem mục 14), xoay nhiều key Gemini, nút kiểm tra key.
 
 ## 7. Lưu ý khi sửa (bẫy đã gặp)
 - CSS `display:flex` đè thuộc tính `hidden`: phần tử có display riêng cần thêm `[hidden]{display:none}` (đã xử lý cho `.ph`).
@@ -81,6 +85,27 @@ AI vẽ người/nhà/cây bằng SVG thường méo và mỗi cảnh một ki�
 - **Chưa thử với key Gemini/Vbee thật**: chưa biết AI đặt thẻ `<prop>`/`<person>` có bố cục đẹp không (có thể chồng nhau, cần chỉnh prompt `SVGR_SCENE`), chưa biết chất lượng đoạn mô tả phong cách do `refStyleText` trả về.
 - Ý tưởng chưa làm: thêm đồ vật Việt Nam (trâu, ruộng lúa, nhà sàn, thuyền thúng); tự tránh chồng chéo khi đặt đồ vật/người; cho chỉnh màu da/áo/bút của bàn tay; Cloudflare Workers AI (FLUX schnell, cần file cầu nối kiểu `api/vbee.js`); ô chỉnh số tranh vẽ cùng lúc và thời gian nghỉ giữa các tranh (nếu gặp lỗi 429 của Gemini); màu theo vai nhân vật (hiện đen trắng hoàn toàn); xóa code chết `genGeminiImg`, `genHfImg`, `genFreeFluxImg`, ô `hftok`.
 
-## 7. Sửa lỗi tranh bị bôi đen (đợt gần nhất)
+## 10. Sửa lỗi tranh bị bôi đen (đợt gần nhất)
 Nguyên nhân: `sanitizeSvg` ép mọi màu tô "không phải gần trắng" thành ĐEN (xanh trời, xám, be -> đen), hình AI quên ghi `fill` thì SVG mặc định tô đen, và `style="fill:..."` không được xử lý.
 Đã sửa: (1) `toBW(v, isFill)`: màu tô sáng/trung bình -> trắng, chỉ màu thật tối mới đen; (2) bỏ thuộc tính `style`; (3) nhóm bọc có `fill="none"` mặc định; (4) `whitenBigBlack()`: hình tô đen có vùng bao > 10% khung thì đổi sang trắng; (5) `inkify`: nếu >30% điểm ảnh đen thì ném lỗi để tự vẽ lại (vòng thử 3 lần); (6) prompt `SVGR_SCENE` dặn rõ không vẽ nền, luôn ghi fill.
+
+## 11. Nhạc nền tự tạo (hướng C, WebAudio, không cần file nhạc)
+- Kịch bản AI trả thêm `mood` mỗi cảnh (calm, sad, tense, mystery, happy, epic, hopeful) -> `scenes[i].mood`.
+- Code nằm ngay trước `play()`: `MUSIC_MOODS` (bảng thông số từng tâm trạng), `normMood`, `musicPlan` (gộp cảnh cùng tâm trạng, đoạn <14s nhập vào đoạn bên cạnh), `startMusic` (pad + bass + giai điệu thưa + trống/tim đập tùy mood, chuyển đoạn crossfade 1,5s, nhạc tự hạ còn 50% khi có giọng đọc, tắt dần cuối video).
+- Nhạc đi qua cùng `dest` của MediaRecorder nên vào được file video xuất. Hạt giống ngẫu nhiên cố định nên xem thử và xuất cho nhạc giống nhau.
+- UI trong khung phát video: ô `musicOn`, thanh `musicVol`, chọn `musicMood` (auto hoặc khóa một tâm trạng); cả 3 lưu trong `CF`.
+- Muốn thêm tâm trạng: thêm vào `MUSIC_MOODS` + `normMood` + prompt `makeScript` + ô chọn `musicMood`.
+
+## 12. Giọng Gemini không đồng nhất giữa các cảnh (đã sửa)
+Nguyên nhân: mỗi cảnh gọi TTS riêng; khi một model lỗi thì code tự đổi sang model khác (giọng khác hẳn), model 3.8 không có câu chỉ dẫn phong cách còn 2.5 thì có, nhiệt độ mặc định cao nên nhịp/âm sắc dao động, và mức to nhỏ + khoảng lặng đầu/cuối mỗi cảnh khác nhau.
+Đã sửa trong `gemVoiceRaw`: (1) `ttsPinned` khóa một model cho cả video, thử lại cùng model 1 lần trước khi đổi, đổi thì có log cảnh báo; (2) `temperature: 0.3` (tự bỏ nếu model báo 400, lưu ở `ttsNoTemp`); (3) `normVoice()` cắt lặng thừa và đưa mọi cảnh về cùng mức RMS (~0.12, giới hạn mềm bằng tanh). Thêm nút `remakeVoices()` "🔁 Tạo lại toàn bộ giọng" (xóa `s.buf` rồi chạy lại `makeVideo`).
+
+## 13. Tiếng "sẹt" lúc chuyển cảnh
+Code không có hiệu ứng âm thanh chuyển cảnh, nên "sẹt" là tạp âm: (a) đuôi/đầu clip giọng TTS bị xì hoặc "bụp" vì cắt gắt, (b) nhạc đổi đoạn. Đã sửa: `normVoice` thêm cổng giảm nhiễu (hạ còn 25% đoạn rất nhỏ), fade vào 30ms / ra 120ms, trần khuếch đại 3 lần (trước 6), chừa lặng 40ms; nhạc đổi đoạn crossfade 2,5s.
+
+## 14. Vbee lỗi thì HỎI người dùng, không tự đổi sang Gemini
+Yêu cầu của người dùng: không được tự ý đổi giọng vì video sẽ lẫn 2 giọng. Đã bỏ ô `vfall` và đoạn tự chuyển trong `makeVoice` (nay Vbee lỗi thì ném lỗi lên). Trong `makeVideo`, mỗi lần một cảnh lỗi giọng sẽ hiện hộp thoại (`askRetry`, xếp hàng, không chồng nhau): OK = thử lại cảnh đó, Hủy = dừng tạo giọng (`voiceHalt`), cảnh chưa có giọng để trống, sửa lỗi xong bấm lại nút xanh để chạy bù. KHÔNG thêm lại cơ chế tự đổi giọng. Nếu trước đó đã có cảnh thu bằng Gemini rồi đổi sang Vbee, dùng nút "Tạo lại toàn bộ giọng" để cả video cùng một giọng.
+
+## 15. Quy tắc người dùng đã nêu (đừng phá khi sửa tiếp)
+- Một video chỉ được có MỘT giọng: không tự đổi Vbee sang Gemini (mục 14); Gemini cũng khóa một model (mục 12).
+- Người dùng không rành kỹ thuật: luôn trả `index.html` đầy đủ (hoặc cả zip) và cập nhật file này sau mỗi lần sửa.
