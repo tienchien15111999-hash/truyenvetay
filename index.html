@@ -22,6 +22,16 @@ button:disabled{opacity:.5;cursor:not-allowed}
 #log{white-space:pre-wrap;font-size:14px;max-height:260px;overflow:auto;background:#111;color:#9f9;padding:10px;border-radius:4px;margin-top:10px;font-family:monospace}
 canvas,video{width:100%;background:#fff;border:2px solid #111;border-radius:4px;display:block}
 .bar{height:10px;background:#ddd;border-radius:5px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:#1d4ed8;transition:width .25s}
+canvas.v,video.v{width:auto;max-height:80vh;max-width:100%;margin:0 auto}
+.gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin:10px 0}
+.card{border:1.5px solid #888;border-radius:6px;padding:8px;background:#fafafa}
+.thumb{position:relative;border:1.5px solid #bbb;border-radius:4px;background:#fff}
+.thumb canvas{width:100%;display:block}
+.ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:#555;text-align:center;padding:6px}
+.cap{font-size:12.5px;color:#333;margin:6px 0 0;max-height:4.5em;overflow:hidden}
+.ph[hidden]{display:none}
+.card details{margin-top:6px}
+.card summary{font-size:13px}
 summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px 0}#go{font-size:18px;padding:14px 24px}
 </style>
 </head>
@@ -40,9 +50,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   <label>Cách vẽ tranh (Tất cả đều có bàn tay cầm bút vẽ từng nét)</label>
   <select id="isrc" onchange="vui()">
     <option value="svg_ink">✒️ Vẽ tranh nét mực đen trắng bằng AI (Miễn phí 100%, nhanh & ổn định nhất)</option>
-    <option value="free_img">🎨 Tạo ảnh AI nét vẽ tay (Tự động dùng Gemini Image / Flux / Vẽ nét mực dự phòng)</option>
     <option value="svg">🏃 Người que đen trắng nét bút lông (Miễn phí - đã nâng cấp)</option>
-    <option value="img">💎 Tạo ảnh bằng Gemini (Ưu tiên Nano Banana 2.1 / 3.1 Image + Tự động dự phòng)</option>
   </select>
 
   <label>Phong cách vẽ (tất cả đều đen trắng)</label>
@@ -62,7 +70,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
     <label>Hugging Face Token (Tùy chọn - Để trống vẫn chạy bình thường)</label>
     <input id="hftok" type="password" placeholder="hf_... (Nếu có sẽ hỗ trợ vẽ ảnh bằng FLUX.1-schnell cực nhanh)">
   </div>
-  <p class="hint">Chế độ "Vẽ tranh nét mực đen trắng" và "Tạo ảnh AI" đều tự động tách nét mực để bàn tay vẽ từng nét và không bao giờ bị trống cảnh.</p>
+  <p class="hint">Cả hai chế độ đều tự động tách nét mực để bàn tay vẽ từng nét và không bao giờ bị trống cảnh.</p>
 
   <div class="row">
     <div>
@@ -108,23 +116,42 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
     <div>
       <label>Độ dài video</label>
       <select id="min">
-        <option value="1">1 phút (chạy thử - ~7 cảnh)</option>
-        <option value="2">2 phút (~13 cảnh)</option>
-        <option value="3">3 phút (~20 cảnh)</option>
-        <option value="4" selected>4 phút (~26 cảnh)</option>
-        <option value="5">5 phút (~33 cảnh)</option>
+        <option value="1">1 phút (chạy thử)</option>
+        <option value="2">2 phút</option>
+        <option value="3">3 phút</option>
+        <option value="4" selected>4 phút</option>
+        <option value="5">5 phút</option>
       </select>
     </div>
+    <div>
+      <label>Khung hình</label>
+      <select id="fmt" onchange="saveSet()">
+        <option value="h">Ngang 16:9 (YouTube, Facebook)</option>
+        <option value="v">Dọc 9:16 (TikTok, Reels, Shorts)</option>
+      </select>
+    </div>
+    <div>
+      <label>Số tranh (để trống = tự động)</label>
+      <input id="nimg" type="number" min="1" max="80" placeholder="Tự động" onchange="saveSet()">
+    </div>
   </div>
+  <p class="hint" id="nimgHint"></p>
   <label class="chk"><input type="checkbox" id="sub" checked>Hiện phụ đề</label>
   <button id="go" onclick="start(false)">Bắt đầu tạo video</button>
-  <button id="retryBtn" class="warn" onclick="start(true)" hidden>🔄 Chạy bù các cảnh lỗi</button>
+  <button id="retryBtn" class="warn" onclick="start(true)" hidden>🔄 Chạy bù các tranh lỗi</button>
   <button id="stp" class="w" onclick="stopGen()" hidden>■ Dừng tạo</button>
 </div>
 
 <div class="box">
   <div class="bar"><i id="bar"></i></div>
   <div id="log">Chưa chạy.</div>
+</div>
+
+<div class="box" id="galBox" hidden>
+  <b>🖼 Xem trước tranh</b>
+  <p class="hint">Tranh nào chưa ưng thì bấm 🔄 Vẽ lại (muốn đổi nội dung tranh thì mở "Sửa mô tả tranh", sửa rồi bấm Vẽ lại). Khi ưng hết thì bấm nút xanh bên dưới để tạo giọng đọc và video.</p>
+  <div id="gal" class="gal"></div>
+  <button id="mkBtn" onclick="makeVideo()">✅ Ưng rồi, tạo giọng đọc và video</button>
 </div>
 
 <div class="box" id="pl" hidden>
@@ -138,7 +165,8 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
 </main>
 
 <script>
-const W = 1280, H = 720, C = 16;
+let W = 1280, H = 720, fm = {};
+const C = 16;
 
 // Bộ model thế hệ 3.x mới nhất đang hoạt động ổn định (tuyệt đối không dùng 2.0-flash và 2.5-flash đã bị Google ngừng cấp cho key mới)
 const TXT_MODELS = [
@@ -175,7 +203,15 @@ const log = m => {
 };
 const A = () => ctxA || (ctxA = new (window.AudioContext || window.webkitAudioContext)());
 
-const CF = ['keys', 'isrc', 'style', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'vfall'];
+const CF = ['fmt', 'nimg', 'keys', 'isrc', 'style', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'vfall'];
+function setFmt() {
+  const v = $('fmt').value === 'v';
+  W = v ? 720 : 1280; H = v ? 1280 : 720;
+  const ah = sub ? (v ? 900 : 590) : (v ? 1240 : 700);
+  fm = { v, ar: v ? '9:16' : '16:9', ah, cy: 10 + ah / 2, vw: Math.round(900 * (W - 40) / ah), sw: v ? 640 : 1180, fs: v ? 36 : 26, lh: v ? 46 : 31, ml: v ? 6 : 3, sy: v ? 980 : 640 };
+  const c = $('cv'); c.width = W; c.height = H; c.className = v ? 'v' : '';
+}
+sub = true; setFmt();
 function saveSet() {
   try {
     const o = {};
@@ -199,7 +235,22 @@ try {
   });
   if (o.keys) $('set').open = false;
 } catch (e) {}
+if (!['svg_ink', 'svg'].includes($('isrc').value)) $('isrc').value = 'svg_ink';
 vui();
+// Số tranh: để trống = tự động (khoảng 1 tranh / 9 giây). Giới hạn 3 đến 20 giây mỗi tranh.
+function imgCount() {
+  const min = +$('min').value, auto = Math.round(min * 60 / 9);
+  const v = parseInt($('nimg').value, 10);
+  if (!(v >= 1)) return auto;
+  return Math.max(Math.ceil(min * 60 / 20), Math.min(Math.floor(min * 60 / 3), v));
+}
+function nimgHint() {
+  const min = +$('min').value, n = imgCount(), custom = parseInt($('nimg').value, 10) >= 1;
+  $('nimgHint').textContent = `${custom ? '' : 'Tự động: '}${n} tranh cho ${min} phút, trung bình mỗi tranh khoảng ${Math.round(min * 60 / n)} giây. Ít tranh hơn thì nhanh và nhẹ hơn, nhiều tranh hơn thì video sinh động hơn.`;
+}
+$('nimg').addEventListener('input', nimgHint);
+$('min').addEventListener('change', nimgHint);
+nimgHint();
 
 async function gem(model, body, timeout = 80000) {
   if (retiredModels.has(model)) throw new Error(`404 Model ${model} đã ngừng hỗ trợ`);
@@ -262,7 +313,7 @@ async function gemMulti(models, body, timeout = 80000) {
 }
 
 async function makeScript(idea, min) {
-  const n = Math.round(min * 60 / 9), total = Math.round(min * 60 * 3.2);
+  const n = imgCount(), total = Math.round(min * 60 * 3.2);
   const p = `Bạn là biên kịch video kể chuyện vẽ tay. Từ nội dung bên dưới, tạo kịch bản video dài ${min} phút: khoảng ${total} từ lời kể, chia đúng ${n} cảnh, mỗi cảnh khoảng ${Math.round(total / n)} từ. Nếu nội dung đã là truyện hoàn chỉnh thì giữ nguyên lời văn, chỉ chia cảnh. Nếu chỉ là ý tưởng thì viết thành truyện hay có mở đầu, cao trào, kết.
 Chỉ trả về JSON: {"story":"tóm tắt cốt truyện 1-2 câu, tiếng Anh","setting":"bối cảnh chung (thời gian, địa điểm, không khí), tiếng Anh","characters":"mỗi nhân vật một ý, tiếng Anh, ngắn gọn, ghi rõ vai trò MAIN (nhân vật chính), SECOND (phản diện hoặc nhân vật xuất hiện nhiều), CROWD (quần chúng) và ngoại hình đặc trưng (mũ, tóc, kính, quần áo)","scenes":[{"text":"lời kể tiếng Việt của cảnh","image":"mô tả cảnh để vẽ tranh, tiếng Anh, 2 câu: vẽ đúng khoảnh khắc cụ thể nhìn thấy được trong lời kể của cảnh này, nêu rõ các vật/địa điểm/hành động được nhắc đến, vai trò MAIN/SECOND/CROWD của từng người và cảm xúc"}]}
 Nội dung: ${idea}`;
@@ -311,6 +362,109 @@ ${list}`;
   return j.images;
 }
 
+
+// ===== NHÂN VẬT DOODLE KIỂU ẢNH MẪU: đầu tròn to, thân hình quả lê, tay chân mảnh =====
+// AI chỉ cần đặt thẻ <person .../>, tool tự vẽ người đẹp và giống nhau ở mọi cảnh.
+const POSES = {
+  stand: { L: [-88, -156, -80, -108], R: [88, -156, 80, -108] },
+  wave:  { L: [-88, -156, -80, -108], R: [84, -214, 92, -268] },
+  cheer: { L: [-76, -212, -84, -276], R: [76, -212, 84, -276] },
+  shout: { L: [-80, -208, -92, -270], R: [80, -208, 92, -270] },
+  point: { L: [-88, -156, -80, -108], R: [78, -196, 138, -190] },
+  carry: { L: [-50, -150, 22, -150], R: [50, -150, 28, -150] },
+  think: { L: [-88, -156, -80, -108], R: [58, -176, 20, -214] },
+  hips:  { L: [-74, -168, -40, -122], R: [74, -168, 40, -122] },
+  sad:   { L: [-78, -150, -70, -100], R: [78, -150, 70, -100] },
+  walk:  { L: [-84, -156, -64, -116], R: [84, -166, 96, -126], legs: [-40, 0, 44, -10] },
+  run:   { L: [-62, -168, -86, -126], R: [62, -176, 92, -150], legs: [-58, -6, 56, -26], lean: 7 },
+  sit:   { L: [-86, -154, -76, -106], R: [86, -154, 76, -106], sit: 1 }
+};
+function figAttrs(tag) {
+  const o = {};
+  tag.replace(/([\w-]+)\s*=\s*("([^"]*)"|'([^']*)')/g, (_, k, __, a, b) => { o[k.toLowerCase()] = (a != null ? a : b); });
+  return o;
+}
+function figureSvg(a, sw) {
+  const role = String(a.role || 'MAIN').toUpperCase();
+  let x = +a.x, y = +a.y, size = +a.size;
+  if (!isFinite(x)) x = 800;
+  if (!isFinite(y)) y = 780;
+  if (!isFinite(size) || size <= 0) size = role === 'CROWD' ? 0.8 : role === 'SECOND' ? 1.2 : 1.3;
+  size = Math.max(0.35, Math.min(1.6, size));
+  const pose = POSES[String(a.pose || 'stand').toLowerCase()] || POSES.stand;
+  const poseName = String(a.pose || 'stand').toLowerCase();
+  const face = String(a.face || 'smile').toLowerCase();
+  let acc = String(a.acc || '').toLowerCase();
+  if (!acc || acc === 'none') acc = role === 'MAIN' ? 'tuft' : role === 'SECOND' ? 'hat' : 'none';
+  const flip = String(a.facing || 'right').toLowerCase() === 'left' ? -1 : 1;
+  const w = (sw / size).toFixed(1);
+  const arm = (p) => `<path d="M${p[0] > 0 ? 37 : -37} -192 Q${p[0]} ${p[1]} ${p[2]} ${p[3]}"/><ellipse cx="${p[2]}" cy="${p[3]}" rx="9" ry="10" fill="#ffffff"/>`;
+  let g = '';
+  // chân
+  const lg = pose.legs || [-26, -6, 26, -6];
+  if (pose.sit) {
+    g += `<path d="M-22 -104 Q40 -100 78 -96 L82 -52"/><path d="M22 -104 Q70 -92 110 -86 L116 -44"/>`;
+    g += `<ellipse cx="96" cy="-44" rx="16" ry="7" fill="#ffffff"/><ellipse cx="130" cy="-38" rx="16" ry="7" fill="#ffffff"/>`;
+  } else {
+    g += `<path d="M-22 -108 Q${lg[0] - 6} -56 ${lg[0]} ${lg[1] - 6}"/><path d="M22 -108 Q${lg[2] + 6} -56 ${lg[2]} ${lg[3] - 6}"/>`;
+    g += `<ellipse cx="${lg[0] + 8}" cy="${lg[1] - 3}" rx="17" ry="7.5" fill="#ffffff"/><ellipse cx="${lg[2] + 8}" cy="${lg[3] - 3}" rx="17" ry="7.5" fill="#ffffff"/>`;
+  }
+  // thân hình quả lê
+  g += `<path d="M-34 -205 C-52 -170 -66 -130 -50 -110 Q0 -92 50 -110 C66 -130 52 -170 34 -205 Q0 -220 -34 -205 Z" fill="#ffffff"/>`;
+  // đầu to hình oval
+  g += `<ellipse cx="0" cy="-268" rx="66" ry="58" fill="#ffffff"/>`;
+  // phụ kiện sau đầu
+  if (acc === 'long') g += `<path d="M-60 -290 Q-82 -250 -66 -214"/><path d="M60 -290 Q82 -250 66 -214"/>`;
+  if (acc === 'beard') g += `<path d="M-52 -250 Q-50 -204 0 -200 Q50 -204 52 -250 Q30 -232 0 -234 Q-30 -232 -52 -250 Z" fill="#ffffff"/>`;
+  // mặt
+  const eye = (cx, r) => `<circle cx="${cx}" cy="-272" r="${r}" fill="#111111" stroke="none"/>`;
+  const er = face === 'surprised' ? 6.5 : 5;
+  if (face === 'happy') g += `<path d="M-30 -270 Q-21 -284 -12 -270"/><path d="M12 -270 Q21 -284 30 -270"/>`;
+  else if (face === 'cry') g += `<path d="M-30 -274 Q-21 -266 -12 -274"/><path d="M12 -274 Q21 -266 30 -274"/>`;
+  else g += eye(-21, er) + eye(21, er);
+  if (face === 'angry') g += `<path d="M-34 -292 L-10 -282"/><path d="M34 -292 L10 -282"/>`;
+  if (face === 'sad' || face === 'cry') g += `<path d="M-32 -284 L-10 -294"/><path d="M32 -284 L10 -294"/>`;
+  if (face === 'smile') g += `<path d="M-17 -248 Q0 -232 17 -248"/>`;
+  else if (face === 'happy') g += `<path d="M-20 -250 Q0 -226 20 -250 Z" fill="#ffffff"/>`;
+  else if (face === 'open' || face === 'surprised') g += `<ellipse cx="0" cy="-244" rx="8" ry="11" fill="#ffffff"/>`;
+  else if (face === 'sad' || face === 'cry') g += `<path d="M-15 -240 Q0 -254 15 -240"/>`;
+  else if (face === 'angry') g += `<path d="M-15 -242 Q0 -250 15 -242"/>`;
+  else g += `<path d="M-14 -244 L14 -244"/>`;
+  if (face === 'cry') g += `<path d="M-26 -258 Q-30 -246 -26 -240" stroke-width="${w * 0.7}"/><path d="M26 -258 Q30 -246 26 -240" stroke-width="${w * 0.7}"/>`;
+  // tay (vẽ sau thân và đầu để cầm đồ, chống cằm được)
+  g += arm(pose.L) + arm(pose.R);
+  // phụ kiện
+  if (acc === 'tuft') g += `<path d="M-6 -326 Q-14 -352 -26 -358"/><path d="M4 -326 Q4 -356 -2 -366"/><path d="M14 -324 Q24 -346 36 -350"/>`;
+  else if (acc === 'hat') g += `<path d="M-48 -318 Q0 -392 48 -318 Z" fill="#ffffff"/><path d="M-78 -318 Q0 -302 78 -318"/>`;
+  else if (acc === 'cap') g += `<path d="M-56 -314 Q0 -396 56 -314 Z" fill="#ffffff"/><path d="M34 -322 Q90 -326 98 -304 L44 -310"/>`;
+  else if (acc === 'crown') g += `<path d="M-40 -318 L-46 -366 L-20 -342 L0 -374 L20 -342 L46 -366 L40 -318 Z" fill="#ffffff"/>`;
+  else if (acc === 'glasses') g += `<circle cx="-21" cy="-272" r="15" fill="none"/><circle cx="21" cy="-272" r="15" fill="none"/><path d="M-6 -272 L6 -272"/>`;
+  const rot = (pose.lean || 0) + (poseName === 'sad' ? -4 : 0);
+  return `<g transform="translate(${x.toFixed(0)} ${y.toFixed(0)}) scale(${(flip * size).toFixed(3)} ${size.toFixed(3)}) rotate(${rot})" stroke="#111111" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none">${g}</g>`;
+}
+function expandPeople(raw, sw) {
+  return raw.replace(/<person\b([^>]*?)\/?>(\s*<\/person>)?/gi, (m, attrs) => {
+    try { return figureSvg(figAttrs(attrs), sw); } catch (e) { return ''; }
+  });
+}
+const MACRO_STYLES = ['stick', 'doodle', 'marker', 'minimal', 'kids'];
+const SVGR_SCENE = `Draw ONE clean black-and-white whiteboard illustration as valid SVG code ONLY.
+HARD RULES:
+- viewBox="0 0 __VW__ 900", transparent background. ONLY black (#111111) and white (#ffffff). NEVER use any other color, gray, gradient, opacity, text or image.
+- Every shape you draw: stroke="#111111" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"; fill="#ffffff" for closed shapes (so objects hide what is behind them) or fill="none" for lines.
+- NEVER draw people yourself. For EVERY person write exactly one self-closing tag, the tool draws a cute doodle person for you:
+  <person role="MAIN" x="500" y="800" size="1" pose="wave" face="smile" acc="tuft" facing="right"/>
+  x,y = the point where the FEET touch the ground (x between 150 and __XMAX__, y between 640 and 860). size 1 = about 330px tall (MAIN usually 1.3 to 1.5, SECOND 1.1 to 1.4, CROWD 0.7 to 0.9 placed behind or beside the others).
+  role: MAIN, SECOND or CROWD (use the roles from the Characters list).
+  pose (pick the one that shows the action): stand, wave, cheer, point, walk, run, sit, sad, carry, think, shout, hips.
+  face: smile, happy, open, flat, sad, cry, angry, surprised.
+  acc: none, tuft, hat, cap, glasses, beard, crown, long (long hair). Copy each character's acc from the Characters list and keep it IDENTICAL in every scene (MAIN = tuft or the accessory given, SECOND = hat or the accessory given, CROWD = none).
+  facing: left or right (the direction the person looks / walks). The person is drawn ON TOP of everything, so write the <person> tags AFTER the props.
+- Draw the ground line, buildings and props yourself with simple shapes (3 to 8 strokes each: house = square + triangle roof + door, tree = trunk + cloud-like crown, car, boat, bag of money, table, bed, phone, sun, clouds...). Objects a person holds go near the hands: about (x+/-60, y-150) for size 1. Add small detail strokes (motion lines, sparkles, sweat drops, speech-bubble shapes WITHOUT text) so emotion and action are obvious.
+- Composition: fill the frame well, 80px margin, people in the lower two thirds, 2 to 4 people at most, 12 to 30 own shapes, readable at small size.
+- Every important object, place and action named in "Scene to draw" MUST be visible and recognizable. Draw exactly that moment.
+Output ONLY the <svg>...</svg> code.`;
+
 const loadImg = s => new Promise((ok, no) => {
   const i = new Image();
   i.onload = () => ok(i);
@@ -321,9 +475,9 @@ const loadImg = s => new Promise((ok, no) => {
 
 // ===== PHONG CÁCH VẼ (đều đen trắng) =====
 const STYLES = {
-  stick:  { sw: 7,  wob: 5, hint: 'Nhân vật là người que, đầu tròn, tay chân hai khúc. Rõ ràng nhất, hợp truyện giải thích.',
+  stick:  { sw: 7,  wob: 5, hint: 'Nhân vật doodle đầu tròn, thân quả lê, tay chân mảnh, giống nhau ở mọi cảnh. Rõ ràng nhất, hợp truyện giải thích.',
     svg: '', img: 'simple black stick figure whiteboard drawing, round heads, line bodies, clean uniform black outlines, minimal props' },
-  doodle: { sw: 7,  wob: 5, hint: 'Nhân vật hoạt hình đầu to, thân tròn, biểu cảm rõ. Hợp truyện kể chung.',
+  doodle: { sw: 7,  wob: 5, hint: 'Nhân vật đầu tròn to, thân quả lê, tay chân mảnh, mặt biểu cảm (giống ảnh mẫu), giống nhau ở mọi cảnh. Hợp truyện kể chung.',
     svg: 'STYLE: cute cartoon doodle. Characters have a big round head (about 1/3 of body height), simple rounded body and clothes outline, small hands and feet, very expressive eyebrows, eyes and mouth. Objects are rounded and friendly.',
     img: 'cute hand-drawn cartoon doodle, big round heads, rounded bodies, expressive faces, clean thick black outlines, whiteboard marker style' },
   marker: { sw: 11, wob: 7, hint: 'Nét to đậm như bút lông bảng, ít chi tiết, nhìn từ xa vẫn rõ.',
@@ -366,7 +520,7 @@ async function genGeminiImg(p, withRef) {
     try {
       let body = {
         contents: [{ parts }],
-        generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: '16:9' } }
+        generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: fm.ar } }
       };
       let d;
       try {
@@ -429,7 +583,7 @@ async function genFreeFluxImg(sceneText, seedNum) {
   const cleanScene = sceneText.replace(/[^\w\s,.()-]/g, ' ').slice(0, 200);
   const prompt = `Pure white background, black ink only, no color, no text, ${curStyle().img}: ${cleanScene}`;
   const seed = (seedNum || 1) * 137 + Math.floor(Math.random() * 999);
-  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=576&nologo=true&seed=${seed}`;
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${fm.v ? 576 : 1024}&height=${fm.v ? 1024 : 576}&nologo=true&seed=${seed}`;
 
   const im = await new Promise((ok, no) => {
     const i = new Image();
@@ -501,19 +655,19 @@ function sanitizeSvg(raw, wob = 5) {
     .replace(/\sfilter="[^"]*"/gi, '');
   // Bộ lọc làm nét rung nhẹ như vẽ tay bằng bút lông
   const defs = '<defs><filter id="wob" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="'+wob+'" xChannelSelector="R" yChannelSelector="G"/></filter></defs>';
-  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900">' + defs +
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${fm.vw} 900" width="${fm.vw}" height="900">` + defs +
     '<g filter="url(#wob)" stroke-linecap="round" stroke-linejoin="round">' + inner + '</g></svg>';
 }
 
 async function svgImage(s, blackInkOnly = false) {
-  const st = curStyle(), isStick = $('style').value === 'stick';
-  const base = isStick ? SVGR_COLOR : SVGR_INK;
-  const rule = base + (st.svg ? `\n${st.svg}` : '') + `\nOVERRIDE: use stroke-width="${st.sw}" for outlines (this replaces any earlier stroke-width). Still ONLY black and white.`;
+  const st = curStyle(), macro = MACRO_STYLES.includes($('style').value);
+  const base = macro ? SVGR_SCENE.replace(/__VW__/g, fm.vw).replace(/__XMAX__/g, fm.vw - 150) : SVGR_INK.replace(/viewBox="0 0 1600 900", width="1600" height="900"/, `viewBox="0 0 ${fm.vw} 900", width="${fm.vw}" height="900"`);
+  const rule = base + (macro && fm.v ? '\nThe frame is TALL (portrait): use the upper half for sky, clouds, buildings and big props, and keep the people in the lower half.' : '') + ((!macro && st.svg) ? `\n${st.svg}` : '') + `\nOVERRIDE: use stroke-width="${st.sw}" for outlines (this replaces any earlier stroke-width). Still ONLY black and white.`;
   const d = await gemMulti(TXT_MODELS, {
     contents: [{ parts: [{ text: `${rule}\n${sceneCtx(s)}` }] }]
   }, 75000);
   const t = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('');
-  const svg = sanitizeSvg(t, curStyle().wob);
+  const svg = sanitizeSvg(macro ? expandPeople(t, st.sw) : t, curStyle().wob);
   return await inkify({ mimeType: 'image/svg+xml', data: btoa(unescape(encodeURIComponent(svg))) });
 }
 
@@ -523,7 +677,7 @@ async function makeImage(s, sceneNo) {
     return await svgImage(s, mode === 'svg_ink');
   }
 
-  const fullPrompt = `Pure white background, black ink only, no color, no gray fill, no text, ${curStyle().img}, wide 16:9 landscape composition.\n${sceneCtx(s)}`;
+  const fullPrompt = `Pure white background, black ink only, no color, no gray fill, no text, ${curStyle().img}, ${fm.v ? 'tall 9:16 portrait' : 'wide 16:9 landscape'} composition.\n${sceneCtx(s)}`;
 
   if ($('hftok').value.trim()) {
     try {
@@ -556,7 +710,7 @@ async function makeImage(s, sceneNo) {
 
 async function inkify(b) {
   const im = await loadImg(`data:${b.mimeType};base64,${b.data}`);
-  const svgm = b.mimeType === 'image/svg+xml', h = sub ? 590 : 700, c = document.createElement('canvas');
+  const svgm = b.mimeType === 'image/svg+xml', h = fm.ah, c = document.createElement('canvas');
   c.width = W;
   c.height = H;
   const x = c.getContext('2d', { willReadFrequently: true });
@@ -937,6 +1091,8 @@ async function start(isRetry = false) {
   $('go').disabled = true;
   $('retryBtn').hidden = true;
   sub = $('sub').checked;
+  if (isRetry && scenes.length && fm.ar) $('fmt').value = fm.v ? 'v' : 'h';
+  setFmt();
   const wantVoice = $('vsrc').value !== 'none';
   A();
 
@@ -967,14 +1123,18 @@ async function start(isRetry = false) {
         dur: 5,
         ok: false
       }));
-      log(`✅ Đã tạo kịch bản gồm ${scenes.length} cảnh. Bắt đầu vẽ tranh và thu giọng đọc...`);
+      log(`✅ Đã tạo kịch bản gồm ${scenes.length} cảnh. Bắt đầu vẽ tranh (chưa tạo giọng đọc)...`);
       ref = null;
+      $('pl').hidden = true;
+      $('out').innerHTML = '';
+      renderGallery();
+      $('galBox').hidden = false;
     } else {
       log('\n🔄 Đang chạy bù các cảnh còn thiếu...');
     }
 
     let idx = 0;
-    let done = scenes.filter(s => s.cv && (!wantVoice || s.buf)).length;
+    let done = scenes.filter(s => s.cv).length;
     $('bar').style.width = (done / scenes.length * 100) + '%';
 
     const worker = async () => {
@@ -982,14 +1142,14 @@ async function start(isRetry = false) {
         const i = idx++;
         const s = scenes[i], no = i + 1;
         const needImg = !s.cv;
-        const needVoice = wantVoice && !s.buf;
-        if (!needImg && !needVoice) continue;
+        if (!needImg) continue;
 
         const imgTask = (async () => {
           if (!needImg) return;
           for (let t = 0; t < 3 && !s.cv && !abortGen; t++) {
             try {
               Object.assign(s, await makeImage(s, no));
+              updateCard(i);
               log(`  🎨 Đã vẽ xong tranh cảnh ${no}/${scenes.length}`);
             } catch (e) {
               if (abortGen) break;
@@ -997,19 +1157,10 @@ async function start(isRetry = false) {
               await nap(2500 * (t + 1));
             }
           }
+          if (!s.cv && !abortGen) { s.failed = true; updateCard(i); }
         })();
 
-        const voiceTask = (async () => {
-          if (!needVoice) return;
-          try {
-            s.buf = await makeVoice(s.text, no);
-            log(`  🔊 Đã thu xong giọng đọc cảnh ${no}/${scenes.length}`);
-          } catch (e) {
-            if (!abortGen) log(`  ❌ Cảnh ${no} lỗi giọng đọc: ${e.message.slice(0, 110)}`);
-          }
-        })();
-
-        await Promise.all([imgTask, voiceTask]);
+        await imgTask;
         if (abortGen) break;
 
         s.dur = s.buf ? s.buf.duration + 0.9 : Math.max(5, s.text.split(/\s+/).length / 2.6 + 1.5);
@@ -1023,23 +1174,129 @@ async function start(isRetry = false) {
     await Promise.all([worker(), worker()]);
 
     const badImg = scenes.filter(s => !s.cv).length;
-    const badVoice = wantVoice ? scenes.filter(s => !s.buf).length : 0;
-    if (badImg > 0 || badVoice > 0) $('retryBtn').hidden = false;
-
+    if (badImg > 0) $('retryBtn').hidden = false;
     if (abortGen) {
-      const okCount = scenes.filter(s => s.ok).length;
-      log(okCount ? `⏹ Đã dừng. Giữ lại ${okCount} cảnh đã xong.` : '⏹ Đã dừng.');
-      if (okCount) $('pl').hidden = false;
+      const okCount = scenes.filter(s => s.cv).length;
+      log(okCount ? `⏹ Đã dừng. Giữ lại ${okCount} tranh đã vẽ.` : '⏹ Đã dừng.');
     } else {
-      const tot = scenes.reduce((a, s) => a + s.dur, 0);
-      log(`🎉 Xong! Video dài khoảng ${Math.round(tot / 6) / 10} phút.` +
-        (badImg || badVoice ? ` (Còn ${badImg} cảnh thiếu tranh, ${badVoice} cảnh thiếu giọng -> bấm "Chạy bù các cảnh lỗi" để hoàn thiện).` : ''));
-      $('pl').hidden = false;
+      log(`🖼 Đã vẽ xong ${scenes.length - badImg}/${scenes.length} tranh.` +
+        (badImg ? ` Còn ${badImg} cảnh lỗi: bấm "🔄 Vẽ lại" ở cảnh đó hoặc nút cam "Chạy bù".` : '') +
+        '\n👉 Xem trước tranh ở khung bên dưới. Tranh nào chưa ưng thì bấm 🔄 Vẽ lại. Ưng hết thì bấm "Ưng rồi, tạo giọng đọc và video".');
     }
   } catch (e) {
     log(abortGen ? '⏹ Đã dừng.' : '❌ LỖI: ' + e.message);
   }
   $('go').disabled = false;
+  $('stp').hidden = true;
+}
+
+// ===== XEM TRƯỚC TRANH + NÚT VẼ LẠI =====
+function renderGallery() {
+  const g = $('gal');
+  g.innerHTML = '';
+  scenes.forEach((s, i) => {
+    const d = document.createElement('div');
+    d.className = 'card';
+    d.id = 'card' + i;
+    d.innerHTML = '<div class="thumb"><canvas></canvas><span class="ph">⏳ Chờ vẽ...</span></div><div class="cap"></div>' +
+      `<button type="button" class="w sm" onclick="redraw(${i})">🔄 Vẽ lại</button>` +
+      `<details><summary>Sửa mô tả tranh</summary><textarea id="ed${i}" style="min-height:70px;font-size:13px"></textarea></details>`;
+    g.appendChild(d);
+    d.querySelector('.cap').textContent = `${i + 1}. ${s.text}`;
+    $('ed' + i).value = s.image || '';
+    const c = d.querySelector('canvas');
+    c.width = 240; c.height = Math.round(240 * H / W);
+    updateCard(i);
+  });
+}
+function updateCard(i) {
+  const s = scenes[i], d = $('card' + i);
+  if (!s || !d) return;
+  const c = d.querySelector('canvas'), ph = d.querySelector('.ph');
+  if (s.busy) { ph.hidden = false; ph.textContent = '⏳ Đang vẽ lại...'; return; }
+  if (!s.cv) { ph.hidden = false; ph.textContent = s.failed ? '⚠ Lỗi, bấm Vẽ lại' : '⏳ Chờ vẽ...'; return; }
+  ph.hidden = true;
+  const tw = fm.v ? 220 : 360, th = Math.round(tw * H / W);
+  c.width = tw; c.height = th;
+  const x = c.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, tw, th);
+  x.drawImage(s.cv, 0, 0, tw, th);
+}
+async function redraw(i) {
+  const s = scenes[i];
+  if (!s || s.busy) return;
+  keys = $('keys').value.split(/\s+/).filter(k => k.length > 20);
+  if (!keys.length) { $('set').open = true; return alert('Dán API key Gemini vào phần Cài đặt nhé.'); }
+  abortGen = false;
+  const ed = $('ed' + i);
+  if (ed && ed.value.trim()) s.image = ed.value.trim();
+  s.busy = true; s.failed = false; updateCard(i);
+  let ok = false;
+  for (let t = 0; t < 2 && !ok; t++) {
+    try {
+      Object.assign(s, await makeImage(s, i + 1));
+      ok = true;
+      log(`🔄 Đã vẽ lại tranh cảnh ${i + 1}`);
+    } catch (e) {
+      log(`  ⚠ Cảnh ${i + 1} lỗi khi vẽ lại: ${(e.message || '').slice(0, 110)}`);
+      await sleep(1500);
+    }
+  }
+  s.busy = false;
+  if (!ok && !s.cv) s.failed = true;
+  updateCard(i);
+}
+async function makeVideo() {
+  if (!scenes.length) return;
+  const miss = scenes.filter(s => !s.cv).length;
+  if (miss) return alert(`Còn ${miss} cảnh chưa có tranh. Bấm 🔄 Vẽ lại ở các cảnh đó trước nhé.`);
+  if (scenes.some(s => s.busy)) return alert('Đang vẽ lại một tranh, đợi vẽ xong rồi bấm nhé.');
+  saveSet();
+  keys = $('keys').value.split(/\s+/).filter(k => k.length > 20);
+  if (!keys.length) { $('set').open = true; return alert('Dán API key Gemini vào phần Cài đặt nhé.'); }
+  if ($('vsrc').value === 'vbee' && !($('vapp').value.trim() && $('vtok').value.trim() && $('vcode').value.trim())) {
+    $('set').open = true;
+    return alert('Điền đủ App ID, Token và mã giọng Vbee trong phần Cài đặt nhé.');
+  }
+  abortGen = false;
+  vbeeDeadInSession = false;
+  const wantVoice = $('vsrc').value !== 'none';
+  $('mkBtn').disabled = true;
+  $('stp').hidden = false;
+  $('bar').style.width = '0%';
+  A();
+  log(wantVoice ? '\n🔊 Tranh đã chốt. Đang tạo giọng đọc...' : '\n🎬 Tranh đã chốt (không dùng giọng đọc).');
+  const need = Math.max(1, scenes.filter(s => wantVoice && !s.buf).length);
+  let idx = 0, done = 0;
+  const worker = async () => {
+    while (idx < scenes.length && !abortGen) {
+      const i = idx++, s = scenes[i];
+      if (wantVoice && !s.buf) {
+        try {
+          s.buf = await makeVoice(s.text, i + 1);
+          log(`  🔊 Đã thu xong giọng đọc cảnh ${i + 1}/${scenes.length}`);
+        } catch (e) {
+          if (!abortGen) log(`  ❌ Cảnh ${i + 1} lỗi giọng đọc: ${(e.message || '').slice(0, 110)}`);
+        }
+        done++;
+        $('bar').style.width = Math.min(100, done / need * 100) + '%';
+      }
+      if (abortGen) break;
+      s.dur = s.buf ? s.buf.duration + 0.9 : Math.max(5, s.text.split(/\s+/).length / 2.6 + 1.5);
+      s.ok = true;
+    }
+  };
+  await Promise.all([worker(), worker()]);
+  const badVoice = wantVoice ? scenes.filter(s => !s.buf).length : 0;
+  if (abortGen) {
+    log('⏹ Đã dừng.');
+  } else {
+    const tot = scenes.reduce((a, s) => a + s.dur, 0);
+    log(`🎉 Xong! Video dài khoảng ${Math.round(tot / 6) / 10} phút. Bấm "Xem thử" hoặc "Xuất video" ở khung bên dưới.` +
+      (badVoice ? ` (Còn ${badVoice} cảnh thiếu giọng: bấm lại nút xanh "Ưng rồi, tạo giọng đọc và video" để chạy bù.)` : ''));
+  }
+  if (scenes.some(s => s.ok)) $('pl').hidden = false;
+  $('mkBtn').disabled = false;
   $('stp').hidden = true;
 }
 
@@ -1127,7 +1384,7 @@ function play(rec) {
       mr.ondataavailable = e => e.data.size && chunks.push(e.data);
       mr.onstop = () => {
         const u = URL.createObjectURL(new Blob(chunks, { type: mime || 'video/webm' }));
-        $('out').innerHTML = `<video controls src="${u}"></video><a download="video-ve-tay.${ext}" href="${u}"><button>⬇ Tải video về máy</button></a>`;
+        $('out').innerHTML = `<video class="${fm.v ? 'v' : ''}" controls src="${u}"></video><a download="video-ve-tay.${ext}" href="${u}"><button>⬇ Tải video về máy</button></a>`;
       };
       mr.start(1000);
       $('out').textContent = 'Đang xuất video, vui lòng đợi...';
@@ -1159,7 +1416,7 @@ function play(rec) {
       }
       x.fillStyle = '#fff';
       x.fillRect(0, 0, W, H);
-      const pr = Math.min(1, lt / s.dur), ez = pr * pr * (3 - 2 * pr), cx = W / 2, cy = sub ? 330 : H / 2, kd = i % 4;
+      const pr = Math.min(1, lt / s.dur), ez = pr * pr * (3 - 2 * pr), cx = W / 2, cy = fm.cy, kd = i % 4;
       let z = 1, dx = 0;
       if (kd === 0) z = 1 + 0.06 * ez;
       else if (kd === 1) { z = 1.05; dx = 24 - 48 * ez; }
@@ -1194,10 +1451,12 @@ function play(rec) {
       }
       if (sub && s.text) {
         x.globalAlpha = Math.max(0, Math.min(1, lt / 0.3, (s.dur - lt) / 0.3));
+        x.fillStyle = '#fff';
+        x.fillRect(0, fm.ah + 10, W, H - fm.ah - 10);
         x.fillStyle = '#111';
-        x.font = '600 26px system-ui,sans-serif';
+        x.font = `600 ${fm.fs}px system-ui,sans-serif`;
         x.textAlign = 'center';
-        wrap(x, s.text, 1180).slice(0, 3).forEach((l, j) => x.fillText(l, W / 2, 640 + j * 31));
+        wrap(x, s.text, fm.sw).slice(0, fm.ml).forEach((l, j) => x.fillText(l, W / 2, fm.sy + j * fm.lh));
         x.globalAlpha = 1;
       }
       nextTick(frame);
