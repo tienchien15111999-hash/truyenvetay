@@ -69,7 +69,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   </select>
   <p class="hint" id="styleHint"></p>
   <div id="refBox" hidden>
-    <label>Ảnh mẫu phong cách (để AI vẽ đồ vật, nền theo nét này)</label>
+    <label>Ảnh mẫu phong cách (gửi kèm cho AI để cảnh có cùng cảm giác nét)</label>
     <input type="file" id="refFile" accept="image/*" onchange="refUpload(this)">
     <div style="display:flex;gap:12px;align-items:center;margin-top:8px;flex-wrap:wrap">
       <img id="refPrev" alt="Ảnh mẫu" style="max-width:150px;max-height:150px;border:1.5px solid #888;border-radius:4px;background:#fff">
@@ -78,7 +78,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
         <button type="button" class="w sm" onclick="refReset()">↩ Dùng lại ảnh mẫu có sẵn</button>
       </div>
     </div>
-    <p class="hint">Tool gửi ảnh này kèm mỗi lần nhờ AI vẽ cảnh để đồ vật và bối cảnh có cùng cảm giác nét vẽ. Nhân vật người que do tool tự vẽ theo mẫu có sẵn nên luôn đồng nhất. Ảnh nên có nét rõ, nền trắng. Tranh vẫn được ép về đen trắng.</p>
+    <p class="hint">Nhân vật và đồ vật/cảnh vật do tool tự vẽ theo bộ mẫu có sẵn nên luôn đồng nhất; ảnh này chỉ gửi kèm AI làm tham khảo cảm giác nét. Ảnh nên có nét rõ, nền trắng. Tranh vẫn được ép về đen trắng.</p>
   </div>
 
   <div id="hfBox" hidden>
@@ -557,6 +557,91 @@ function expandPeople(raw, sw) {
     try { return figureSvg(figAttrs(attrs), sw); } catch (e) { return ''; }
   });
 }
+// ===== THƯ VIỆN ĐỒ VẬT / CẢNH VẬT VẼ SẴN (đẹp và đồng nhất, AI chỉ đặt chỗ bằng thẻ <prop/> <ground/>) =====
+const _R = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#ffffff"/>`;
+const _P = d => `<path d="${d}" fill="#ffffff"/>`;
+const _L = d => `<path d="${d}"/>`;
+const _C = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#ffffff"/>`;
+const _D = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#111111" stroke="none"/>`;
+const PROPS = {
+  // --- nhà cửa ---
+  house: { k: 2.6, g: () => _L('M50 -150 L50 -190 L74 -190 L74 -134') + _R(-90, -110, 180, 110) + _P('M-110 -110 L0 -190 L110 -110 Z') + _P('M-18 0 L-18 -58 Q0 -76 18 -58 L18 0 Z') + _R(40, -88, 38, 38) + _L('M59 -88 L59 -50 M40 -69 L78 -69') + _R(-76, -88, 38, 38) + _L('M-57 -88 L-57 -50 M-76 -69 L-38 -69') },
+  hut: { k: 2.6, g: () => _P('M-78 0 L-78 -64 L-104 -76 L0 -176 L104 -76 L78 -64 L78 0 Z') + _L('M-62 -100 L-44 -84 M-26 -132 L-6 -112 M30 -128 L50 -108 M52 -92 L66 -80') + _P('M-20 0 L-20 -48 Q0 -64 20 -48 L20 0 Z') },
+  building: { k: 2.1, g: () => { let s = _R(-70, -260, 140, 260); for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) s += _R(-52 + c * 38, -236 + r * 48, 26, 32); return s + _R(-16, -46, 32, 46); } },
+  shop: { k: 2.5, g: () => _R(-90, -120, 180, 120) + _P('M-104 -120 L104 -120 L92 -84 Q69 -68 46 -84 Q23 -68 0 -84 Q-23 -68 -46 -84 Q-69 -68 -92 -84 Z') + _R(-72, -66, 70, 46) + _P('M24 0 L24 -62 L68 -62 L68 0 Z') },
+  tower: { k: 2.3, g: () => _P('M-48 0 L-48 -200 L-62 -200 L-62 -236 L-40 -236 L-40 -216 L-14 -216 L-14 -236 L14 -236 L14 -216 L40 -216 L40 -236 L62 -236 L62 -200 L48 -200 L48 0 Z') + _P('M-16 0 L-16 -50 Q0 -66 16 -50 L16 0 Z') + _L('M0 -150 L0 -110') },
+  pagoda: { k: 2.0, g: () => { let s = ''; for (let i = 0; i < 3; i++) { const yb = -i * 72, w = 70 - i * 14; s += _R(-w + 14, yb - 36, 2 * w - 28, 36) + _P(`M${-w - 24} ${yb - 36} Q${-w / 2} ${yb - 44} 0 ${yb - 76} Q${w / 2} ${yb - 44} ${w + 24} ${yb - 36} Z`); } return s + _L('M0 -224 L0 -250'); } },
+  tent: { k: 2.4, g: () => _P('M-84 0 L0 -112 L84 0 Z') + _P('M0 -112 L-22 0 L22 0 Z') + _L('M0 -112 L0 -132') },
+  ruins: { k: 2.6, g: () => _P('M-90 0 L-90 -96 L-58 -96 L-46 -62 L-22 -78 L-2 -40 L22 -58 L52 -22 L90 -32 L90 0 Z') + _L('M-70 -70 L-56 -50 M-70 -40 L-40 -40 M30 -30 L60 -10') },
+  window: { k: 2.2, g: () => _R(-46, -134, 92, 134) + _L('M0 -134 L0 0 M-46 -68 L46 -68') + _L('M-56 6 L56 6') },
+  door: { k: 2.1, g: () => _P('M-42 0 L-42 -150 Q0 -184 42 -150 L42 0 Z') + _C(24, -72, 5) },
+  // --- cây cối, thiên nhiên ---
+  tree: { k: 2.1, g: () => _L('M-12 0 Q-10 -40 -9 -84 M12 0 Q10 -40 9 -84') + _P('M-10 -84 C-76 -80 -86 -152 -42 -162 C-44 -214 42 -214 46 -166 C98 -160 90 -88 12 -84 Z') + _L('M0 -84 L-14 -108 M0 -96 L16 -118') },
+  pine: { k: 2.2, g: () => _L('M-8 0 L-8 -30 M8 0 L8 -30') + _P('M-70 -30 L0 -112 L70 -30 Z') + _P('M-56 -84 L0 -162 L56 -84 Z') + _P('M-40 -136 L0 -208 L40 -136 Z') },
+  bush: { k: 2.0, g: () => _P('M-62 0 C-84 -30 -52 -58 -26 -46 C-20 -78 26 -78 32 -46 C62 -58 88 -26 62 0 Z') + _L('M-20 -20 Q-10 -30 0 -20 M14 -26 Q22 -34 30 -26') },
+  rock: { k: 2.0, g: () => _P('M-54 0 L-44 -40 L-12 -58 L30 -46 L54 0 Z') + _L('M-10 -58 L-2 -28 L12 -10') },
+  mountain: { k: 2.0, g: () => _P('M-210 0 L-34 -250 L36 -150 L92 -214 L210 0 Z') + _P('M-62 -206 L-34 -250 L0 -198 L-16 -210 L-34 -192 L-50 -210 Z') },
+  hill: { k: 2.2, g: () => _P('M-230 0 Q-20 -150 230 0 Z') + _L('M-80 -60 Q-60 -72 -40 -62 M60 -66 Q80 -76 100 -64') },
+  sun: { k: 1.8, f: 1, g: () => { let s = _C(0, 0, 44); for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; s += _L(`M${(Math.cos(a) * 60).toFixed(1)} ${(Math.sin(a) * 60).toFixed(1)} L${(Math.cos(a) * 84).toFixed(1)} ${(Math.sin(a) * 84).toFixed(1)}`); } return s; } },
+  moon: { k: 1.8, f: 1, g: () => _P('M16 -50 A52 52 0 1 0 16 50 A40 40 0 0 1 16 -50 Z') },
+  star: { k: 1.2, f: 1, g: () => _P('M0 -26 Q4 -5 26 0 Q4 5 0 26 Q-4 5 -26 0 Q-4 -5 0 -26 Z') },
+  cloud: { k: 2.2, f: 1, g: () => _P('M-72 22 C-104 22 -104 -20 -66 -24 C-66 -64 -10 -66 2 -36 C22 -60 74 -46 64 -14 C98 -12 98 22 62 22 Z') },
+  rain: { k: 2.0, f: 1, g: () => { let s = ''; for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) s += _L(`M${-100 + c * 40 + r * 14} ${-50 + r * 38} l-8 22`); return s; } },
+  bird: { k: 1.8, f: 1, g: () => _L('M-26 4 Q-13 -16 0 2 Q13 -16 26 4') },
+  waves: { k: 2.0, g: () => _L('M-160 -10 q20 -16 40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0') + _L('M-140 14 q20 -16 40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0') },
+  fire: { k: 2.0, g: () => _L('M-48 0 L48 -10 M-48 -10 L48 0') + _P('M-30 -8 Q-48 -44 -16 -74 Q-14 -50 2 -44 Q6 -80 28 -102 Q56 -54 32 -8 Z') + _P('M-8 -10 Q-18 -30 0 -46 Q16 -28 8 -10 Z') },
+  // --- đồ đạc ---
+  table: { k: 2.0, g: () => _P('M-92 -76 L92 -76 L92 -62 L-92 -62 Z') + _L('M-76 -62 L-76 0 M76 -62 L76 0') },
+  chair: { k: 2.0, g: () => _L('M-34 -52 L-34 -122') + _P('M-38 -52 L34 -52 L34 -42 L-38 -42 Z') + _L('M-30 -42 L-30 0 M28 -42 L28 0') },
+  bed: { k: 2.0, g: () => _L('M-104 -96 L-104 0 M104 -52 L104 0') + _P('M-104 -52 L104 -52 L104 -26 L-104 -26 Z') + _P('M-94 -78 L-46 -78 L-46 -52 L-94 -52 Z') + _L('M-30 -52 Q0 -40 30 -52 Q60 -64 90 -52') },
+  lamp: { k: 2.2, g: () => _P('M-18 0 L18 0 L12 -14 L-12 -14 Z') + _P('M-14 -14 C-28 -40 -20 -62 0 -62 C20 -62 28 -40 14 -14 Z') + _P('M0 -26 Q-9 -42 0 -54 Q9 -42 0 -26 Z').replace('#ffffff', '#111111') + _L('M-6 -62 L-6 -72 L6 -72 L6 -62') },
+  book: { k: 1.6, g: () => _P('M-42 -2 Q-21 -14 0 -2 Q21 -14 42 -2 L42 16 Q21 4 0 16 Q-21 4 -42 16 Z').replace(/-?\d+(\.\d+)? -?\d+(\.\d+)?/g, m => m) + _L('M0 -2 L0 16') },
+  bag: { k: 1.9, g: () => _P('M-42 0 C-64 -40 -32 -72 -14 -82 L-20 -96 Q0 -86 20 -96 L14 -82 C32 -72 64 -40 42 0 Z') + _L('M-14 -82 Q0 -72 14 -82') + _C(0, -40, 12) + _L('M0 -50 L0 -30') },
+  coin: { k: 1.4, g: () => _C(0, -28, 28) + _C(0, -28, 17) + _L('M0 -38 L0 -18') },
+  chest: { k: 1.9, g: () => _P('M-62 0 L-62 -58 L62 -58 L62 0 Z') + _P('M-62 -58 Q0 -104 62 -58 Z') + _C(0, -50, 8) + _L('M-62 -30 L62 -30') },
+  box: { k: 1.9, g: () => _P('M-46 0 L-46 -70 L46 -70 L46 0 Z') + _L('M0 -70 L0 0 M-46 -48 L46 -48') },
+  bowl: { k: 1.7, g: () => _P('M-46 -36 Q-40 0 0 0 Q40 0 46 -36 Z') + _L('M-52 -36 L52 -36 M-12 -46 q-8 -12 0 -22 M10 -46 q-8 -12 0 -22') },
+  cup: { k: 1.6, g: () => _P('M-18 0 L-22 -42 L22 -42 L18 0 Z') + _L('M22 -34 Q42 -32 38 -16 Q34 -8 20 -10') },
+  phone: { k: 1.9, g: () => _P('M-24 0 Q-24 -4 -20 -4 L20 -4 Q24 -4 24 0 L24 -84 Q24 -88 20 -88 L-20 -88 Q-24 -88 -24 -84 Z') + _R(-17, -76, 34, 56) },
+  heart: { k: 1.5, f: 1, g: () => _P('M0 24 C-52 -14 -24 -48 0 -22 C24 -48 52 -14 0 24 Z') },
+  fence: { k: 2.0, g: () => { let s = _L('M-104 -34 L104 -34 M-104 -62 L104 -62'); for (let i = -2; i <= 2; i++) s += _P(`M${i * 50 - 11} 0 L${i * 50 - 11} -78 L${i * 50} -92 L${i * 50 + 11} -78 L${i * 50 + 11} 0 Z`); return s; } },
+  sign: { k: 2.0, g: () => _L('M0 0 L0 -104') + _P('M-48 -146 L48 -146 L58 -126 L48 -106 L-48 -106 Z') },
+  streetlight: { k: 2.2, g: () => _L('M0 0 L0 -204 Q0 -226 26 -226') + _C(34, -214, 11) + _L('M-12 0 L12 0') },
+  // --- phương tiện ---
+  car: { k: 3.0, g: () => _P('M-102 -30 L-102 -56 L-66 -62 L-42 -96 L42 -96 L72 -62 L102 -56 L102 -30 Z') + _P('M-36 -64 L-30 -88 L-2 -88 L-2 -64 Z') + _P('M8 -64 L8 -88 L34 -88 L54 -64 Z') + _C(-60, -22, 22) + _C(60, -22, 22) + _D(-60, -22, 6) + _D(60, -22, 6) },
+  boat: { k: 2.5, g: () => _L('M0 -40 L0 -176') + _P('M8 -170 L8 -58 L82 -58 Z') + _P('M-92 -40 L92 -40 L66 0 L-66 0 Z') + _L('M-120 8 q15 -10 30 0 t30 0 M60 8 q15 -10 30 0 t30 0') },
+  // --- con vật ---
+  dog: { k: 2.2, g: () => _L('M-44 -54 Q-72 -72 -68 -92') + _P('M-46 -46 Q-46 -72 0 -72 Q46 -72 46 -46 Q46 -22 0 -22 Q-46 -22 -46 -46 Z') + _L('M-30 -26 L-30 0 M-12 -22 L-12 0 M18 -22 L18 0 M36 -26 L36 0') + _P('M32 -72 Q30 -112 62 -108 Q86 -104 88 -84 L96 -78 L92 -64 Q70 -56 52 -60 Z') + _P('M40 -100 L34 -76 L52 -90 Z') + _D(70, -92, 3.5) + _D(94, -78, 3.5) },
+  cat: { k: 2.0, g: () => _L('M-42 -40 Q-80 -34 -74 -78 Q-72 -92 -62 -90') + _P('M-44 -40 Q-44 -66 0 -66 Q44 -66 44 -40 Q44 -18 0 -18 Q-44 -18 -44 -40 Z') + _L('M-26 -22 L-26 0 M-8 -18 L-8 0 M16 -18 L16 0 M32 -24 L32 0') + _P('M26 -66 Q22 -112 56 -112 Q90 -112 86 -66 Z') + _P('M30 -102 L28 -128 L46 -112 Z') + _P('M70 -112 L86 -128 L84 -100 Z') + _D(46, -92, 3.5) + _D(68, -92, 3.5) + _L('M52 -80 L56 -76 L60 -80') },
+  fish: { k: 2.0, f: 1, g: () => _P('M-36 0 Q0 -32 38 0 Q0 32 -36 0 Z') + _P('M36 0 L62 -20 L62 20 Z') + _D(-16, -5, 3.5) + _L('M-4 -12 Q4 0 -4 12') }
+};
+const propAliases = { cottage: 'hut', skyscraper: 'building', market: 'shop', store: 'shop', castle: 'tower', temple: 'pagoda', stone: 'rock', boulder: 'rock', trees: 'tree', sea: 'waves', river: 'waves', water: 'waves', wave: 'waves', flame: 'fire', bonfire: 'fire', desk: 'table', sack: 'bag', money: 'bag', lantern: 'lamp', bulb: 'lamp', sofa: 'bed', puppy: 'dog', kitten: 'cat', lamppost: 'streetlight', streetlamp: 'streetlight', signpost: 'sign', money_bag: 'bag', broken_house: 'ruins', rubble: 'ruins', camp: 'tent', clouds: 'cloud', stars: 'star', birds: 'bird', phone_: 'phone', gold: 'coin' };
+function propSvg(a, sw) {
+  let t = String(a.type || '').toLowerCase().replace(/[^a-z_]/g, '');
+  t = propAliases[t] || t;
+  const d = PROPS[t]; if (!d) return '';
+  let x = +a.x, y = +a.y, size = +a.size;
+  if (!isFinite(x)) x = 700;
+  if (!isFinite(y)) y = d.f ? 160 : 800;
+  if (!isFinite(size) || size <= 0) size = 1;
+  size = Math.max(0.3, Math.min(3, size));
+  const flip = String(a.facing || 'right').toLowerCase() === 'left' ? -1 : 1;
+  const sc = d.k * size, w = (sw / sc).toFixed(2);
+  return `<g transform="translate(${x.toFixed(0)} ${y.toFixed(0)}) scale(${(flip * sc).toFixed(3)} ${sc.toFixed(3)})" stroke="#111111" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none">${d.g()}</g>`;
+}
+function groundSvg(a, sw) {
+  const y = isFinite(+a.y) ? +a.y : 800, x0 = 30, x1 = fm.vw - 30, kind = String(a.kind || 'grass').toLowerCase();
+  let s = `<path d="M${x0} ${y} Q${fm.vw / 2} ${y - 12} ${x1} ${y}"/>`;
+  if (kind === 'grass') for (let x = x0 + 50; x < x1 - 20; x += 95) s += `<path d="M${x} ${y - 2} l-5 -13 M${x + 8} ${y - 2} l0 -16 M${x + 16} ${y - 2} l5 -12" stroke-width="${Math.max(2, sw * 0.6)}"/>`;
+  else if (kind === 'road') { s += `<path d="M${x0} ${y + 56} L${x1} ${y + 56}"/>`; for (let x = x0 + 30; x < x1 - 60; x += 130) s += `<path d="M${x} ${y + 28} L${x + 60} ${y + 28}" stroke-width="${Math.max(2, sw * 0.7)}"/>`; }
+  else if (kind === 'sea') for (let r = 0; r < 3; r++) s += `<path d="M${x0 + r * 30} ${y + 24 + r * 30} q20 -16 40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0" />`;
+  return `<g stroke="#111111" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" fill="none">${s}</g>`;
+}
+function expandProps(raw, sw) {
+  return raw
+    .replace(/<prop\b([^>]*?)\/?>(\s*<\/prop>)?/gi, (m, at) => { try { return propSvg(figAttrs(at), sw); } catch (e) { return ''; } })
+    .replace(/<ground\b([^>]*?)\/?>(\s*<\/ground>)?/gi, (m, at) => { try { return groundSvg(figAttrs(at), sw); } catch (e) { return ''; } });
+}
 const MACRO_STYLES = ['ref', 'stick', 'doodle', 'marker', 'minimal', 'kids'];
 const SVGR_SCENE = `Draw ONE clean black-and-white whiteboard illustration as valid SVG code ONLY.
 HARD RULES:
@@ -570,8 +655,16 @@ HARD RULES:
   face: smile, happy, open, flat, sad, cry, angry, surprised.
   acc: none, tuft, hat, cap, glasses, beard, crown, long (long hair). mark (shirt pattern): none, stripe, dots, vest, tie. Copy each character's acc and mark from the Characters list and keep them IDENTICAL in every scene (if the list gives none, OMIT acc and mark and the tool uses the role's default look: MAIN = tuft, SECOND = hat + stripes, THIRD = glasses + dots, FOURTH = long hair + vest, CROWD = plain).
   facing: left or right (the direction the person looks / walks). The person is drawn ON TOP of everything, so write the <person> tags AFTER the props.
-- Draw the ground line, buildings and props yourself with simple shapes (3 to 8 strokes each: house = square + triangle roof + door, tree = trunk + cloud-like crown, car, boat, bag of money, table, bed, phone, sun, clouds...). Objects a person holds go near the hands: about (x+/-60, y-150) for size 1. Add small detail strokes (motion lines, sparkles, sweat drops, speech-bubble shapes WITHOUT text) so emotion and action are obvious.
-- Composition: fill the frame well, 80px margin, people in the lower two thirds, 2 to 4 people at most, 12 to 30 own shapes, readable at small size.
+- Scenery and objects: do NOT draw them yourself when a ready-made one exists. Use self-closing tags (the tool draws them cleanly in the same style as the people):
+  <ground y="800" kind="grass"/>  (kind: grass, plain, road, sea) put ONE at the start of every outdoor scene; indoors use kind="plain".
+  <prop type="house" x="300" y="800" size="1" facing="right"/>
+  Ground props (x,y = bottom center, standing on the ground line): house, hut (thatched hut), building (tall block), shop, tower (castle tower), pagoda, tent, ruins (broken wall, rubble, collapsed houses), window, door, tree, pine, bush, rock, mountain, hill, fire, table, chair, bed, lamp, book, bag (money sack), coin, chest, box, bowl, cup, phone, fence, sign, streetlight, car, boat, dog, cat, waves (sea, river, flood water).
+  Floating props (x,y = CENTER, place in the sky or upper area): sun, moon, star, cloud, rain, bird, fish, heart.
+  size 1 = natural size next to a MAIN person of size 1.3 (a house is about 1.2 times that person's height; mountains and hills size 1 to 1.6; sun, moon, clouds 0.8 to 1.2; small items such as book, coin, cup, phone, bowl 0.8 to 1.2). facing="left" mirrors the prop. Put objects a person holds near the hands.
+  Layer order (back to front): sky props, mountain/hill, ground, far buildings and trees, near objects, and the <person> tags LAST. Overlap and group them so the frame looks full: one main object big near the middle, plus 2 to 5 scenery props around it.
+- Only if the scene needs something that is not in the list, draw it yourself with at most 3 simple, round, clean shapes (fill white).
+- NEVER fill big areas with black (no black sky, no black ground, no black rectangles). Night = moon + stars + clouds only.
+- Composition: fill the frame well, 80px margin, people in the lower two thirds, 2 to 4 people at most, 5 to 9 prop/person tags in total, readable at small size.
 - Every important object, place and action named in "Scene to draw" MUST be visible and recognizable. Draw exactly that moment.
 Output ONLY the <svg>...</svg> code.`;
 
@@ -640,7 +733,7 @@ function refStyleText() {
 
 // ===== PHONG CÁCH VẼ (đều đen trắng) =====
 const STYLES = {
-  ref:    { sw: 6,  wob: 3, hint: 'Người que đầu tròn dựng sẵn như ảnh mẫu, mỗi nhân vật có phụ kiện/họa tiết áo riêng nên nhìn là nhận ra và giống nhau ở mọi cảnh. Đồ vật, nhà cửa, nền được AI vẽ theo ảnh mẫu bạn tải lên.',
+  ref:    { sw: 6,  wob: 2, hint: 'Người que đầu tròn dựng sẵn như ảnh mẫu, mỗi nhân vật có phụ kiện/họa tiết áo riêng nên nhìn là nhận ra và giống nhau ở mọi cảnh. Nhà, cây, đồ vật, thú vật, nền cũng là bộ vẽ sẵn của tool (khoảng 45 loại), AI chỉ chọn và xếp chỗ.',
     svg: '', img: 'black ink line drawing matching the reference image style' },
   stick:  { sw: 7,  wob: 5, hint: 'Nhân vật doodle đầu tròn, thân quả lê, tay chân mảnh, giống nhau ở mọi cảnh. Rõ ràng nhất, hợp truyện giải thích.',
     svg: '', img: 'simple black stick figure whiteboard drawing, round heads, line bodies, clean uniform black outlines, minimal props' },
@@ -840,7 +933,7 @@ async function svgImage(s, blackInkOnly = false) {
   parts.push({ text: `${rule}\n${sceneCtx(s)}` });
   const d = await gemMulti(TXT_MODELS, { contents: [{ parts }] }, 75000);
   const t = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('');
-  const svg = sanitizeSvg(macro ? expandPeople(t, st.sw) : t, curStyle().wob);
+  const svg = sanitizeSvg(macro ? expandPeople(expandProps(t, st.sw), st.sw) : t, curStyle().wob);
   return await inkify({ mimeType: 'image/svg+xml', data: btoa(unescape(encodeURIComponent(svg))) });
 }
 
@@ -1501,28 +1594,50 @@ function cap(x, x1, y1, x2, y2, w, col, ol) {
 }
 
 function hand(x, px, py) {
-  const SK = '#f2c6a2', OL = '#8a5a3c';
+  // Bàn tay cầm bút vẽ bằng đường cong (Path2D). Gốc tọa độ = đầu ngòi bút, trục +x chạy dọc thân bút.
   const a = Math.max(0.52, Math.min(1.05, Math.atan2(H + 500 - py, W + 300 - px))) + Math.sin(performance.now() / 110) * 0.02;
   x.save();
   x.translate(px, py);
   x.rotate(a);
-  x.lineJoin = 'round';
-  x.shadowColor = 'rgba(0,0,0,.28)';
-  x.shadowBlur = 10;
-  x.shadowOffsetX = 5;
-  x.shadowOffsetY = 7;
-  cap(x, 380, 34, 1100, 34, 118, '#374151', '#1f2937');
-  cap(x, 250, 32, 420, 32, 72, SK, OL);
+  const SK = '#f6cba6', SKD = '#e9b48a', OL = '#6e4128';
+  x.lineJoin = 'round'; x.lineCap = 'round';
+  const shape = (d, fill, lw = 5) => { const p = new Path2D(d); x.fillStyle = fill; x.fill(p); x.strokeStyle = OL; x.lineWidth = lw; x.stroke(p); };
+  const line = (d, lw = 3.5, col = OL) => { x.strokeStyle = col; x.lineWidth = lw; x.stroke(new Path2D(d)); };
+
+  // đổ bóng nhẹ cho cả bàn tay
+  x.shadowColor = 'rgba(0,0,0,.25)'; x.shadowBlur = 12; x.shadowOffsetX = 5; x.shadowOffsetY = 8;
+  // tay áo + cổ tay
+  shape('M 372 -62 L 1250 -92 L 1250 150 L 372 128 Q 350 120 350 33 Q 350 -54 372 -62 Z', '#374151', 5);
   x.shadowColor = 'transparent';
-  cap(x, 150, 36, 250, 36, 100, SK, OL);
-  cap(x, 178, 80, 135, 88, 32, SK, OL);
-  cap(x, 205, 94, 165, 102, 30, SK, OL);
-  cap(x, 0, 0, 30, 0, 6, '#111', '#111');
-  cap(x, 30, 0, 320, 0, 17, '#2563eb', '#1e3a8a');
-  cap(x, 40, -4, 300, -4, 3, 'rgba(255,255,255,.55)', 'rgba(0,0,0,0)');
-  cap(x, 108, 0, 114, 0, 19, '#d1d5db', '#6b7280');
-  cap(x, 165, -16, 58, -9, 27, SK, OL);
-  cap(x, 185, 52, 76, 15, 26, SK, OL);
+  shape('M 350 -44 L 392 -52 Q 408 33 392 118 L 350 112 Q 336 33 350 -44 Z', '#e5e7eb', 4);     // viền cổ tay áo
+  x.fillStyle = SK; x.fill(new Path2D('M 360 -34 C 330 -44 300 -50 270 -46 L 270 100 C 310 104 336 102 362 96 Z'));
+  line('M 270 -46 C 300 -50 330 -44 360 -34 M 270 100 C 310 104 336 102 362 96', 5);   // cổ tay (chỉ viền mép trên/dưới)
+
+  // thân bút
+  shape('M 0 0 L 44 -9 L 44 9 Z', '#1f2937', 4);                                                 // ngòi
+  shape('M 40 -15 L 276 -15 Q 292 -15 292 0 Q 292 15 276 15 L 40 15 Q 30 15 30 0 Q 30 -15 40 -15 Z', '#2563eb', 4);
+  line('M 62 -7 L 250 -7', 3, 'rgba(255,255,255,.55)');
+  shape('M 92 -15 L 100 -15 L 100 15 L 92 15 Z', '#e5e7eb', 3);                                    // vòng bạc
+
+  // 3 ngón co lại (giữa, áp út, út) - nằm sau mu bàn tay
+  shape('M 196 -20 C 168 -26 138 -22 128 -4 C 122 8 132 20 148 20 C 168 20 190 14 204 8', SK, 4.5);
+  shape('M 200 -48 C 172 -58 142 -54 134 -36 C 128 -24 138 -14 154 -14 C 174 -14 194 -22 208 -28', SK, 4.5);
+  shape('M 206 -74 C 184 -84 158 -80 152 -64 C 147 -52 156 -43 170 -44 C 186 -44 202 -50 214 -56', SK, 4.5);
+  line('M 150 -2 Q 160 4 172 0 M 146 -34 Q 156 -28 168 -32 M 168 -62 Q 176 -58 186 -60', 3);
+
+  // mu bàn tay
+  shape('M 300 -62 C 270 -86 232 -88 208 -76 C 192 -66 190 -30 192 0 C 194 36 204 66 228 84 C 256 102 300 104 330 92', SK, 5);
+  line('M 238 -60 C 262 -40 268 -10 258 20', 3, SKD);                                               // đường gân mu tay
+
+  // ngón trỏ: nằm dọc thân bút, đầu ngón chạm gần ngòi
+  shape('M 236 -30 C 196 -44 140 -34 98 -20 C 80 -14 78 6 92 10 C 104 13 116 8 130 6 C 170 2 208 14 246 22', SK, 5);
+  shape('M 96 -14 C 88 -12 84 -4 88 3 C 94 5 104 0 108 -7 C 106 -13 100 -15 96 -14 Z', '#fbe3d0', 3);   // móng tay
+  line('M 160 -30 Q 164 -14 158 0', 3);                                                              // nếp đốt ngón
+
+  // ngón cái: ép bút từ phía dưới
+  shape('M 262 98 C 224 100 176 78 140 48 C 124 34 120 14 134 8 C 146 4 156 14 166 22 C 196 44 236 52 282 52', SK, 5);
+  shape('M 130 14 C 124 20 126 32 134 38 C 142 38 148 30 146 22 C 142 14 136 11 130 14 Z', '#fbe3d0', 3);
+  line('M 196 56 Q 204 66 200 78', 3);
   x.restore();
 }
 
