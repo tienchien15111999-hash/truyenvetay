@@ -57,6 +57,7 @@ AI vẽ người bằng SVG thường méo và mỗi cảnh một kiểu. Nên v
 7. **Ô "Số tranh"** (`nimg`): trống = tự động ≈ 1 tranh/9 giây; gõ số thì kịch bản chia đúng số cảnh đó. Giới hạn 3-20 giây/tranh và tối đa 80 tranh (`imgCount`). Đã bỏ chữ "(~N cảnh)" trong ô Độ dài.
 
 8. **Khung "💾 Lưu cài đặt & key"** cuối phần ⚙ Cài đặt: tự lưu mỗi khi gõ/dán (`saveSet`, nghe sự kiện `input`), hiện tình trạng đã lưu (`updStat`), nút Lưu (`saveNow`), Tải/Nạp file sao lưu `.json` (`exportSet`/`importSet`), Xóa key (`clearKeys`). Vẫn dùng `localStorage['cfg_v3']`, thêm trường `_t` là giờ lưu.
+9. **Phong cách "🖼 Theo ảnh mẫu"** (`style=ref`, nằm trong `MACRO_STYLES`, mặc định cho người mới): người dùng tải ảnh mẫu (`refUpload`, lưu `localStorage['refimg_v1']`; chưa tải thì dùng `REF_DEFAULT`). Nhân vật vẫn do `figureSvg` vẽ (đồng nhất, miễn phí); ảnh mẫu + mô tả phong cách (`refStyleText`) được gửi kèm để AI vẽ đồ vật/nền cùng cảm giác nét. Nhận diện nhân vật: `ROLE_DEF` có 5 vai MAIN/SECOND/THIRD/FOURTH/CROWD, mỗi vai có phụ kiện (`acc`) và họa tiết áo (`mark`: stripe/dots/vest/tie) riêng, vẽ bởi `markSvg`. Prompt kịch bản/đạo diễn/cảnh đã cập nhật theo 5 vai.
 
 Đã có từ các bản trước (người dùng hoặc AI khác làm): nhiều phong cách vẽ, giọng Vbee qua `/api/vbee` (Realtime + Batch, tự chuyển giọng Gemini nếu lỗi), xoay nhiều key Gemini, nút kiểm tra key.
 
