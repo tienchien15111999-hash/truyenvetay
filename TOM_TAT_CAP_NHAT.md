@@ -47,6 +47,9 @@ Tool tạo video kể chuyện 1-5 phút kiểu whiteboard: nhập truyện/ý t
 | Luồng chính | `start`, `makeVideo` | 1339, 1515 |
 | Xem trước tranh | `renderGallery`, `updateCard`, `redraw` | 1460-1514 |
 | **Bàn tay cầm bút (Path2D)**, phát/xuất video | `hand`, `play` | 1596, 1644 |
+| **Vẽ 1 khung hình theo thời gian t** (dùng chung xem thử + xuất) | `makeRenderer` (trả về hàm `draw(t)`) | trước `play` |
+| **Mốc thời gian → lịch trên tranh** | `parseDates`, `dateLabelSvg`, `addDateLabels` | trước `svgImage` |
+| **Xuất video nhanh** (WebCodecs + mp4-muxer) | `fastExportOK`, `pickCodec`, `exportFast`, `FAST_CODECS` | trước `play` |
 
 ## 5. Nhân vật doodle và đồ vật vẽ sẵn (vì sao không để AI tự vẽ)
 AI vẽ người/nhà/cây bằng SVG thường méo và mỗi cảnh một kiểu. Nên với `ref, stick, doodle, marker, minimal, kids` (`MACRO_STYLES`) AI **chỉ đặt thẻ**, tool vẽ thật **trước** `sanitizeSvg`: `expandProps()` rồi `expandPeople()`.
@@ -68,6 +71,10 @@ AI vẽ người/nhà/cây bằng SVG thường méo và mỗi cảnh một ki�
 10. **Thư viện đồ vật vẽ sẵn** (`PROPS`, `propSvg`, `groundSvg`, `expandProps`, trước `MACRO_STYLES`): ~45 loại (nhà, cây, núi, mặt trời, bàn ghế, xe, thuyền, chó mèo...) AI chỉ đặt thẻ `<prop type x y size facing/>` và `<ground y kind/>`, tool vẽ sạch cùng nét với người que. `k` là hệ số tỉ lệ từng loại, `f:1` là đồ lơ lửng (x,y là tâm). Thêm đồ vật mới: thêm vào `PROPS` (gốc tọa độ ở chân, hướng lên là âm) + tên vào danh sách trong `SVGR_SCENE`. Prompt cấm tô đen mảng lớn.
 11. **Bàn tay cầm bút mới** (`hand`, ~dòng 1596+): vẽ bằng `Path2D` (đường cong) thay cho các nét `cap` hình xúc xích: tay áo + cổ tay, mu bàn tay, ngón trỏ có móng, ngón cái, 3 ngón co lại. Gốc tọa độ = ngòi bút, trục +x dọc thân bút; góc xoay `a` và chữ ký hàm giữ nguyên nên `play()` không phải sửa. Đổi màu da/viền ở `SK`, `SKD`, `OL`; màu thân bút là `#2563eb`. Hàm `cap` không còn được `hand` dùng.
 
+12. **Xuất video nhanh, không cần phát hết video** (sửa lỗi "phải xem hết video mới tải được"): trước đây `play(1)` ghi canvas bằng MediaRecorder theo thời gian thật. Giờ `play(1)` gọi `exportFast()` nếu `fastExportOK()`: (a) trộn giọng đọc + nhạc nền thành 1 đoạn âm thanh bằng `OfflineAudioContext` (dùng lại `startMusic(off, off.destination, ...)` với `t0=0`), (b) vẽ từng khung 30fps bằng `makeRenderer(...)` rồi mã hóa bằng `VideoEncoder`/`AudioEncoder`, (c) ghép thành mp4 bằng thư viện **mp4-muxer 5.1.5 (MIT) nhúng thẳng trong `index.html`** (thẻ `<script>` ngay trước script chính, không cần file/CDN ngoài). Chọn codec ở `pickCodec`: ưu tiên H.264+AAC (mp4 phổ biến, đăng được mọi nền tảng), nếu máy không có thì VP9+Opus trong mp4. Không có WebCodecs hoặc lỗi giữa chừng thì hiện nút "Xuất theo thời gian thật" = `play(1, true)` (đường MediaRecorder cũ vẫn còn). `play` (xem thử) và xuất nhanh dùng chung `makeRenderer`, nên đổi cách vẽ khung (camera, mờ cảnh, phụ đề, tay) chỉ sửa 1 chỗ. Độ mượt của tay giờ tính theo thời gian (`dt`) chứ không theo số khung.
+
+13. **Vẽ mốc thời gian lên tranh**: nếu lời kể của cảnh có ngày/tháng/năm viết bằng chữ số thì tool tự vẽ lịch hoặc bảng ngày ở **góc trên bên trái** tranh. `parseDates(text)` (đặt ngay trước `svgImage`) nhận ra: `15 tháng 3 năm 2020`, `15/3/2020`, `ngày 5/1`, `5 tháng 4`, `tháng 7 năm 1998`, `tháng 12`, `năm 1945`, `những năm 1990`; bỏ qua `1/2 cốc`, `năm 2000 đồng`, `năm người`. Có ngày thì vẽ **tờ lịch** (`dateLabelSvg`: tháng, số ngày to, năm), chỉ có tháng/năm thì vẽ **bảng chữ nhật**; tối đa 2 nhãn/cảnh, xếp ngang. Nhãn được ghép vào SVG **sau** `sanitizeSvg` bằng `addDateLabels` (vì `sanitizeSvg` xóa `<text>`), dùng chữ viết tay hệ thống và bộ lọc rung `wob`. Prompt vẽ tranh được dặn chừa trống góc trên trái (`DATE LABEL`), và prompt kịch bản (`makeScript`) dặn viết ngày tháng năm bằng chữ số. Chưa nhận giờ trong ngày ("lúc 8 giờ") và ngày viết bằng chữ ("mười lăm tháng ba").
+
 Đã có từ các bản trước (người dùng hoặc AI khác làm): nhiều phong cách vẽ, giọng Vbee qua `/api/vbee` (Realtime + Batch, trước đây tự chuyển Gemini nếu lỗi, NAY ĐÃ BỎ: lỗi thì hỏi người dùng, xem mục 14), xoay nhiều key Gemini, nút kiểm tra key.
 
 ## 7. Lưu ý khi sửa (bẫy đã gặp)
@@ -78,6 +85,7 @@ AI vẽ người/nhà/cây bằng SVG thường méo và mỗi cảnh một ki�
 - Thẻ `<person>`/`<prop>` phải được bung ra TRƯỚC `sanitizeSvg` (nó xóa thẻ lạ). `sanitizeSvg` chỉ giữ `#111111`/`#ffffff`: đừng dùng màu khác trong `PROPS`.
 - `hand` vẽ bằng `Path2D`; nhớ cặp `x.save()/x.restore()` (đã từng thừa một `save` gây lệch). Ngón tay bỏ `Z` ở cuối đường để không có nét viền ở gốc ngón.
 - Chữ có dấu tiếng Việt: khi dùng `cut -c` trên terminal sẽ cắt giữa ký tự gây lỗi UTF-8; dùng Python để đọc.
+- Xuất nhanh cần trình duyệt Chromium (Chrome/Edge) trên máy tính; Safari/Firefox tự rơi về xuất thời gian thật. Đã thử bằng Playwright (VP9+Opus, 2 khung hình, file ra đúng độ dài, có tiếng); **chưa thử đường H.264+AAC** vì trình duyệt thử nghiệm không có bộ mã hóa này, nên nếu máy người dùng báo lỗi xuất nhanh thì đọc thông báo lỗi và sửa `FAST_CODECS`/`pickCodec`.
 - `makeVoice` có hàng đợi riêng cho Vbee (`vq`) vì Vbee giới hạn số yêu cầu đồng thời.
 
 ## 8. Kiểm thử (đã làm) và chưa làm
@@ -109,3 +117,25 @@ Yêu cầu của người dùng: không được tự ý đổi giọng vì vide
 ## 15. Quy tắc người dùng đã nêu (đừng phá khi sửa tiếp)
 - Một video chỉ được có MỘT giọng: không tự đổi Vbee sang Gemini (mục 14); Gemini cũng khóa một model (mục 12).
 - Người dùng không rành kỹ thuật: luôn trả `index.html` đầy đủ (hoặc cả zip) và cập nhật file này sau mỗi lần sửa.
+
+## 16. Tranh phải ăn khớp lời kể: bỏ cảnh vật thừa, không phải cảnh nào cũng vẽ người (đợt gần nhất)
+Phản hồi người dùng: cảnh vật nền không liên quan truyện; cảnh kể về vật thì không cần vẽ người; tranh phải có đúng vật được nhắc (người đàn ông cầm tiền thì phải có cục tiền).
+Nguyên nhân: `SVGR_SCENE` ép "2-4 người", "5-9 thẻ", "thêm 2-5 đồ vật nền", "mỗi cảnh ngoài trời có <ground>"; `PROPS` không có tiền mặt (alias `money` đang trỏ về `bag`); thẻ không có trong thư viện bị bỏ im lặng.
+Đã sửa:
+1. **Nhãn loại cảnh** `[OBJECT]` (cận cảnh đồ vật, KHÔNG người) / `[PERSON]` / `[PLACE]` đặt đầu mô tả vẽ: do `makeScript` (trường `image`) và `refineImages` (quy tắc 0-5) sinh ra; `SVGR_SCENE` có STEP 1 bắt AI chọn loại cảnh, chỉ vẽ cái lời kể cần, cấm đồ trang trí không được nhắc, nền trắng trống là tốt, `<ground>` chỉ dùng khi cần.
+2. **Người cầm đồ**: thuộc tính mới `hold="cash"` (và `holdsize`) trên `<person>`, xử lý trong `figureSvg` ngay sau khi vẽ tay; nếu có `hold` mà pose là stand thì tự đổi sang `carry`. Đồ cầm lấy từ `PROPS` (có alias).
+3. **~30 đồ vật mới trong `PROPS`**: cash (xấp tiền), banknote, key, letter, paper, gift, flower, apple, bread, cake, pot, clock, bucket, umbrella, crown, trophy, magnifier, diamond, ring, flag, computer, bicycle, bus, plane, bridge, hospital, school, well, buffalo. Bảng alias mở rộng (money/cash_stack/bundle -> cash, gold/coins -> coin, tv/laptop -> computer...).
+4. `propSvg` tra cứu mềm (bỏ chữ s cuối, tách tên ghép như `old_house`), cho `size` tới 4 để đồ vật làm chủ thể được phóng to.
+5. Danh sách đồ vật trong prompt tự lấy từ `Object.keys(PROPS)` (thay `__GROUNDPROPS__`/`__FLOATPROPS__` trong `svgImage`): thêm đồ vật mới chỉ cần thêm vào `PROPS`, không phải sửa prompt. Thứ cần mà thư viện chưa có thì AI tự vẽ tối đa 6 hình đơn giản (trước đây chỉ 3).
+6. Khung dọc không còn ép "phần trên vẽ trời/mây"; phong cách ảnh mẫu (`ref`) chỉ lấy cảm giác nét, không thêm trang trí.
+Kiểm thử đã làm: Playwright vẽ bảng toàn bộ đồ vật mới; cảnh người cầm tiền, cảnh chỉ có giấy nợ + tiền (không người), alias `old_house`/`money_stack`, đi qua `expandProps` + `expandPeople` + `sanitizeSvg`. **Chưa thử với key Gemini thật**: cần xem AI có chọn đúng nhãn [OBJECT]/[PERSON]/[PLACE] không; nếu vẫn thêm người/cảnh thừa thì chỉnh STEP 1 trong `SVGR_SCENE`. Truyện cũ đã tạo kịch bản chưa có nhãn: bấm "Bắt đầu tạo video" lại để đạo diễn viết lại mô tả, hoặc tự gõ nhãn vào ô "Sửa mô tả tranh" rồi Vẽ lại.
+
+## 17. Màu nhấn (đỏ máu/lửa, vàng ánh sáng, xanh tiền, xanh nước)
+Trước đây `sanitizeSvg` ép mọi thứ về đen/trắng. Nay giữ lại đúng 5 màu nhấn, bảng `COL` (đặt ngay trước `PROPS`): red `#e63946`, orange `#ff8c1a`, yellow `#ffd60a`, green `#2fa84f`, blue `#3a86ff`. Nét viền luôn đen, màu chỉ dùng để TÔ vài thứ mang ý nghĩa truyện.
+- **Công tắc** `accentOn` (checkbox "🎨 Màu nhấn" dưới "Hiện phụ đề", có trong `CF` nên được lưu). Tắt thì mọi màu nhấn thành trắng (tô)/đen (nét), tranh đen trắng như cũ.
+- `accentOf(v)` (trước `sanitizeSvg`): đổi màu AI ghi (tên màu hoặc hex/rgb sặc sỡ, bão hòa >= 0.5, đủ đậm) về màu gần nhất trong 5 màu; màu nhạt/xám/be vẫn bị ép trắng/đen như cũ để không bị bôi màu cả bầu trời.
+- `whitenBigBlack`: mảng màu nhấn do AI tự vẽ mà bao > 18% khung thì đổi trắng. Đồ vật thư viện có thuộc tính `data-keep="1"` (do `_Pc/_Cc/_Rc/_flame/_spiky` gắn) được miễn, vì tia sáng, lửa, vụ nổ vốn to.
+- **Đồ vật có màu mới trong `PROPS`**: blood (vũng + giọt máu), flames (hàng lửa rộng), fire_big, beam (tia sáng dưới đèn/cửa sổ, vẽ TRƯỚC vật được chiếu), bulb (ý tưởng), spark (lấp lánh), lightning, explosion, smoke (nét đen), drop (giọt nước/nước mắt). Đồ cũ được tô: cash/banknote xanh lá, coin/crown/trophy/key/sun/moon/star/đèn vàng, fire cam+vàng, heart/apple/flag/nơ quà đỏ, diamond xanh, waves/rain nét xanh.
+- Prompt `SVGR_SCENE`: mục COLOR ACCENTS (thay `__ACCENTRULE__` theo công tắc), mục STORY EFFECTS (máu, nhà cháy = ruins/house + flames + smoke vẽ SAU nhà, ánh sáng = beam, tiền = cash) và ví dụ nhà cháy. `refineImages` quy tắc 6 bắt đạo diễn ghi các từ khóa blood/flames/beam/cash... vào mô tả.
+- Thêm màu mới: thêm vào `COL`, thêm nhánh hue trong `accentOf`, ghi vào mục COLOR ACCENTS. Phong cách pencil/manga/brush (`SVGR_INK`) vẫn đen trắng.
+- Kiểm thử Playwright: nhà cháy, máu, đèn + tia sáng, người cầm tiền + đồng xu, nổ/sét/mưa/mặt trời, công tắc tắt màu. Chưa thử key Gemini thật: cần xem AI có chọn đúng `flames`/`blood`/`beam` khi lời kể có lửa/máu/ánh sáng không.
