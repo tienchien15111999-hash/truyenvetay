@@ -120,6 +120,12 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
     <span id="vtestResult" class="hint" style="margin-left:8px"></span>
   </div>
 
+  <div style="margin:10px 0"><label>🖐 Bàn tay thật (tuỳ chọn): tải ảnh bàn tay cầm bút, PNG nền trong suốt</label>
+    <input type="file" id="handFile" accept="image/png" onchange="handUpload(this)">
+    <canvas id="handPrev" width="10" height="10" style="display:block;max-width:280px;margin-top:6px;border:1.5px solid #888;border-radius:4px;cursor:crosshair;background:repeating-conic-gradient(#ddd 0 25%,#fff 0 50%) 0 0/16px 16px" onclick="handClick(event)" hidden></canvas>
+    <div class="hint" id="handStat" style="margin:4px 0">Chưa có: đang dùng bàn tay vẽ sẵn.</div>
+    <button type="button" onclick="handReset()">Dùng lại bàn tay vẽ sẵn</button></div>
+
   <div class="savebox">
     <b>💾 Lưu cài đặt &amp; key</b>
     <div class="hint" id="saveStat"></div>
@@ -162,11 +168,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   <label class="chk"><input type="checkbox" id="sub" checked>Hiện phụ đề</label>
   <div style="margin:10px 0"><label>🎨 Chế độ màu</label>
     <select id="cmode" onchange="applyPalette();saveSet()"><option value="accent">Màu nhấn (chỉ chi tiết quan trọng)</option><option value="bw">Đen trắng bảng trắng</option><option value="retro">Hoài cổ (sepia, nâu, vàng ngà)</option><option value="warm">Điện ảnh ấm</option><option value="cool">Điện ảnh lạnh</option><option value="comic">Truyện tranh (rực, tương phản)</option></select></div>
-  <div style="margin:10px 0"><label>🖐 Bàn tay thật (tuỳ chọn): tải ảnh bàn tay cầm bút, PNG nền trong suốt</label>
-    <input type="file" id="handFile" accept="image/png" onchange="handUpload(this)">
-    <canvas id="handPrev" width="10" height="10" style="display:block;max-width:280px;margin-top:6px;border:1.5px solid #888;border-radius:4px;cursor:crosshair;background:repeating-conic-gradient(#ddd 0 25%,#fff 0 50%) 0 0/16px 16px" onclick="handClick(event)" hidden></canvas>
-    <div class="hint" id="handStat" style="margin:4px 0">Chưa có: đang dùng bàn tay vẽ sẵn.</div>
-    <button type="button" onclick="handReset()">Dùng lại bàn tay vẽ sẵn</button></div>
+  
   <label class="chk"><input type="checkbox" id="accentOn" checked onchange="saveSet()">🎨 Màu nhấn (đỏ máu/lửa, vàng ánh sáng, xanh tiền...) — bỏ chọn nếu muốn đen trắng hoàn toàn</label>
   <button id="go" onclick="start(false)">Bắt đầu tạo video</button>
   <button id="retryBtn" class="warn" onclick="start(true)" hidden>🔄 Chạy bù các tranh lỗi</button>
