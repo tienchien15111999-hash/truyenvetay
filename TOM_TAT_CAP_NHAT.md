@@ -140,13 +140,24 @@ Trước đây `sanitizeSvg` ép mọi thứ về đen/trắng. Nay giữ lại 
 - Thêm màu mới: thêm vào `COL`, thêm nhánh hue trong `accentOf`, ghi vào mục COLOR ACCENTS. Phong cách pencil/manga/brush (`SVGR_INK`) vẫn đen trắng.
 - Kiểm thử Playwright: nhà cháy, máu, đèn + tia sáng, người cầm tiền + đồng xu, nổ/sét/mưa/mặt trời, công tắc tắt màu. Chưa thử key Gemini thật: cần xem AI có chọn đúng `flames`/`blood`/`beam` khi lời kể có lửa/máu/ánh sáng không.
 
+## 18. Địa danh nổi tiếng + nhân vật nổi tiếng nhận ra ngay
+- `PROPS` có thêm 11 địa danh (eiffel, liberty, bigben, pyramid, colosseum, pisa, fuji, whitehouse, khue, motcot, greatwall) kèm alias (paris, london, egypt...). Mỗi cái có `n` = tên hiện trên nhãn. Thêm địa danh mới: thêm vào `PROPS` (có `n`) + ghi vào đoạn FAMOUS PLACES AND PEOPLE của `SVGR_SCENE`.
+- `<person who="trump|einstein|jobs|bacho|napoleon|lincoln"/>`: bảng `WHO` đặt sẵn phụ kiện/áo (tóc vàng vuốt + cà vạt đỏ, tóc bù + ria, kính tròn + áo cổ lọ, râu dê, mũ Napoleon, mũ cao + râu). Thêm người mới: thêm vào `WHO` + một nhánh `acc` trong `figureSvg` (trước nhánh `hat`) + ghi vào prompt.
+- Nhãn tên: `_tags` được `propSvg`/`figureSvg` ghi, `addTags` vẽ nhãn ở dưới chân sau `sanitizeSvg` (như `addDateLabels`). Chưa thử key Gemini thật: cần xem AI có chọn đúng prop/`who` khi lời kể nhắc tên.
 
-## 18. Địa danh nổi tiếng (Paris có tháp Eiffel, Mỹ có tượng Nữ thần Tự do...) (đợt gần nhất)
-Yêu cầu người dùng: cảnh vật phải gắn với địa danh có vật thể nhận biết (đi chơi Paris thì thấy tháp Eiffel, Mỹ thì có tượng Nữ thần Tự do...).
-Đã làm:
-1. **21 đồ vật địa danh vẽ sẵn** trong `PROPS` (khối "ĐỊA DANH NỔI TIẾNG", đặt ngay trước `propAliases`, dùng `Object.assign(PROPS, {...})`): eiffel, statue_liberty, empire_state, big_ben, pyramid, colosseum, pisa, taj_mahal, opera_house, great_wall, fuji, torii, christ_redeemer, burj_khalifa, kremlin, angkor, one_pillar (Chùa Một Cột), turtle_tower (Tháp Rùa), hcm_tower (Landmark 81), windmill, brandenburg. Cỡ `k` đã chỉnh để size 1.0-1.6 vừa khung.
-2. **`LANDMARKS`** (mã -> nơi) và **`LM_TXT`** (chuỗi cho prompt). Muốn thêm địa danh: thêm vào `PROPS` + `LANDMARKS` (+ alias trong `propAliases`), prompt tự cập nhật.
-3. **Alias theo tên nơi**: paris/france -> eiffel, usa/new_york/america -> statue_liberty, london -> big_ben, egypt -> pyramid, rome/italy -> colosseum, india -> taj_mahal, sydney/australia -> opera_house, china -> great_wall, japan -> fuji, brazil/rio -> christ_redeemer, dubai -> burj_khalifa, russia/moscow -> kremlin, cambodia -> angkor, hanoi -> one_pillar, hoan_kiem -> turtle_tower, saigon/landmark -> hcm_tower, netherlands/holland -> windmill, berlin/germany -> brandenburg... (AI ghi tên nước/thành phố thay vì mã cũng vẽ đúng).
-4. **Prompt**: `makeScript` (trường `image`) nhắc ghi tên địa danh + vật thể nhận biết; `refineImages` quy tắc 7 (kèm bảng `${LM_TXT}`, không tự thêm địa danh nếu lời kể không nhắc); `SVGR_SCENE` mục LANDMARKS (địa danh là nhân vật chính của cảnh, 1 vật to, người đứng phía trước; thay `__LANDMARKS__` trong `svgImage`); `SVGR_INK` (pencil/manga/brush) có 1 dòng nhắc vẽ địa danh rõ.
-5. Nằm ngoại lệ của quy tắc mục 16 "không thêm cảnh vật thừa": địa danh chỉ được vẽ khi lời kể nhắc đúng thành phố/quốc gia đó.
-Kiểm thử Playwright: vẽ bảng cả 21 địa danh (đã sửa torii và Vạn Lý Trường Thành cho khỏi bị lơ lửng), alias (paris, usa, hanoi, landmark81, mt_fuji...), cảnh người + tháp Eiffel đi qua `expandProps` + `expandPeople` + `sanitizeSvg`. **Chưa thử với key Gemini thật**: cần xem AI có ghi đúng nhãn/địa danh không. Chế độ ảnh Gemini Image (không phải SVG) tự vẽ địa danh theo mô tả tiếng Anh.
+## 19. Nhận diện tự do (không cần thêm vào thư viện)
+Người/địa danh KHÔNG có trong `WHO`/`PROPS`: AI tự ghép. `featSvg(a)` (trước `figureSvg`) vẽ tóc (`hair`, `haircolor`), ria (`stache`), mũ (`hat`), cà vạt (`tie`) từ thuộc tính `<person>`; thẻ `<label text x y/>` (xử lý trong `expandProps`) đẩy tên vào `_tags` để `addTags` vẽ nhãn. Prompt `SVGR_SCENE` mục FAMOUS dặn AI mô tả 2-3 nét đặc trưng rồi mã hóa; địa danh lạ thì AI tự vẽ bóng dáng đặc trưng (tối đa 6 hình). Chất lượng phụ thuộc AI: chưa thử key thật.
+
+## 20. Màu chỉ để nhấn mạnh
+Theo yêu cầu người dùng: tóc/mũ/cà vạt/đuốc của địa danh và nhân vật nổi tiếng (mục 18-19) KHÔNG tô màu, chỉ đen/trắng. Màu nhấn (mục 17) chỉ dành cho thứ truyện cần nhấn mạnh (máu, lửa, tiền...). Đừng thêm màu cố định cho nhân vật/đồ vật.
+
+## 21. Bàn tay thật (tuỳ chọn)
+Ô `handFile` (cạnh ô Màu nhấn): tải PNG nền trong suốt của bàn tay cầm bút, bấm 2 điểm (ngòi, đuôi bút) trên ảnh xem trước. `hand()` thấy `handImg`+`handPts` thì vẽ ảnh thật (ngòi tại điểm vẽ, xoay theo góc cũ), không thì dùng bàn tay Path2D cũ. Lưu `localStorage['handimg_v1','handpts_v1']`. Ảnh có sẵn checkerboard in cứng/watermark (vd pngtree) không dùng được.
+
+## 22. Nâng cấp đạo diễn/tư thế/màu/đồ vật (đợt lớn)
+- `refineImages` quy tắc 7: thêm nhãn góc máy [WIDE/MEDIUM/CLOSE/XCLOSE/TOP/LOW/SIDE/OTS] + vị trí + chi tiết bắt buộc; `SVGR_SCENE` có khối CAMERA/DEPTH (3 lớp tiền/trung/hậu). JSON không đổi (chỉ thêm nhãn vào chuỗi mô tả).
+- `POSES` thêm: pray, shake, hug, push, pull, guard, flee, fall, fight, armed, kneel, plead, getup (kneel/plead/getup dùng dáng ngồi, gần đúng). Nét mặt thêm: worried, scared, doubt, determined, tired, proud.
+- Chế độ màu `cmode` (accent, bw, retro, warm, cool, comic): bảng `PAL`, `applyPalette()` gán vào `COL`; `accentEnabled()` thay cho kiểm tra checkbox; áo nhân vật theo vai (`shirtFill`: MAIN xanh dương, SECOND đỏ, THIRD xanh lá, FOURTH cam) ở 4 chế độ màu mới, giữ nguyên mọi cảnh.
+- `PROPS` thêm: map, sword, rifle, cannon, tank, train, motorbike, drum, gate, dinh, boots, nonla (+ alias). Đồ lạ không có trong thư viện: `propSvg` vẽ hình dự phòng + nhãn tên.
+- Kiểm tra chất lượng trong `svgImage`: SVG phải hợp lệ và có >= 2 hình, sai thì ném lỗi để vòng thử lại 3 lần vẽ lại.
+- CHƯA làm: thống nhất bộ dựng cho pencil/manga/brush (vẫn `SVGR_INK`), kiểm thử trực quan, kiểm tra vật ngoài khung/chồng lấn, tối ưu thứ tự nét.
