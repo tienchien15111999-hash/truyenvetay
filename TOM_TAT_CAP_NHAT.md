@@ -161,3 +161,6 @@ Theo yêu cầu người dùng: tóc/mũ/cà vạt/đuốc của địa danh và
 - `PROPS` thêm: map, sword, rifle, cannon, tank, train, motorbike, drum, gate, dinh, boots, nonla (+ alias). Đồ lạ không có trong thư viện: `propSvg` vẽ hình dự phòng + nhãn tên.
 - Kiểm tra chất lượng trong `svgImage`: SVG phải hợp lệ và có >= 2 hình, sai thì ném lỗi để vòng thử lại 3 lần vẽ lại.
 - CHƯA làm: thống nhất bộ dựng cho pencil/manga/brush (vẫn `SVGR_INK`), kiểm thử trực quan, kiểm tra vật ngoài khung/chồng lấn, tối ưu thứ tự nét.
+
+## 23. Chuyển cảnh lật giấy
+`makeRenderer`: 0,9s cuối mỗi cảnh (trừ cảnh cuối, và cảnh ngắn <= 2s) chụp khung hiện tại vào canvas `sn`, vẽ lại thành 80 dải cắt ngang quanh gáy bên trái (xoay 0-180°, hơi phối cảnh, đổ bóng), lộ trang trắng cảnh sau; mặt sau tờ giấy xám nhạt. Dùng chung cho xem thử, xuất nhanh, xuất thời gian thật. Công tắc `flipOn` (có trong `CF`). Chưa có tiếng giấy lật.
