@@ -164,3 +164,14 @@ Theo yêu cầu người dùng: tóc/mũ/cà vạt/đuốc của địa danh và
 
 ## 23. Chuyển cảnh lật giấy
 `makeRenderer`: 0,9s cuối mỗi cảnh (trừ cảnh cuối, và cảnh ngắn <= 2s) chụp khung hiện tại vào canvas `sn`, vẽ lại thành 80 dải cắt ngang quanh gáy bên trái (xoay 0-180°, hơi phối cảnh, đổ bóng), lộ trang trắng cảnh sau; mặt sau tờ giấy xám nhạt. Dùng chung cho xem thử, xuất nhanh, xuất thời gian thật. Công tắc `flipOn` (có trong `CF`). Chưa có tiếng giấy lật.
+
+## 24. Sửa địa danh sau lần thử thật
+Tháp Eiffel vẽ lại (thân cong lõm, vòm chân, 3 tầng, ăng-ten). `PROPS[k].h/.w` + clamp trong `propSvg`: địa danh luôn nằm trọn khung, nhãn tên chỉ gắn sau khi đã clamp, `addTags` bỏ nhãn trùng tên. Prompt dặn cỡ 0.9-1.4, không để người che địa danh.
+
+## 25. Mỗi người một nét + biểu tượng thay cho minh họa chữ nghĩa (theo góp ý đánh giá video, điều 4)
+- **Mỗi người trong một tranh khác nhau ít nhất một nét**: `uniquePeople(list)` (ngay trước `expandPeople`) chạy trên tất cả thẻ `<person>` của một tranh. Hai người có cùng (acc + mark sau khi áp `ROLE_DEF`) thì người trùng được gán cặp acc/mark khác (`_CR_ACC` x `_CR_MARK`, tránh trùng 4 vai chính trong `ROLE_DEF`); CROWD không được đứng cùng một dáng (`_CR_POSE`). Bỏ qua người có `who`/`hair`/`hat`/`stache` (nhân vật nổi tiếng, nét AI tự mô tả) và người có `hold`. Lỗi gì thì vẽ như cũ (try/catch).
+- **8 biểu tượng mới trong `PROPS`** (+ alias): `chart_down` (biểu đồ cột đi xuống, mũi tên đỏ), `chart_up` (đi lên, mũi tên xanh lá), `arrow_down` (đỏ), `arrow_up` (xanh lá), `percent`, `warning` (tam giác vàng), `wallet` (ví + tiền xanh), `newspaper`. Alias: crash/decline/loss/recession -> chart_down; growth/profit/rise/chart -> chart_up; down/decrease, up/increase, discount/sale, alert/danger/risk, purse, news/headline/press. Danh sách đồ vật trong prompt tự lấy từ `PROPS` nên không phải sửa danh sách.
+- **Prompt**: `SVGR_SCENE` thêm mục "EVERY PERSON IS DIFFERENT" và "NEWS / NUMBERS / ECONOMY / ABSTRACT IDEAS: use SYMBOLS" (đặt ngay trước dòng "Do NOT put a person..."); `refineImages` quy tắc 1 và 4 đã mở rộng (ý trừu tượng/tin tức -> biểu tượng; mọi người trong cảnh phải khác nhau); `makeScript` trường `characters` dặn mỗi nhân vật khác mọi nhân vật còn lại ít nhất một nét.
+- Màu: chart_down/arrow_down đỏ (giảm, nguy hiểm), chart_up/arrow_up xanh lá (tăng), warning vàng, wallet có tiền xanh. Nằm trong `COL` nên đổi theo chế độ màu `cmode`, và tắt màu nhấn thì thành trắng như các đồ vật khác.
+- Kiểm thử: Chrome headless vẽ 8 biểu tượng + 5 người CROWD + 2 người MAIN trùng nhau (người trùng tự đổi nét). Chưa thử key Gemini thật: cần xem AI có chọn chart_down/arrow_down... cho cảnh tin tức không.
+- CHƯA làm (các điều khác trong góp ý): điều 1 (giới hạn tối đa 3 đối tượng/cảnh, một chủ thể to), điều 2 (dùng cả khung dọc, không để trống đáy), điều 3 (chèn chữ khóa viết tay/con số như "-40%").

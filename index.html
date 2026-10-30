@@ -435,7 +435,7 @@ async function gemMulti(models, body, timeout = 80000) {
 async function makeScript(idea, min) {
   const n = imgCount(), total = Math.round(min * 60 * 3.2);
   const p = `Bạn là biên kịch video kể chuyện vẽ tay. Từ nội dung bên dưới, tạo kịch bản video dài ${min} phút: khoảng ${total} từ lời kể, chia đúng ${n} cảnh, mỗi cảnh khoảng ${Math.round(total / n)} từ. Nếu nội dung đã là truyện hoàn chỉnh thì giữ nguyên lời văn, chỉ chia cảnh. Nếu chỉ là ý tưởng thì viết thành truyện hay có mở đầu, cao trào, kết. Ngày, tháng, năm viết bằng CHỮ SỐ (ví dụ \"ngày 15 tháng 3 năm 2020\", \"năm 1945\"), không viết bằng chữ, để tool vẽ lịch lên tranh; giữ nguyên mọi mốc thời gian có trong nội dung.
-Chỉ trả về JSON: {"story":"tóm tắt cốt truyện 1-2 câu, tiếng Anh","setting":"bối cảnh chung (thời gian, địa điểm, không khí), tiếng Anh","characters":"mỗi nhân vật một ý, tiếng Anh, ngắn gọn, ghi rõ vai trò MAIN (nhân vật chính), SECOND, THIRD, FOURTH (các nhân vật khác xuất hiện nhiều, mỗi người một vai riêng, không dùng chung), CROWD (quần chúng) và tên/đặc điểm nhận diện (mũ, tóc, kính, họa tiết áo)","scenes":[{"text":"lời kể tiếng Việt của cảnh","image":"mô tả cảnh để vẽ tranh, tiếng Anh, 2 câu. BẮT ĐẦU bằng đúng một nhãn loại cảnh: [OBJECT] nếu lời kể nói về một vật/tiền/giấy tờ/sự việc/con số/ý tưởng (cận cảnh đồ vật, KHÔNG có người), [PERSON] nếu có người đang làm gì đó (nêu rõ họ cầm/đưa/đếm/mang vật gì, ví dụ người đàn ông cầm tiền thì phải ghi cash stack), [PLACE] nếu lời kể tả một nơi chốn/hành trình/thời điểm. Sau nhãn: vẽ đúng khoảnh khắc cụ thể nhìn thấy được, nêu rõ MỌI vật/địa điểm/hành động được nhắc đến trong lời kể của cảnh này, KHÔNG thêm cảnh vật trang trí mà lời kể không nhắc (mặt trời, mây, cây, nhà...). Chỉ ghi vai trò MAIN/SECOND/THIRD/FOURTH/CROWD và cảm xúc khi cảnh thật sự có người","mood":"tâm trạng của cảnh để chọn nhạc nền, chỉ chọn MỘT trong: calm, sad, tense, mystery, happy, epic, hopeful"}]}
+Chỉ trả về JSON: {"story":"tóm tắt cốt truyện 1-2 câu, tiếng Anh","setting":"bối cảnh chung (thời gian, địa điểm, không khí), tiếng Anh","characters":"mỗi nhân vật một ý, tiếng Anh, ngắn gọn, ghi rõ vai trò MAIN (nhân vật chính), SECOND, THIRD, FOURTH (các nhân vật khác xuất hiện nhiều, mỗi người một vai riêng, không dùng chung), CROWD (quần chúng) và tên/đặc điểm nhận diện (mũ, râu, kính, tóc, họa tiết áo); MỖI nhân vật PHẢI khác tất cả nhân vật còn lại ít nhất một nét nhìn thấy được, không ai giống ai","scenes":[{"text":"lời kể tiếng Việt của cảnh","image":"mô tả cảnh để vẽ tranh, tiếng Anh, 2 câu. BẮT ĐẦU bằng đúng một nhãn loại cảnh: [OBJECT] nếu lời kể nói về một vật/tiền/giấy tờ/sự việc/con số/ý tưởng (cận cảnh đồ vật, KHÔNG có người), [PERSON] nếu có người đang làm gì đó (nêu rõ họ cầm/đưa/đếm/mang vật gì, ví dụ người đàn ông cầm tiền thì phải ghi cash stack), [PLACE] nếu lời kể tả một nơi chốn/hành trình/thời điểm. Sau nhãn: vẽ đúng khoảnh khắc cụ thể nhìn thấy được, nêu rõ MỌI vật/địa điểm/hành động được nhắc đến trong lời kể của cảnh này, KHÔNG thêm cảnh vật trang trí mà lời kể không nhắc (mặt trời, mây, cây, nhà...). Chỉ ghi vai trò MAIN/SECOND/THIRD/FOURTH/CROWD và cảm xúc khi cảnh thật sự có người","mood":"tâm trạng của cảnh để chọn nhạc nền, chỉ chọn MỘT trong: calm, sad, tense, mystery, happy, epic, hopeful"}]}
 Nội dung: ${idea}`;
 
   const d = await gemMulti(TXT_MODELS, {
@@ -461,10 +461,10 @@ async function refineImages(sc) {
   const list = sc.scenes.map((x, i) => `${i + 1}. ${x.text}`).join('\n');
   const p = `Bạn là đạo diễn hình ảnh cho video kể chuyện vẽ nét mực đen trắng. Dưới đây là cốt truyện, nhân vật và lời kể từng cảnh. Với MỖI cảnh, viết mô tả để vẽ tranh bằng tiếng Anh (2-3 câu) theo quy tắc:
 0) BẮT ĐẦU mỗi mô tả bằng đúng một nhãn: [OBJECT] khi lời kể nói về một vật, tiền, giấy tờ, sự việc, con số, kết quả, ý tưởng mà không cần người (cận cảnh vật đó thật to, KHÔNG vẽ người); [PERSON] khi một người đang làm hoặc cảm thấy điều gì; [PLACE] khi lời kể tả nơi chốn, hành trình hay thời điểm. Đừng cho người vào cảnh chỉ để cho đầy khung; nếu cả truyện toàn cảnh có người thì hãy xen cảnh [OBJECT] vào những chỗ lời kể nhấn vào một vật.
-1) Chọn khoảnh khắc cụ thể nhất NHÌN THẤY ĐƯỢC trong lời kể, không vẽ ý trừu tượng (ý trừu tượng thì đổi thành vật tượng trưng, ví dụ nợ nần = giấy tờ + tiền, thành công = cúp, bí mật = chìa khóa).
+1) Chọn khoảnh khắc cụ thể nhất NHÌN THẤY ĐƯỢC trong lời kể, không vẽ ý trừu tượng (ý trừu tượng thì đổi thành BIỂU TƯỢNG, không minh họa theo nghĩa đen của chữ: nợ nần = giấy tờ + tiền, thành công = cúp, bí mật = chìa khóa; với tin tức/số liệu/kinh tế dùng chart_down hoặc chart_up (biểu đồ đi xuống/đi lên), arrow_down/arrow_up (mũi tên giảm/tăng), percent (phần trăm, giảm giá), warning (cảnh báo, rủi ro), wallet (ví, tiền tiết kiệm/chi tiêu), newspaper (bản tin), bulb (ý tưởng)).
 2) Liệt kê rõ MỌI vật, địa điểm, hành động được nhắc trong lời kể bằng tiếng Anh đơn giản. Vật mà nhân vật cầm/đưa/nhận/đếm/mang thì phải có mặt trong tranh (ví dụ người đàn ông cầm tiền thì phải thấy cục tiền "cash stack" trong tay và/hoặc to ngay bên cạnh). Có thể dùng tên vật quen thuộc: cash, banknote, coin, bag (túi tiền), chest, key, letter, paper, gift, flower, apple, bread, cake, pot, bowl, clock, phone, computer, book, car, bus, bicycle, boat, plane, house, hospital, school, bridge, well, tree, buffalo, dog, cat...
 3) CHỈ vẽ cảnh vật nền (mặt trời, mây, cây, nhà, đồi, chim...) khi lời kể nhắc tới hoặc chắc chắn ngụ ý (ban đêm, trời mưa, ở quê, ở thành phố...). Không thêm cảnh vật trang trí cho đẹp; nền trắng trống là tốt.
-4) Với cảnh [PERSON]/[PLACE] có người: dùng đúng vai trò MAIN/SECOND/THIRD/FOURTH/CROWD và ngoại hình nhân vật trong danh sách, giống nhau ở mọi cảnh; nêu nét mặt cảm xúc và tư thế. Cảnh [OBJECT] thì không nhắc tới nhân vật.
+4) Với cảnh [PERSON]/[PLACE] có người: dùng đúng vai trò MAIN/SECOND/THIRD/FOURTH/CROWD và ngoại hình nhân vật trong danh sách, giống nhau ở mọi cảnh; nêu nét mặt cảm xúc và tư thế. Mọi người trong cùng một cảnh phải khác nhau ít nhất một nét (nón, râu, kính, tóc, họa tiết áo hoặc tư thế); cảnh có đám đông thì ghi rõ từng người CROWD một nét riêng, không cho cả đám giống hệt nhau. Cảnh [OBJECT] thì không nhắc tới nhân vật.
 5) Bối cảnh liền mạch với cảnh trước; nếu đổi địa điểm thì nói rõ.
 6) Hiệu ứng có màu: khi lời kể có máu/vết thương thì ghi blood; lửa/cháy/nổ thì ghi flames, explosion, smoke; ánh sáng/đèn bật/tia sáng thì ghi beam, spark, bulb; sét thì ghi lightning; tiền thì ghi cash; nước mắt/nước thì ghi drop, waves. Nhà bị cháy thì viết rõ "burned house with flames and smoke". Các từ này giúp tranh được tô màu nhấn đúng chỗ.
 7) GÓC MÁY: ngay sau nhãn loại, thêm đúng một nhãn góc máy: [WIDE] toàn cảnh (nhân vật nhỏ, nơi chốn lớn), [MEDIUM] trung cảnh, [CLOSE] cận cảnh (một mặt/bàn tay/vật chiếm hơn nửa khung, dùng cho cảm xúc), [XCLOSE] siêu cận (một chi tiết lấp đầy khung, dùng cho vật quan trọng), [TOP] nhìn từ trên xuống, [LOW] góc thấp (chủ thể cao, to), [SIDE] nhìn nghiêng, [OTS] qua vai (lưng người gần to ở một bên, đối tượng kia ở xa). Đọc cả truyện rồi chọn: không dùng cùng một góc quá 2 cảnh liền, không cảnh nào cũng để chủ thể giữa khung. Sau đó ghi vị trí (left/center/right; foreground/midground/background), ánh sáng/cảm xúc và 1-2 chi tiết BẮT BUỘC phải thấy.\nChỉ trả về JSON: {"images":["mô tả cảnh 1","mô tả cảnh 2"]} với đúng ${sc.scenes.length} phần tử theo thứ tự.
@@ -651,10 +651,50 @@ function figureSvg(a, sw) {
   const rot = (pose.lean || 0) + (poseName === 'sad' ? -4 : 0);
   return `<g transform="translate(${x.toFixed(0)} ${y.toFixed(0)}) scale(${(flip * size).toFixed(3)} ${size.toFixed(3)}) rotate(${rot})" stroke="#111111" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none">${g}</g>`;
 }
-function expandPeople(raw, sw) {
-  return raw.replace(/<person\b([^>]*?)\/?>(\s*<\/person>)?/gi, (m, attrs) => {
-    try { return figureSvg(figAttrs(attrs), sw); } catch (e) { return ''; }
+// Mỗi người trong cùng một tranh phải khác người khác ít nhất một nét (nón, râu, kính, tóc, họa tiết áo, tư thế).
+// Nếu AI đặt 2 người giống hệt nhau (hay gặp ở CROWD) thì tool tự đổi phụ kiện/họa tiết/tư thế của người trùng.
+const _CR_ACC = ['cap', 'beard', 'none', 'glasses', 'hat', 'long', 'tuft'];
+const _CR_MARK = ['none', 'stripe', 'dots', 'vest', 'tie'];
+const _CR_POSE = ['stand', 'wave', 'cheer', 'point', 'walk', 'think', 'shout', 'hips', 'sad'];
+function uniquePeople(list) {
+  const roleOf = a => ROLE_DEF[String(a.role || 'MAIN').toUpperCase()] || ROLE_DEF.MAIN;
+  const sig = a => {
+    const d = roleOf(a);
+    let ac = String(a.acc || '').toLowerCase(); if (!ac || ac === 'none') ac = d.acc;
+    let mk = String(a.mark || '').toLowerCase(); if (!mk) mk = d.mark;
+    return ac + '|' + mk;
+  };
+  const fixed = a => a.who || a.hair || a.hat || a.stache; // người nổi tiếng / nét tự mô tả: giữ nguyên
+  const used = new Set(), dup = [];
+  list.forEach(a => { if (fixed(a)) return; const g = sig(a); if (used.has(g)) dup.push(a); else used.add(g); });
+  const reserved = new Set(Object.values(ROLE_DEF).map(d => d.acc + '|' + d.mark));
+  let k = 0;
+  dup.forEach(a => {
+    for (let n = 0; n < 35; n++, k++) {
+      const ac = _CR_ACC[k % 7], mk = _CR_MARK[k % 5], g = ac + '|' + mk;
+      if (used.has(g) || reserved.has(g)) continue;
+      a.acc = ac; a.mark = mk; used.add(g); k++; break;
+    }
   });
+  // tư thế: quần chúng không đứng cùng một dáng
+  const poses = new Set(); let pi = 0;
+  list.forEach(a => {
+    if (String(a.role || '').toUpperCase() !== 'CROWD' || a.hold) return;
+    let ps = String(a.pose || 'stand').toLowerCase();
+    if (poses.has(ps)) {
+      for (let n = 0; n < _CR_POSE.length; n++, pi++) { const c = _CR_POSE[pi % _CR_POSE.length]; if (!poses.has(c)) { ps = c; pi++; break; } }
+      a.pose = ps;
+    }
+    poses.add(ps);
+  });
+}
+function expandPeople(raw, sw) {
+  const re = () => /<person\b([^>]*?)\/?>(\s*<\/person>)?/gi;
+  const list = [];
+  raw.replace(re(), (m, attrs) => { list.push(figAttrs(attrs)); return m; });
+  try { uniquePeople(list); } catch (e) { /* lỗi thì cứ vẽ như cũ */ }
+  let i = 0;
+  return raw.replace(re(), () => { const a = list[i++]; try { return figureSvg(a, sw); } catch (e) { return ''; } });
 }
 // ===== THƯ VIỆN ĐỒ VẬT / CẢNH VẬT VẼ SẴN (đẹp và đồng nhất, AI chỉ đặt chỗ bằng thẻ <prop/> <ground/>) =====
 const _R = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#ffffff"/>`;
@@ -696,7 +736,7 @@ const PROPS = {
   boots: { k: 1, g: () => _P('M-40 0 L-40 -70 L-10 -70 L-8 -30 L40 -14 L40 0 Z') + _L('M-40 -6 L40 -6') },
   nonla: { k: 1.3, g: () => _P('M-90 0 Q0 -110 90 0 Z') + _L('M-60 -26 Q0 -50 60 -26 M-34 -52 Q0 -68 34 -52') },
   // --- địa danh nổi tiếng (có nhãn tên tự gắn) ---
-  eiffel: { k: 1.5, n: 'Tháp Eiffel', g: () => _P('M-70 0 L-12 -300 L12 -300 L70 0 L44 0 Q0 -70 -44 0 Z') + _L('M-44 -110 L44 -110 M-24 -200 L24 -200 M-44 -110 L24 -200 M44 -110 L-24 -200 M0 -300 L0 -350') },
+  eiffel: { k: 1.3, n: 'Tháp Eiffel', g: () => _P('M-80 0 Q-34 -120 -14 -250 L-7 -330 L-3 -374 L3 -374 L7 -330 L14 -250 Q34 -120 80 0 L58 0 Q0 -104 -58 0 Z') + _R(-50, -104, 100, 9) + _R(-30, -192, 60, 8) + _R(-17, -268, 34, 7) + _L('M-47 -95 L26 -184 M47 -95 L-26 -184 M-26 -184 L13 -261 M26 -184 L-13 -261 M-70 -30 L-52 -95 M70 -30 L52 -95') + _L('M-3 -330 L3 -330 M-9 -300 L9 -300') },
   liberty: { k: 1.5, n: 'Tượng Nữ thần Tự do', g: () => _R(-40, -60, 80, 60) + _P('M-26 -60 L-20 -200 Q0 -216 20 -200 L26 -60 Z') + _R(-34, -170, 16, 26) + _L('M14 -190 L40 -250 L40 -284') + _P('M40 -284 Q28 -308 40 -330 Q52 -308 40 -284 Z') + _C(0, -224, 18) + _L('M-16 -238 L-28 -262 M-6 -242 L-8 -270 M6 -242 L8 -270 M16 -238 L28 -262') },
   bigben: { k: 1.3, n: 'Big Ben', g: () => _R(-34, -300, 68, 300) + _P('M-40 -300 L0 -380 L40 -300 Z') + _C(0, -250, 20) + _L('M0 -250 L0 -264 M0 -250 L10 -250 M0 -380 L0 -410 M-14 -190 L-14 -150 M14 -190 L14 -150 M-14 -110 L-14 -70 M14 -110 L14 -70') },
   pyramid: { k: 2.2, n: 'Kim tự tháp', g: () => _P('M-150 0 L-40 -130 L70 0 Z') + _P('M10 0 L90 -90 L170 0 Z') + _L('M-40 -130 L-40 0 M90 -90 L90 0') },
@@ -798,8 +838,19 @@ const PROPS = {
   smoke: { k: 2.0, f: 1, g: () => _C(0, 50, 26) + _C(-20, 8, 30) + _C(18, -34, 36) + _C(-8, -84, 42) },
   drop: { k: 1.4, g: () => _Pc('M0 -56 Q-32 -14 -24 6 Q0 24 24 6 Q32 -14 0 -56 Z', COL.blue) },
   fire_big: { k: 2.6, g: () => _flame(-30, 40, 130, COL.orange) + _flame(30, 44, 170, COL.red) + _flame(0, 20, 80, COL.yellow) },
+  // Biểu tượng cho tin tức / số liệu / kinh tế (thay cho vẽ minh họa theo nghĩa đen)
+  chart_down: { k: 1.8, g: () => _R(-80, -140, 34, 140) + _R(-30, -100, 34, 100) + _R(20, -60, 34, 60) + _R(70, -26, 34, 26) + _L('M-90 -190 L60 -87') + _Pc('M96 -62 L46 -67 L74 -107 Z', COL.red) },
+  chart_up: { k: 1.8, g: () => _R(-80, -26, 34, 26) + _R(-30, -60, 34, 60) + _R(20, -100, 34, 100) + _R(70, -140, 34, 140) + _L('M-90 -60 L60 -163') + _Pc('M96 -188 L74 -143 L46 -183 Z', COL.green) },
+  arrow_down: { k: 1.6, g: () => _Pc('M-30 -200 L30 -200 L30 -110 L70 -110 L0 -30 L-70 -110 L-30 -110 Z', COL.red) },
+  arrow_up: { k: 1.6, g: () => _Pc('M-30 -30 L30 -30 L30 -120 L70 -120 L0 -200 L-70 -120 L-30 -120 Z', COL.green) },
+  percent: { k: 1.5, g: () => _C(0, -90, 84) + _C(-34, -126, 22) + _C(34, -54, 22) + _L('M46 -152 L-46 -28') },
+  warning: { k: 1.5, g: () => _Pc('M0 -180 L96 -16 L-96 -16 Z', COL.yellow) + _L('M0 -132 L0 -80') + _D(0, -50, 8) },
+  wallet: { k: 1.4, g: () => _Rc(-50, -138, 90, 34, COL.green) + _P('M-84 -96 Q-84 -116 -64 -116 L64 -116 Q84 -116 84 -96 L84 -20 Q84 0 64 0 L-64 0 Q-84 0 -84 -20 Z') + _R(24, -76, 66, 40) + _C(50, -56, 7) },
+  newspaper: { k: 1.5, g: () => _R(-96, -130, 192, 130) + _R(-74, -108, 148, 26) + _L('M-74 -60 L-8 -60 M-74 -40 L-8 -40 M-74 -20 L-8 -20 M18 -60 L74 -60 M18 -40 L74 -40 M18 -20 L74 -20') },
 };
 const propAliases = { cottage: 'hut', skyscraper: 'building', market: 'shop', store: 'shop', castle: 'tower', temple: 'pagoda', stone: 'rock', boulder: 'rock', trees: 'tree', sea: 'waves', river: 'waves', water: 'waves', wave: 'waves', flame: 'fire', bonfire: 'fire', desk: 'table', sack: 'bag', moneybag: 'bag', money_bag: 'bag', lantern: 'lamp', sofa: 'bed', puppy: 'dog', kitten: 'cat', lamppost: 'streetlight', streetlamp: 'streetlight', signpost: 'sign', broken_house: 'ruins', rubble: 'ruins', camp: 'tent', clouds: 'cloud', stars: 'star', birds: 'bird', phone_: 'phone', smartphone: 'phone', gold: 'coin', coins: 'coin', money: 'cash', cash_stack: 'cash', money_stack: 'cash', stack: 'cash', bundle: 'cash', banknotes: 'cash', bills: 'cash', bill: 'banknote', dollar: 'banknote', note: 'banknote', treasure: 'chest', envelope: 'letter', mail: 'letter', document: 'paper', contract: 'paper', form: 'paper', present: 'gift', fruit: 'apple', loaf: 'bread', food: 'bread', watch: 'clock', pail: 'bucket', laptop: 'computer', pc: 'computer', tv: 'computer', screen: 'computer', monitor: 'computer', bike: 'bicycle', airplane: 'plane', aeroplane: 'plane', jet: 'plane', gem: 'diamond', jewel: 'diamond', clinic: 'hospital', ox: 'buffalo', cow: 'buffalo', cattle: 'buffalo', cooking_pot: 'pot', cauldron: 'pot', rose: 'flower', award: 'trophy', trophies: 'trophy', coins_stack: 'coin', cup_search: 'magnifier', glass: 'magnifier', schoolhouse: 'school', van: 'bus', truck: 'bus', ship: 'boat', sailboat: 'boat', lock: 'key', bloodstain: 'blood', blood_pool: 'blood', blood_stain: 'blood', wound: 'blood', injury: 'blood', burning: 'flames', blaze: 'flames', inferno: 'flames', big_fire: 'fire_big', house_fire: 'fire_big', light_beam: 'beam', spotlight: 'beam', sunbeam: 'beam', light: 'beam', ray: 'beam', idea: 'bulb', lightbulb: 'bulb', sparkle: 'spark', sparkles: 'spark', twinkle: 'spark', shine: 'spark', glitter: 'spark', glow: 'spark', bolt: 'lightning', thunder: 'lightning', blast: 'explosion', boom: 'explosion', bomb_blast: 'explosion', tear: 'drop', teardrop: 'drop', waterdrop: 'drop', sweat: 'drop' };
+Object.entries({ eiffel: [374, 160], liberty: [330, 100], bigben: [410, 80], pyramid: [130, 320], colosseum: [120, 240], pisa: [226, 90], fuji: [150, 300], whitehouse: [196, 220], khue: [222, 152], motcot: [176, 152], greatwall: [170, 320] }).forEach(([k, v]) => { if (PROPS[k]) { PROPS[k].h = v[0]; PROPS[k].w = v[1]; } });
+Object.assign(propAliases, { crash: 'chart_down', decline: 'chart_down', loss: 'chart_down', recession: 'chart_down', stock_down: 'chart_down', falling_chart: 'chart_down', down_chart: 'chart_down', growth: 'chart_up', profit: 'chart_up', rise: 'chart_up', stock_up: 'chart_up', up_chart: 'chart_up', graph: 'chart_up', chart: 'chart_up', down: 'arrow_down', decrease: 'arrow_down', up: 'arrow_up', increase: 'arrow_up', discount: 'percent', percentage: 'percent', sale: 'percent', alert: 'warning', danger: 'warning', caution: 'warning', risk: 'warning', purse: 'wallet', news: 'newspaper', headline: 'newspaper', press: 'newspaper', magazine: 'newspaper' });
 Object.assign(propAliases, { gun: 'rifle', musket: 'rifle', weapon: 'sword', blade: 'sword', kiem: 'sword', canon: 'cannon', artillery: 'cannon', armored_vehicle: 'tank', locomotive: 'train', railway: 'train', motorcycle: 'motorbike', scooter: 'motorbike', moto: 'motorbike', village_gate: 'gate', cong_lang: 'gate', communal_house: 'dinh', shoes: 'boots', shoe: 'boots', conical_hat: 'nonla', non_la: 'nonla', hat_leaf: 'nonla', old_map: 'map', treasure_map: 'map', paris: 'eiffel', eiffel_tower: 'eiffel', statue_of_liberty: 'liberty', newyork: 'liberty', london: 'bigben', big_ben: 'bigben', egypt: 'pyramid', pyramids: 'pyramid', rome: 'colosseum', japan: 'fuji', mount_fuji: 'fuji', white_house: 'whitehouse', temple_of_literature: 'khue', one_pillar_pagoda: 'motcot', great_wall: 'greatwall', china_wall: 'greatwall', leaning_tower: 'pisa' });
 function propSvg(a, sw) {
   let t = String(a.type || '').toLowerCase().replace(/[\s-]+/g, '_').replace(/[^a-z_]/g, '');
@@ -819,11 +870,16 @@ function propSvg(a, sw) {
   let x = +a.x, y = +a.y, size = +a.size;
   if (!isFinite(x)) x = 700;
   if (!isFinite(y)) y = d.f ? 160 : 800;
-  if (d.n) _tags.push({ x, y, n: d.n });
   if (!isFinite(size) || size <= 0) size = 1;
   size = Math.max(0.3, Math.min(4, size));
   const flip = String(a.facing || 'right').toLowerCase() === 'left' ? -1 : 1;
-  const sc = d.k * size, w = (sw / sc).toFixed(2);
+  let sc = d.k * size;
+  if (d.n && d.h) { // địa danh: luôn nằm TRỌN trong khung, không bị cắt
+    sc = Math.min(sc, (Math.min(y, 840) - 30) / d.h, (fm.vw - 40) / d.w);
+    const hw = d.w / 2 * sc + 20; x = Math.max(hw, Math.min(fm.vw - hw, x)); y = Math.min(y, 840);
+    _tags.push({ x, y, n: d.n });
+  }
+  const w = (sw / sc).toFixed(2);
   return `<g transform="translate(${x.toFixed(0)} ${y.toFixed(0)}) scale(${(flip * sc).toFixed(3)} ${sc.toFixed(3)})" stroke="#111111" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none">${d.g()}</g>`;
 }
 function groundSvg(a, sw) {
@@ -852,6 +908,7 @@ STEP 1 - CHOOSE THE SCENE TYPE FROM THE NARRATION (the "Scene to draw" may start
   A) OBJECT scene: the narration is about a thing, money, a document, an event, a result or an idea, and nobody needs to be seen. Show the key object(s) BIG and centered, with NO people at all. Small items (cash, banknote, coin, key, letter, paper, gift, ring, diamond, phone, book, apple, flower, clock, cup) use size 2.2 to 3.6 (put 1 to 4 of them, e.g. 3 cash stacks side by side or a pile of coins); large items (house, car, bus, boat, tree, hospital, school, bridge) use size 1.2 to 2. 1 to 5 tags in total, usually 1 to 3.
   B) PERSON scene: someone does or feels something. 1 to 3 people. If a person holds, carries, receives, gives, counts or shows an object, that object MUST be visible: put it in their hand with the hold attribute (see below) and, when the object is the point of the sentence, also place a bigger copy of the prop next to them. The picture must still read correctly if the narration were hidden.
   C) PLACE scene: the narration describes a place, a journey or a time of day. Draw that place with 2 to 6 props that the narration names or clearly implies. People only if the narration mentions them.
+- NEWS / NUMBERS / ECONOMY / ABSTRACT IDEAS: use SYMBOLS instead of a literal drawing of the words. Prices, stocks, sales or the economy falling = <prop type="chart_down"/> (rising = chart_up); a drop or rise = arrow_down / arrow_up; a discount or rate = percent; danger, risk or a warning = warning; savings, spending or personal money = wallet + cash; a headline, report or announcement = newspaper; an idea = bulb; a secret = key; success = trophy; debt = paper + cash. Show 1 to 3 symbols BIG (size 2 to 3.5), then at most one or two people reacting (worried, surprised). Never try to draw the abstract word itself with random shapes.
 - Do NOT put a person in the scene just to fill space. Do NOT add decoration the narration does not mention or clearly imply (sun, clouds, trees, houses, birds, fences, grass). EMPTY WHITE SPACE IS GOOD. A ground line is optional: use <ground> only when people or buildings need to stand on something.
 - Every important object, place and action named in "Scene to draw" and in the narration MUST be visible and recognizable. Never skip an object, and never swap it for an unrelated prop.
 
@@ -864,8 +921,9 @@ PEOPLE: NEVER draw people yourself. For EVERY person write exactly one self-clos
   acc: none, tuft, hat, cap, glasses, beard, crown, long (long hair). mark (shirt pattern): none, stripe, dots, vest, tie. Copy each character's acc and mark from the Characters list and keep them IDENTICAL in every scene (if the list gives none, OMIT acc and mark and the tool uses the role's default look: MAIN = tuft, SECOND = hat + stripes, THIRD = glasses + dots, FOURTH = long hair + vest, CROWD = plain).
   hold (optional): a prop type name from the lists below, drawn IN THE PERSON'S HAND (e.g. hold="cash", hold="book", hold="gift", hold="phone", hold="key", hold="bag"). Use pose="carry" (both hands in front) for things held with two hands, or pose="point"/"wave" for one hand. holdsize (optional, 0.6 to 2) makes the held item smaller or bigger.
   CAMERA: the description may carry a shot tag after the scene tag: WIDE (small figures, big place), MEDIUM, CLOSE (one face/hand/object fills over half the frame), XCLOSE (one detail fills the frame), TOP (seen from above), LOW (subject large and tall, low viewpoint), SIDE (profile), OTS (big back of a person at one edge, the other subject beyond). Follow it. Do NOT centre every subject: use thirds. DEPTH (only when the narration needs it): draw in 3 layers in this order: background first (small, high on the page, size 0.4-0.8), middle (main action), foreground last (large size 1.5+, partly cut by a frame edge). Nearer = bigger and lower; let near objects overlap far ones. Never add objects just to fill space.
-  FAMOUS PLACES AND PEOPLE (viewers must recognise them at a glance): if the narration names a famous place, city or country, make its landmark prop the main picture, drawn BIG (size 1.5-2.5) with little else: Paris = eiffel, New York / USA = liberty, London = bigben, Egypt = pyramid, Rome / Italy = colosseum, Pisa = pisa, Japan = fuji, Washington / US government = whitehouse, Hanoi = khue or motcot, China = greatwall. If the narration names one of these real people, add who="trump" / "einstein" / "jobs" / "bacho" / "napoleon" / "lincoln" to that <person> (hair, hat, tie are set automatically). The tool adds a name label under landmarks and these people, so never write <text> yourself. For ANYTHING ELSE that must be named, add <label text="Name" x=".." y=".."/> (x,y = the thing's feet/base, max 3 words).
+  FAMOUS PLACES AND PEOPLE (viewers must recognise them at a glance): if the narration names a famous place, city or country, make its landmark prop the main picture, drawn at size 0.9-1.4 so the WHOLE landmark stays inside the frame (never cropped) with its base on the ground line (y about 740-800). Put people small, beside it or in the foreground below it, and NEVER draw people, props or crowds on top of the landmark. Keep the rest of the scene sparse: Paris = eiffel, New York / USA = liberty, London = bigben, Egypt = pyramid, Rome / Italy = colosseum, Pisa = pisa, Japan = fuji, Washington / US government = whitehouse, Hanoi = khue or motcot, China = greatwall. If the narration names one of these real people, add who="trump" / "einstein" / "jobs" / "bacho" / "napoleon" / "lincoln" to that <person> (hair, hat, tie are set automatically). The tool adds a name label under landmarks and these people, so never write <text> yourself. For ANYTHING ELSE that must be named, add <label text="Name" x=".." y=".."/> (x,y = the thing's feet/base, max 3 words).
   If the famous person or place is NOT in the lists above, still draw it, do not skip it: for a PERSON think of the 2-3 most recognisable visual traits and encode them on <person> with hair (swoop, spiky, curly, afro, bun, bowl, bald), haircolor (light or dark; hair, hats and ties are NEVER colored, color is reserved for story emphasis), stache (thick, thin, handlebar), hat (top, bicorne, beret), tie (red, blue, green, black), acc (glasses, beard, crown, long), plus a <label/> with the name. For a PLACE or landmark, draw its single most recognisable silhouette yourself with up to 6 simple shapes, BIG and centered, exaggerating the iconic feature (e.g. two towers joined by a walkway = Tower Bridge), plus a <label/>. Use who ONLY for that exact person.
+  EVERY PERSON IS DIFFERENT: no two people in one picture may look the same. Each one MUST differ from all the others by at least one visible trait: hat/cap, beard, glasses, long hair, shirt pattern (mark), pose or face. Never give two people the same acc + mark; for CROWD people give each one its own acc, mark and pose (e.g. one cap, one beard, one glasses, one long hair, one with dots). Keep each named character's look the same across scenes, but crowd members must differ from each other.
   facing: left or right (the direction the person looks / walks). The person is drawn ON TOP of everything, so write the <person> tags AFTER the props.
 
 PROPS (ready-made, drawn cleanly in the same style as the people; use self-closing tags):
@@ -1274,7 +1332,8 @@ function addTags(svg) {
   if (!_tags.length) return svg;
   const F = `font-family="'Segoe Print','Bradley Hand','Comic Sans MS',cursive,sans-serif" font-weight="700" text-anchor="middle" fill="#111111" stroke="none"`;
   let o = '';
-  _tags.slice(0, 4).forEach(t => { const w = t.n.length * 24 + 40, x = Math.max(w / 2 + 10, Math.min(fm.vw - w / 2 - 10, t.x)), y = Math.min(t.y + 22, 842);
+  const seen = {};
+  _tags.filter(t => !seen[t.n] && (seen[t.n] = 1)).slice(0, 4).forEach(t => { const w = t.n.length * 24 + 40, x = Math.max(w / 2 + 10, Math.min(fm.vw - w / 2 - 10, t.x)), y = Math.min(t.y + 22, 842);
     o += `<g filter="url(#wob)"><rect x="${x - w / 2}" y="${y}" width="${w}" height="52" rx="14" fill="#ffffff" stroke="#111111" stroke-width="4"/><text x="${x}" y="${y + 37}" font-size="32" ${F}>${t.n}</text></g>`; });
   return svg.replace(/<\/svg>\s*$/, o + '</svg>');
 }
