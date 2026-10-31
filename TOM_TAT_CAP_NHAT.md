@@ -207,3 +207,4 @@ Tháp Eiffel vẽ lại (thân cong lõm, vòm chân, 3 tầng, ăng-ten). `PROP
 - `index.html`: ô `#ttUrl` + nút `#ttBtn` gọi `tiktokToText()`; lõi chép lời tách thành `transcribeBuffer(raw)` dùng chung cho file tải lên và link TikTok. Tải âm thanh trước; nếu không có lời thì tự thử lấy tiếng từ video.
 - Phụ thuộc dịch vụ bên thứ ba (tikwm.com), có thể đổi hoặc ngừng bất cứ lúc nào.
 - Mở thêm link Douyin (douyin.com, v.douyin.com, iesdouyin.com) trong api/tiktok.js và ô nhập; vẫn dùng tikwm.com nên chưa kiểm chứng được với link thật.
+- Giao diện: 3 thẻ chọn nguồn nội dung (Tự nhập / Link TikTok-Douyin / Video-MP3), mỗi lần hiện một khung; `srcTab()`; tùy chọn viết lại chỉ áp dụng khi nguồn không phải 'Tự nhập'.

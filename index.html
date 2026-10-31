@@ -16,6 +16,8 @@ textarea{min-height:90px}
 .chk{display:flex;gap:8px;align-items:center;font-weight:400;margin:8px 0;cursor:pointer}
 button{font:inherit;font-weight:700;padding:10px 16px;border:2px solid #111;background:#1d4ed8;color:#fff;border-radius:6px;cursor:pointer;margin:8px 8px 0 0}
 button.w{background:#fff;color:#111}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 8px}.tabs button{margin:0;padding:8px 12px;background:#fff;color:#111;border:1.5px solid #888;font-weight:600}.tabs button.on{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+.srcbox{margin:0 0 6px;padding:10px;border:1.5px dashed #888;border-radius:6px;background:#fafafa}.srcbox[hidden]{display:none}
 button.warn{background:#d97706;color:#fff}
 button.sm{padding:6px 12px;font-size:14px}
 button:disabled{opacity:.5;cursor:not-allowed}
@@ -142,18 +144,26 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
 </details>
 
 <div class="box">
-  <label>Câu chuyện hoặc ý tưởng</label>
-  <textarea id="idea" placeholder="Ví dụ: Chuyện cậu bé nghèo nhặt được chiếc ví đầy tiền và quyết định đi tìm người đánh rơi để trả lại..."></textarea>
-  <div style="margin:10px 0;padding:10px;border:1.5px dashed #888;border-radius:6px;background:#fafafa">
-    <label>🔗 Hoặc dán link TikTok / Douyin, tool tự lấy âm thanh trong video rồi chép lời</label>
-    <input type="url" id="ttUrl" placeholder="https://www.tiktok.com/@ten/video/... hoặc https://v.douyin.com/...">
-    <button type="button" id="ttBtn" onclick="tiktokToText()">🎵 Lấy âm thanh từ link TikTok / Douyin</button>
-    <label style="margin-top:12px">🎞️ Hoặc tải video / MP3 có sẵn, tool tự chép lời thành văn bản</label>
-    <input type="file" id="vidFile" accept="video/*,audio/*">
-    <button type="button" id="vidBtn" onclick="videoToText()">📝 Chép lời từ video</button>
-    <label class="chk"><input type="checkbox" id="rewriteOn" checked> Viết lại thành truyện của tôi (không giữ nguyên câu chữ trong video)</label>
-    <p class="hint">Chép xong, văn bản hiện trong ô trên để bạn sửa và độ dài video tự đặt bằng đúng độ dài video gốc (kể hết cả đoạn), rồi bấm "Bắt đầu tạo video" như bình thường. Link TikTok/Douyin chỉ lấy được video công khai; tiếng Trung sẽ được dịch sang tiếng Việt; nên dùng video của chính bạn hoặc video bạn có quyền sử dụng. Video dài thì chép lâu hơn (khoảng 4 phút video một lượt gọi AI).</p>
+  <label>Nguồn nội dung</label>
+  <div class="tabs" id="srcTabs">
+    <button type="button" class="on" onclick="srcTab('text')">✍️ Tự nhập</button>
+    <button type="button" onclick="srcTab('tt')">🔗 Link TikTok / Douyin</button>
+    <button type="button" onclick="srcTab('file')">🎞️ Video / MP3</button>
   </div>
+  <div id="srcTt" class="srcbox" hidden>
+    <input type="url" id="ttUrl" placeholder="Dán link: https://www.tiktok.com/... hoặc https://v.douyin.com/...">
+    <button type="button" id="ttBtn" onclick="tiktokToText()">🎵 Lấy âm thanh và chép lời</button>
+  </div>
+  <div id="srcFile" class="srcbox" hidden>
+    <input type="file" id="vidFile" accept="video/*,audio/*">
+    <button type="button" id="vidBtn" onclick="videoToText()">📝 Chép lời từ file</button>
+  </div>
+  <div id="srcRw" class="srcbox" hidden>
+    <label class="chk"><input type="checkbox" id="rewriteOn" checked> Viết lại thành truyện của tôi (không giữ nguyên câu chữ gốc)</label>
+    <p class="hint">Chép xong, văn bản hiện ở ô bên dưới để bạn sửa, độ dài video tự đặt bằng độ dài bản gốc. Chỉ lấy được video công khai; tiếng Trung được dịch sang tiếng Việt. Nên dùng nội dung của bạn hoặc được phép sử dụng.</p>
+  </div>
+  <label id="ideaLbl">Câu chuyện hoặc ý tưởng</label>
+  <textarea id="idea" placeholder="Ví dụ: Chuyện cậu bé nghèo nhặt được chiếc ví đầy tiền và quyết định đi tìm người đánh rơi để trả lại..."></textarea>
   <div class="row">
     <div>
       <label>Độ dài video</label>
@@ -452,7 +462,7 @@ async function gemMulti(models, body, timeout = 80000) {
 
 async function makeScriptPart(idea, min, opt) {
   const n = opt.n, total = opt.total;
-  const rw = $('rewriteOn') && $('rewriteOn').checked;
+  const rw = $('rewriteOn') && $('rewriteOn').checked && srcMode !== 'text';
   const REWRITE = 'Nội dung bên dưới có thể là bản chép lời từ một video tham khảo. KHÔNG giữ nguyên câu chữ và không dịch sát từng câu: hãy viết lại hoàn toàn thành một câu chuyện mới của riêng người kể, bằng lời văn khác, cách mở đầu và cách dẫn dắt khác, chỉ giữ lại các sự kiện, thông tin và ý chính (tên người, mốc thời gian, số liệu thật). Bỏ lời chào đầu cuối video, quảng cáo và lời kêu gọi đăng ký kênh. Nếu chỉ là ý tưởng ngắn thì viết thành truyện hay có mở đầu, cao trào, kết. Nếu nội dung dài thì phải kể HẾT toàn bộ từ đầu đến cuối, không bỏ phần nào, không tóm tắt quá ngắn.';
   const p = `Bạn là biên kịch video kể chuyện vẽ tay. Từ nội dung bên dưới, tạo kịch bản video dài ${min} phút: khoảng ${total} từ lời kể, chia đúng ${n} cảnh, mỗi cảnh khoảng ${Math.round(total / n)} từ. ${opt.note || ''} ${rw ? REWRITE : 'Nếu nội dung đã là truyện hoàn chỉnh thì giữ nguyên lời văn, chỉ chia cảnh. Nếu chỉ là ý tưởng thì viết thành truyện hay có mở đầu, cao trào, kết.'} Ngày, tháng, năm viết bằng CHỮ SỐ (ví dụ \"ngày 15 tháng 3 năm 2020\", \"năm 1945\"), không viết bằng chữ, để tool vẽ lịch lên tranh; giữ nguyên mọi mốc thời gian có trong nội dung.
 Chỉ trả về JSON: {"story":"tóm tắt cốt truyện 1-2 câu, tiếng Anh","setting":"bối cảnh chung (thời gian, địa điểm, không khí), tiếng Anh","characters":"mỗi nhân vật một ý, tiếng Anh, ngắn gọn, ghi rõ vai trò MAIN (nhân vật chính), SECOND, THIRD, FOURTH (các nhân vật khác xuất hiện nhiều, mỗi người một vai riêng, không dùng chung), CROWD (quần chúng) và tên/đặc điểm nhận diện (mũ, râu, kính, tóc, họa tiết áo); MỖI nhân vật PHẢI khác tất cả nhân vật còn lại ít nhất một nét nhìn thấy được, không ai giống ai","scenes":[{"text":"lời kể tiếng Việt của cảnh","image":"mô tả cảnh để vẽ tranh, tiếng Anh, 2 câu. BẮT ĐẦU bằng đúng một nhãn loại cảnh: [OBJECT] nếu lời kể nói về một vật/tiền/giấy tờ/sự việc/con số/ý tưởng (cận cảnh đồ vật, KHÔNG có người), [PERSON] nếu có người đang làm gì đó (nêu rõ họ cầm/đưa/đếm/mang vật gì, ví dụ người đàn ông cầm tiền thì phải ghi cash stack), [PLACE] nếu lời kể tả một nơi chốn/hành trình/thời điểm. Sau nhãn: vẽ đúng khoảnh khắc cụ thể nhìn thấy được, nêu rõ MỌI vật/địa điểm/hành động được nhắc đến trong lời kể của cảnh này, KHÔNG thêm cảnh vật trang trí mà lời kể không nhắc (mặt trời, mây, cây, nhà...). Chỉ ghi vai trò MAIN/SECOND/THIRD/FOURTH/CROWD và cảm xúc khi cảnh thật sự có người","mood":"tâm trạng của cảnh để chọn nhạc nền, chỉ chọn MỘT trong: calm, sad, tense, mystery, happy, epic, hopeful"}]}
@@ -1941,6 +1951,13 @@ function pcmToWavB64(f32, sr) {
   const u8 = new Uint8Array(buf); let bin = '';
   for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
   return btoa(bin);
+}
+let srcMode = 'text';
+function srcTab(t) {
+  srcMode = t;
+  document.querySelectorAll('#srcTabs button').forEach((b, i) => b.classList.toggle('on', ['text', 'tt', 'file'][i] === t));
+  $('srcTt').hidden = t !== 'tt'; $('srcFile').hidden = t !== 'file'; $('srcRw').hidden = t === 'text';
+  $('ideaLbl').textContent = t === 'text' ? 'Câu chuyện hoặc ý tưởng' : 'Nội dung (chép lời xong sẽ hiện ở đây, bạn sửa được)';
 }
 async function transcribeBuffer(raw) {
     const oc = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 16000, 16000);
