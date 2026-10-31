@@ -144,6 +144,16 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
 <div class="box">
   <label>Câu chuyện hoặc ý tưởng</label>
   <textarea id="idea" placeholder="Ví dụ: Chuyện cậu bé nghèo nhặt được chiếc ví đầy tiền và quyết định đi tìm người đánh rơi để trả lại..."></textarea>
+  <div style="margin:10px 0;padding:10px;border:1.5px dashed #888;border-radius:6px;background:#fafafa">
+    <label>🔗 Hoặc dán link TikTok / Douyin, tool tự lấy âm thanh trong video rồi chép lời</label>
+    <input type="url" id="ttUrl" placeholder="https://www.tiktok.com/@ten/video/... hoặc https://v.douyin.com/...">
+    <button type="button" id="ttBtn" onclick="tiktokToText()">🎵 Lấy âm thanh từ link TikTok / Douyin</button>
+    <label style="margin-top:12px">🎞️ Hoặc tải video / MP3 có sẵn, tool tự chép lời thành văn bản</label>
+    <input type="file" id="vidFile" accept="video/*,audio/*">
+    <button type="button" id="vidBtn" onclick="videoToText()">📝 Chép lời từ video</button>
+    <label class="chk"><input type="checkbox" id="rewriteOn" checked> Viết lại thành truyện của tôi (không giữ nguyên câu chữ trong video)</label>
+    <p class="hint">Chép xong, văn bản hiện trong ô trên để bạn sửa và độ dài video tự đặt bằng đúng độ dài video gốc (kể hết cả đoạn), rồi bấm "Bắt đầu tạo video" như bình thường. Link TikTok/Douyin chỉ lấy được video công khai; tiếng Trung sẽ được dịch sang tiếng Việt; nên dùng video của chính bạn hoặc video bạn có quyền sử dụng. Video dài thì chép lâu hơn (khoảng 4 phút video một lượt gọi AI).</p>
+  </div>
   <div class="row">
     <div>
       <label>Độ dài video</label>
@@ -153,6 +163,10 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
         <option value="3">3 phút</option>
         <option value="4" selected>4 phút</option>
         <option value="5">5 phút</option>
+        <option value="10">10 phút</option>
+        <option value="15">15 phút</option>
+        <option value="20">20 phút</option>
+        <option value="25">25 phút</option>
       </select>
     </div>
     <div>
@@ -164,13 +178,13 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
     </div>
     <div>
       <label>Số tranh (để trống = tự động)</label>
-      <input id="nimg" type="number" min="1" max="80" placeholder="Tự động" onchange="saveSet()">
+      <input id="nimg" type="number" min="1" max="200" placeholder="Tự động" onchange="saveSet()">
     </div>
   </div>
   <p class="hint" id="nimgHint"></p>
   <label class="chk"><input type="checkbox" id="sub" checked>Hiện phụ đề</label>
   <div style="margin:10px 0"><label>🎨 Chế độ màu</label>
-    <select id="cmode" onchange="applyPalette();saveSet()"><option value="accent">Màu nhấn (chỉ chi tiết quan trọng)</option><option value="bw">Đen trắng bảng trắng</option><option value="retro">Hoài cổ (sepia, nâu, vàng ngà)</option><option value="warm">Điện ảnh ấm</option><option value="cool">Điện ảnh lạnh</option><option value="comic">Truyện tranh (rực, tương phản)</option></select></div>
+    <select id="cmode" onchange="applyPalette();saveSet()"><option value="bw">Đen trắng</option><option value="accent" selected>Màu nhấn (chỉ chi tiết cần nhấn mạnh)</option><option value="color">Ảnh màu (tô màu cả tranh)</option></select></div>
   
   <label class="chk"><input type="checkbox" id="accentOn" checked onchange="saveSet()">🎨 Màu nhấn (đỏ máu/lửa, vàng ánh sáng, xanh tiền...) — bỏ chọn nếu muốn đen trắng hoàn toàn</label>
   <button id="go" onclick="start(false)">Bắt đầu tạo video</button>
@@ -357,13 +371,13 @@ try {
   if (o.keys) $('set').open = false;
 } catch (e) {}
 if (!['svg_ink', 'svg'].includes($('isrc').value)) $('isrc').value = 'svg_ink';
-$('isrc').value = 'svg_ink'; if ($('style').value !== 'ref') $('style').value = 'ref'; // chế độ tự động: luôn dùng cách vẽ có nhân vật dựng sẵn + bong bóng + chia khung
+$('isrc').value = 'svg_ink'; if ($('style').value !== 'ref') $('style').value = 'ref'; if (!['bw', 'accent', 'color'].includes($('cmode').value)) $('cmode').value = 'accent'; // chế độ tự động: luôn dùng cách vẽ có nhân vật dựng sẵn + bong bóng + chia khung
 vui();
 $('set').addEventListener('input', saveSet);
 updStat();
 // Số tranh: để trống = tự động (khoảng 1 tranh / 9 giây). Giới hạn 3 đến 20 giây mỗi tranh.
 function imgCount() {
-  const min = +$('min').value, auto = Math.round(min * 60 / 9);
+  const min = +$('min').value, auto = Math.round(min * 60 / (min <= 5 ? 9 : 15));
   const v = parseInt($('nimg').value, 10);
   if (!(v >= 1)) return auto;
   return Math.max(Math.ceil(min * 60 / 20), Math.min(Math.floor(min * 60 / 3), v));
@@ -436,9 +450,11 @@ async function gemMulti(models, body, timeout = 80000) {
   throw new Error(lastErr || 'Không kết nối được các model Gemini');
 }
 
-async function makeScript(idea, min) {
-  const n = imgCount(), total = Math.round(min * 60 * 3.2);
-  const p = `Bạn là biên kịch video kể chuyện vẽ tay. Từ nội dung bên dưới, tạo kịch bản video dài ${min} phút: khoảng ${total} từ lời kể, chia đúng ${n} cảnh, mỗi cảnh khoảng ${Math.round(total / n)} từ. Nếu nội dung đã là truyện hoàn chỉnh thì giữ nguyên lời văn, chỉ chia cảnh. Nếu chỉ là ý tưởng thì viết thành truyện hay có mở đầu, cao trào, kết. Ngày, tháng, năm viết bằng CHỮ SỐ (ví dụ \"ngày 15 tháng 3 năm 2020\", \"năm 1945\"), không viết bằng chữ, để tool vẽ lịch lên tranh; giữ nguyên mọi mốc thời gian có trong nội dung.
+async function makeScriptPart(idea, min, opt) {
+  const n = opt.n, total = opt.total;
+  const rw = $('rewriteOn') && $('rewriteOn').checked;
+  const REWRITE = 'Nội dung bên dưới có thể là bản chép lời từ một video tham khảo. KHÔNG giữ nguyên câu chữ và không dịch sát từng câu: hãy viết lại hoàn toàn thành một câu chuyện mới của riêng người kể, bằng lời văn khác, cách mở đầu và cách dẫn dắt khác, chỉ giữ lại các sự kiện, thông tin và ý chính (tên người, mốc thời gian, số liệu thật). Bỏ lời chào đầu cuối video, quảng cáo và lời kêu gọi đăng ký kênh. Nếu chỉ là ý tưởng ngắn thì viết thành truyện hay có mở đầu, cao trào, kết. Nếu nội dung dài thì phải kể HẾT toàn bộ từ đầu đến cuối, không bỏ phần nào, không tóm tắt quá ngắn.';
+  const p = `Bạn là biên kịch video kể chuyện vẽ tay. Từ nội dung bên dưới, tạo kịch bản video dài ${min} phút: khoảng ${total} từ lời kể, chia đúng ${n} cảnh, mỗi cảnh khoảng ${Math.round(total / n)} từ. ${opt.note || ''} ${rw ? REWRITE : 'Nếu nội dung đã là truyện hoàn chỉnh thì giữ nguyên lời văn, chỉ chia cảnh. Nếu chỉ là ý tưởng thì viết thành truyện hay có mở đầu, cao trào, kết.'} Ngày, tháng, năm viết bằng CHỮ SỐ (ví dụ \"ngày 15 tháng 3 năm 2020\", \"năm 1945\"), không viết bằng chữ, để tool vẽ lịch lên tranh; giữ nguyên mọi mốc thời gian có trong nội dung.
 Chỉ trả về JSON: {"story":"tóm tắt cốt truyện 1-2 câu, tiếng Anh","setting":"bối cảnh chung (thời gian, địa điểm, không khí), tiếng Anh","characters":"mỗi nhân vật một ý, tiếng Anh, ngắn gọn, ghi rõ vai trò MAIN (nhân vật chính), SECOND, THIRD, FOURTH (các nhân vật khác xuất hiện nhiều, mỗi người một vai riêng, không dùng chung), CROWD (quần chúng) và tên/đặc điểm nhận diện (mũ, râu, kính, tóc, họa tiết áo); MỖI nhân vật PHẢI khác tất cả nhân vật còn lại ít nhất một nét nhìn thấy được, không ai giống ai","scenes":[{"text":"lời kể tiếng Việt của cảnh","image":"mô tả cảnh để vẽ tranh, tiếng Anh, 2 câu. BẮT ĐẦU bằng đúng một nhãn loại cảnh: [OBJECT] nếu lời kể nói về một vật/tiền/giấy tờ/sự việc/con số/ý tưởng (cận cảnh đồ vật, KHÔNG có người), [PERSON] nếu có người đang làm gì đó (nêu rõ họ cầm/đưa/đếm/mang vật gì, ví dụ người đàn ông cầm tiền thì phải ghi cash stack), [PLACE] nếu lời kể tả một nơi chốn/hành trình/thời điểm. Sau nhãn: vẽ đúng khoảnh khắc cụ thể nhìn thấy được, nêu rõ MỌI vật/địa điểm/hành động được nhắc đến trong lời kể của cảnh này, KHÔNG thêm cảnh vật trang trí mà lời kể không nhắc (mặt trời, mây, cây, nhà...). Chỉ ghi vai trò MAIN/SECOND/THIRD/FOURTH/CROWD và cảm xúc khi cảnh thật sự có người","mood":"tâm trạng của cảnh để chọn nhạc nền, chỉ chọn MỘT trong: calm, sad, tense, mystery, happy, epic, hopeful"}]}
 Nội dung: ${idea}`;
 
@@ -454,6 +470,47 @@ Nội dung: ${idea}`;
   return j;
 }
 
+function sliceText(t, k) {
+  const paras = t.split(/\n+/).map(x => x.trim()).filter(Boolean);
+  const units = paras.length >= k * 2 ? paras : t.split(/(?<=[.!?…])\s+/).filter(Boolean);
+  const target = t.length / k, out = []; let cur = '';
+  for (const u of units) {
+    if (cur && cur.length + u.length > target && out.length < k - 1) { out.push(cur); cur = u; }
+    else cur += (cur ? '\n' : '') + u;
+  }
+  out.push(cur);
+  while (out.length < k) out.push(out[out.length - 1]);
+  return out;
+}
+// Video dài: viết kịch bản theo từng phần ~24 cảnh để không bị cụt và không quá thời gian
+async function makeScript(idea, min) {
+  const n = imgCount(), total = Math.round(min * 60 * 3.2), PART = 24;
+  const parts = Math.max(1, Math.ceil(n / PART));
+  if (parts === 1) return await makeScriptPart(idea, min, { n, total, note: '' });
+  const slice = idea.split(/\s+/).filter(Boolean).length >= 600;
+  const pieces = slice ? sliceText(idea, parts) : null;
+  let res = null; const scenes = [];
+  for (let i = 0; i < parts; i++) {
+    if (abortGen) throw new Error('Đã dừng');
+    const cnt = Math.floor(n / parts) + (i < n % parts ? 1 : 0);
+    const prevTail = scenes.slice(-2).map(x => x.text).join(' ').slice(-400);
+    const note = `Đây là PHẦN ${i + 1}/${parts} của video dài ${min} phút (chỉ viết ${cnt} cảnh của phần này). ` +
+      (slice ? 'Nội dung bên dưới là đoạn tương ứng của phần này: kể đủ mọi ý, không bỏ sót. ' : `Hãy chia câu chuyện thành ${parts} phần cân đối rồi chỉ viết phần ${i + 1}. `) +
+      (i > 0 ? `Nhân vật đã có (giữ nguyên vai trò và ngoại hình): ${res.characters || ''}. Bối cảnh: ${res.setting || ''}. Phần trước kết thúc bằng: ${prevTail}. Viết tiếp liền mạch, không mở bài lại, không lặp lại. ` : '') +
+      (i < parts - 1 ? 'Chưa kết thúc truyện ở phần này.' : 'Đây là phần cuối: hãy kết truyện.');
+    log(`✍️ Đang viết kịch bản phần ${i + 1}/${parts}...`);
+    let r = null;
+    for (let t = 0; t < 2 && !r; t++) {
+      try { r = await makeScriptPart(slice ? pieces[i] : idea, Math.round(min * cnt / n * 10) / 10, { n: cnt, total: Math.round(total * cnt / n), note }); }
+      catch (e) { if (abortGen || t) throw e; }
+    }
+    if (!res) res = r;
+    scenes.push(...r.scenes);
+  }
+  res.scenes = scenes;
+  return res;
+}
+
 let storyCtx = '', settingCtx = '';
 
 function sceneCtx(s) {
@@ -461,8 +518,8 @@ function sceneCtx(s) {
 }
 
 // Bước đạo diễn: đọc cả truyện rồi viết lại mô tả vẽ cho từng cảnh khớp với lời kể
-async function refineImages(sc) {
-  const list = sc.scenes.map((x, i) => `${i + 1}. ${x.text}`).join('\n');
+async function refineBatch(sc, part, from) {
+  const list = part.map((x, i) => `${from + i + 1}. ${x.text}`).join('\n');
   const p = `Bạn là đạo diễn hình ảnh cho video kể chuyện vẽ nét mực đen trắng. Dưới đây là cốt truyện, nhân vật và lời kể từng cảnh. Với MỖI cảnh, viết mô tả để vẽ tranh bằng tiếng Anh (2-3 câu) theo quy tắc:
 0) BẮT ĐẦU mỗi mô tả bằng đúng một nhãn: [OBJECT] CHỈ khi lời kể thật sự tả một vật cụ thể, giấy tờ, con số hay kết quả mà không ai làm gì với nó (cận cảnh vật đó thật to, KHÔNG vẽ người). Ước mơ, mong muốn, suy nghĩ, lời nói, kế hoạch, ý tưởng KHÔNG được dùng [OBJECT]; [PERSON] khi một người đang làm hoặc cảm thấy điều gì; [PLACE] khi lời kể tả nơi chốn, hành trình hay thời điểm. Đừng cho người vào cảnh chỉ để cho đầy khung; nếu cả truyện toàn cảnh có người thì hãy xen cảnh [OBJECT] vào những chỗ lời kể nhấn vào một vật.
 1) Chọn khoảnh khắc cụ thể nhất NHÌN THẤY ĐƯỢC trong lời kể, không vẽ ý trừu tượng (ý trừu tượng thì đổi thành BIỂU TƯỢNG, không minh họa theo nghĩa đen của chữ: nợ nần = giấy tờ + tiền, thành công = cúp, bí mật = chìa khóa; với tin tức/số liệu/kinh tế dùng chart_down hoặc chart_up (biểu đồ đi xuống/đi lên), arrow_down/arrow_up (mũi tên giảm/tăng), percent (phần trăm, giảm giá), warning (cảnh báo, rủi ro), wallet (ví, tiền tiết kiệm/chi tiêu), newspaper (bản tin), bulb (ý tưởng)).
@@ -476,11 +533,11 @@ async function refineImages(sc) {
 9) TƯƠNG PHẢN (người thường vs nhân vật chính, trước vs sau, hai quan điểm): ghi \"split frame: left side ..., right side ...\" để chia đôi khung, mỗi bên một kiểu người/vật khác nhau.
 10) Nhân vật chính (nhất là khi truyện về một người thật nổi tiếng, hãy ghi rõ tên người đó) phải có mặt ở ít nhất 2/3 số cảnh và luôn cùng ngoại hình. Mỗi cảnh phải tự kể được ý chính mà người xem không cần đọc lời kể; không bao giờ để khung gần như trống.
 11) VẼ ĐỦ: trước khi viết mỗi mô tả, tự liệt kê MỌI người (cha, mẹ, con, sếp, đối thủ, đám đông...) và MỌI vật/địa điểm (tòa tháp, sân golf, sòng bạc, khách sạn, thành phố...) mà lời kể nhắc đến. Mỗi người được nhắc (ngoài nhân vật chính) phải được vẽ thành một người riêng (vai SECOND/THIRD...); mỗi vật/địa điểm phải có mặt trong tranh. Kết thúc mô tả bằng đúng một cụm: \"MUST SHOW: a, b, c\" liệt kê những thứ đó (tiếng Anh). Ví dụ lời kể \"Cha của ông là nhà kinh doanh bất động sản\" thì MUST SHOW: older man in suit (father), building, house. Lời kể về nhiều thứ (khách sạn, sòng bạc, sân golf) thì phải thấy từng thứ, mỗi thứ một hình rõ ràng.
-\nChỉ trả về JSON: {"images":["mô tả cảnh 1","mô tả cảnh 2"]} với đúng ${sc.scenes.length} phần tử theo thứ tự.
+\nChỉ trả về JSON: {"images":["mô tả cảnh 1","mô tả cảnh 2"]} với đúng ${part.length} phần tử theo thứ tự (chỉ cho các cảnh trong danh sách).
 Cốt truyện: ${sc.story || ''}
 Bối cảnh: ${sc.setting || ''}
 Nhân vật: ${sc.characters || ''}
-Các cảnh:
+${from ? 'Cảnh ngay trước nhóm này (để liền mạch, KHÔNG viết lại): ' + sc.scenes[from - 1].text + '\n' : ''}Các cảnh cần viết mô tả (giữ đúng thứ tự):
 ${list}`;
   const d = await gemMulti(TXT_MODELS, {
     contents: [{ parts: [{ text: p }] }],
@@ -489,8 +546,21 @@ ${list}`;
   const t = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('').replace(/```json|```/g, '').trim();
   const a = t.indexOf('{'), b = t.lastIndexOf('}');
   const j = JSON.parse(a >= 0 && b > a ? t.slice(a, b + 1) : t);
-  if (!Array.isArray(j.images) || j.images.length !== sc.scenes.length) throw new Error('Số mô tả không khớp số cảnh');
+  if (!Array.isArray(j.images) || j.images.length !== part.length) throw new Error('Số mô tả không khớp số cảnh');
   return j.images;
+}
+async function refineImages(sc) {
+  const B = 30, out = [];
+  for (let from = 0; from < sc.scenes.length; from += B) {
+    const part = sc.scenes.slice(from, from + B);
+    if (sc.scenes.length > B) log(`🎬 Đang ghép hình ảnh cho cảnh ${from + 1}-${from + part.length}/${sc.scenes.length}...`);
+    let r = null;
+    for (let t = 0; t < 2 && !r; t++) {
+      try { r = await refineBatch(sc, part, from); } catch (e) { if (abortGen) throw e; }
+    }
+    out.push(...(r || part.map(() => null)));
+  }
+  return out;
 }
 
 
@@ -717,7 +787,8 @@ const PAL = {
   retro: { red: '#a0522d', orange: '#c8873a', yellow: '#e3cf9a', green: '#7a8450', blue: '#5f7a8a' },
   warm: { red: '#c0392b', orange: '#e67e22', yellow: '#f4c542', green: '#8a6d3b', blue: '#a85a32' },
   cool: { red: '#6b7fb0', orange: '#8aa4c8', yellow: '#c9d6e6', green: '#4f8a8b', blue: '#2f5d9e' },
-  comic: { red: '#ff2d3d', orange: '#ff8c00', yellow: '#ffe600', green: '#00c853', blue: '#1e6bff' }
+  comic: { red: '#ff2d3d', orange: '#ff8c00', yellow: '#ffe600', green: '#00c853', blue: '#1e6bff' },
+  color: { red: '#f04452', orange: '#ff9a1f', yellow: '#ffd91a', green: '#2fb457', blue: '#3a8dff' }
 };
 const accentEnabled = () => (!$('accentOn') || $('accentOn').checked) && ($('cmode') ? $('cmode').value !== 'bw' : true);
 const cmodeV = () => $('cmode') ? $('cmode').value : 'accent';
@@ -1402,7 +1473,8 @@ async function svgImage(s, blackInkOnly = false) {
     rule += '\nSTYLE: the attached reference image shows the look the user wants: simple, clean, round, friendly line art with lots of white space. Draw the props, buildings, ground and background in that same simple line style (the reference is black and white; keep the accent colors only where the story needs them) (same line feel, very simple shapes). People are NOT drawn by you: use only <person .../> tags (the tool draws consistent stick-figure people matching the reference). Do not copy the reference layout, and do not add decoration the narration does not mention (the reference is only for the line feel).' + (desc ? `\nStyle notes for props and background: ${desc}` : '');
     parts.push({ inlineData: { mimeType: refMime(), data: refB64() } });
   }
-  if (cm !== 'accent' && cm !== 'bw') rule += '\nCOLOR MODE (' + cm + '): the palette is already set. You may use the accent hex values on up to about 5 shapes (clothes, key objects, one emotional element) but keep thick black outlines and white everywhere else; never fill the sky, ground or backgrounds. Do not color hair or faces.';
+  if (cm === 'color') rule += '\nCOLOR MODE (FULL COLOR): this picture must be a COLORFUL illustration. Keep the thick black outlines, but fill the important things with the 5 palette colors (exact hex values only: red ' + COL.red + ', orange ' + COL.orange + ', yellow ' + COL.yellow + ', green ' + COL.green + ', blue ' + COL.blue + '): clothes, the main objects, buildings, ground, grass, sky shapes, the sun, money. Use white for faces, hands and highlights. Color about 8 to 25 shapes, spread over the whole picture, but never fill one single shape larger than a fifth of the frame and never make a dark or black background.';
+  else if (cm !== 'accent' && cm !== 'bw') rule += '\nCOLOR MODE (' + cm + '): the palette is already set. Use the accent hex values on up to about 5 shapes (clothes, key objects, one emotional element) but keep thick black outlines.';
   const dl = parseDates(s.text);
   if (dl.length) rule += '\nDATE LABEL: the narration of this scene contains a date. The tool will draw a calendar / date label in the TOP-LEFT corner (about 30% of the width and 30% of the height). Keep that corner EMPTY (put nothing there) and do NOT write any date or text yourself.';
   parts.push({ text: `${rule}\n${sceneCtx(s)}` });
@@ -1855,6 +1927,109 @@ async function makeVoice(t, no) {
   // Vbee lỗi thì báo lỗi lên cho người dùng quyết định, KHÔNG tự đổi sang giọng Gemini (tránh lẫn 2 giọng trong một video)
   if ($('vsrc').value === 'vbee') return await vbeeVoice(t);
   return gemVoice(t);
+}
+
+// ===== CHÉP LỜI TỪ VIDEO / ÂM THANH =====
+function pcmToWavB64(f32, sr) {
+  const n = f32.length, buf = new ArrayBuffer(44 + n * 2), dv = new DataView(buf);
+  const w = (o, t) => { for (let i = 0; i < t.length; i++) dv.setUint8(o + i, t.charCodeAt(i)); };
+  w(0, 'RIFF'); dv.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+  dv.setUint32(24, sr, true); dv.setUint32(28, sr * 2, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
+  w(36, 'data'); dv.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) { const v = Math.max(-1, Math.min(1, f32[i])); dv.setInt16(44 + i * 2, v < 0 ? v * 0x8000 : v * 0x7fff, true); }
+  const u8 = new Uint8Array(buf); let bin = '';
+  for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+async function transcribeBuffer(raw) {
+    const oc = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 16000, 16000);
+    let ab;
+    try { ab = await oc.decodeAudioData(raw); }
+    catch (e) { throw new Error('Trình duyệt không đọc được âm thanh của file này. Thử video MP4 hoặc file MP3/WAV nhé.'); }
+    const sr = ab.sampleRate, len = ab.length, chn = ab.numberOfChannels, mono = new Float32Array(len);
+    for (let c = 0; c < chn; c++) { const d = ab.getChannelData(c); for (let i = 0; i < len; i++) mono[i] += d[i] / chn; }
+    const chunk = 4 * 60 * sr, n = Math.ceil(len / chunk);
+    log(`  Độ dài khoảng ${(len / sr / 60).toFixed(1)} phút, chia ${n} đoạn để chép lời.`);
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      if (abortGen) throw new Error('Đã dừng');
+      log(`📝 Đang chép lời đoạn ${i + 1}/${n}...`);
+      const b64 = pcmToWavB64(mono.subarray(i * chunk, Math.min(len, (i + 1) * chunk)), sr);
+      const q = 'Chép lại lời nói trong đoạn âm thanh này thành văn bản tiếng Việt, đúng nghĩa, có dấu câu và chia đoạn hợp lý. Nếu lời nói không phải tiếng Việt thì dịch sang tiếng Việt tự nhiên. Bỏ qua nhạc nền và tiếng ồn; không ghi mốc thời gian, không ghi tên người nói, không giải thích gì thêm. Nếu không có lời nói thì chỉ trả về đúng chữ: KHONG_CO_LOI';
+      const d = await gemMulti(TXT_MODELS, { contents: [{ parts: [{ inlineData: { mimeType: 'audio/wav', data: b64 } }, { text: q }] }] }, 120000);
+      const t = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('').trim();
+      if (t && !/KHONG_CO_LOI/.test(t)) out.push(t);
+    }
+    const all = out.join('\n\n').trim();
+    if (!all) throw new Error('Không nghe thấy lời nói trong file này (có thể chỉ có nhạc).');
+    $('idea').value = all;
+    { // độ dài video = đúng độ dài nội dung gốc (kể cả đoạn dài)
+      const m = Math.min(45, Math.max(1, Math.round(len / sr / 60)));
+      const sel = $('min'); const old = $('minSrc'); if (old) old.remove();
+      if (![...sel.options].some(o => +o.value === m)) {
+        const o = document.createElement('option'); o.id = 'minSrc'; o.value = String(m); o.textContent = `${m} phút (đúng độ dài nội dung gốc)`;
+        sel.appendChild(o);
+      }
+      sel.value = String(m); nimgHint();
+      log(`  ⏱ Đã chọn độ dài video ${m} phút = độ dài nội dung gốc${len / sr / 60 > 45 ? ' (giới hạn tối đa 45 phút)' : ''}.`);
+    }
+    log(`✅ Đã chép lời xong (${all.split(/\s+/).length} từ). Xem lại trong ô truyện, rồi bấm "Bắt đầu tạo video".`);
+}
+
+function keysOk() {
+  keys = $('keys').value.split(/\s+/).filter(k => k.length > 20);
+  if (!keys.length) { $('set').open = true; alert('Dán API key Gemini vào phần Cài đặt nhé.'); return false; }
+  return true;
+}
+async function withTxBusy(fn) {
+  abortGen = false; $('vidBtn').disabled = true; $('ttBtn').disabled = true; $('stp').hidden = false;
+  try { await fn(); }
+  catch (e) {
+    log('❌ ' + e.message);
+    if (e.message !== 'Đã dừng') alert('Chưa chép lời được: ' + e.message);
+  } finally { $('vidBtn').disabled = false; $('ttBtn').disabled = false; $('stp').hidden = true; }
+}
+async function videoToText() {
+  const f = $('vidFile').files[0];
+  if (!f) return alert('Chọn một video (hoặc file âm thanh) trước nhé.');
+  if (!keysOk()) return;
+  if (f.size > 500 * 1024 * 1024) return alert('File lớn hơn 500MB. Hãy cắt ngắn hoặc nén video lại rồi thử nhé.');
+  await withTxBusy(async () => {
+    log('\n🎞️ Đang tách âm thanh từ video...');
+    await transcribeBuffer(await f.arrayBuffer());
+  });
+}
+async function tiktokToText() {
+  const link = $('ttUrl').value.trim();
+  if (!/^https?:\/\/([\w-]+\.)*(tiktok|douyin|iesdouyin)\.com\//i.test(link)) return alert('Dán đúng link TikTok hoặc Douyin nhé (ví dụ https://www.tiktok.com/..., https://vt.tiktok.com/..., https://v.douyin.com/...).');
+  if (!keysOk()) return;
+  await withTxBusy(async () => {
+    log('\n🔗 Đang lấy thông tin video TikTok...');
+    const r = await fetch('/api/tiktok?url=' + encodeURIComponent(link));
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j.error) throw new Error((j.error && j.error.message) || 'Không lấy được video TikTok (có thể video riêng tư hoặc dịch vụ đang bận).');
+    log(`  Tìm thấy: ${j.title ? j.title.slice(0, 80) : 'video TikTok'}${j.duration ? ' (' + j.duration + ' giây)' : ''}`);
+    const srcs = [['âm thanh', j.audio], ['video', j.video]].filter(x => x[1]);
+    if (!srcs.length) throw new Error('Không tìm thấy file âm thanh của video này.');
+    let lastErr = '';
+    for (const [name, url] of srcs) {
+      try {
+        log(`⬇️ Đang tải ${name}...`);
+        const m = await fetch('/api/tiktok?media=' + encodeURIComponent(url));
+        if (!m.ok) throw new Error('Không tải được ' + name + ' (' + m.status + ')');
+        const raw = await m.arrayBuffer();
+        if (raw.byteLength < 2000) throw new Error('File ' + name + ' rỗng');
+        await transcribeBuffer(raw);
+        return;
+      } catch (e) {
+        if (abortGen) throw e;
+        lastErr = e.message;
+        log(`  ⚠ ${lastErr}${name === 'âm thanh' && srcs.length > 1 ? ', thử lấy tiếng từ video...' : ''}`);
+      }
+    }
+    throw new Error(lastErr || 'Không lấy được âm thanh từ link này.');
+  });
 }
 
 async function start(isRetry = false) {

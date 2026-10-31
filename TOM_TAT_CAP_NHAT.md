@@ -185,3 +185,25 @@ Tháp Eiffel vẽ lại (thân cong lõm, vòm chân, 3 tầng, ăng-ten). `PROP
 ## Cập nhật: vẽ đủ + bỏ khung thừa
 - Đạo diễn hình ảnh: quy tắc 11 "VẼ ĐỦ" (mỗi người/vật được nhắc đều phải có mặt, mô tả kết thúc bằng `MUST SHOW: ...`); `SVGR_SCENE` có luật tương ứng.
 - `dropFrameRects()` (gọi trong `sanitizeSvg`): tự xóa rect/path chữ nhật phủ ≥ 80% khung tranh, tránh viền mỏng thừa bên trong.
+
+## Cập nhật: chế độ màu còn 3 kiểu
+- `#cmode`: Đen trắng (`bw`) / Màu nhấn (`accent`, mặc định) / Ảnh màu (`color`, bảng màu `PAL.color`, tô nhiều hình, nét viền đen vẫn dày). Giá trị cũ đã lưu (retro/warm/cool/comic) tự về `accent`.
+- `svgImage`: nhánh `cm === 'color'` có luật tô màu cả tranh (8-25 hình, không hình nào quá 1/5 khung, không nền đen).
+
+## Cập nhật: chép lời từ video
+- Khung "Hoặc tải video có sẵn" dưới ô truyện: `#vidFile`, nút `#vidBtn` gọi `videoToText()`.
+- `videoToText()`: giải mã âm thanh bằng `OfflineAudioContext` 16kHz mono, cắt đoạn 4 phút, `pcmToWavB64()` mã hóa WAV, gửi từng đoạn cho Gemini (`gemMulti(TXT_MODELS, ...)` với `inlineData` audio/wav), nối kết quả vào `#idea`.
+- Ô `#rewriteOn` (mặc định bật): `makeScript` dùng chỉ dẫn `REWRITE` để viết lại thành truyện mới bằng lời văn khác, giữ sự kiện/số liệu, bỏ quảng cáo và lời chào.
+- Giới hạn: file ≤ 500MB; trình duyệt phải giải mã được âm thanh (MP4/MP3/WAV/WebM).
+
+## Cập nhật: video dài 10-25 phút
+- `#min`: thêm 10/15/20/25 phút; `#nimg` max 200. `imgCount()`: từ trên 5 phút tự động ~1 tranh/15 giây (25 phút = 100 tranh).
+- `makeScript()` chia kịch bản thành các phần ~24 cảnh (`makeScriptPart()` gọi từng phần, truyền nhân vật/bối cảnh/đoạn cuối phần trước); nội dung dài ≥ 600 từ được cắt theo đoạn bằng `sliceText()` để kể hết, không bỏ ý.
+- `refineImages()` chạy theo nhóm 30 cảnh (`refineBatch()`); nhóm lỗi thì giữ mô tả gốc.
+- `videoToText()`: sau khi chép lời tự đặt độ dài video = độ dài audio/video gốc (tối đa 45 phút, option `#minSrc`).
+
+## Cập nhật: lấy âm thanh từ link TikTok
+- `api/tiktok.js` (Vercel function): `?url=<link tiktok>` hỏi dịch vụ tikwm.com lấy link âm thanh/video; `?media=<https>` chuyển tiếp file audio/video về trình duyệt dạng luồng (tối đa 80MB, chặn host nội bộ).
+- `index.html`: ô `#ttUrl` + nút `#ttBtn` gọi `tiktokToText()`; lõi chép lời tách thành `transcribeBuffer(raw)` dùng chung cho file tải lên và link TikTok. Tải âm thanh trước; nếu không có lời thì tự thử lấy tiếng từ video.
+- Phụ thuộc dịch vụ bên thứ ba (tikwm.com), có thể đổi hoặc ngừng bất cứ lúc nào.
+- Mở thêm link Douyin (douyin.com, v.douyin.com, iesdouyin.com) trong api/tiktok.js và ô nhập; vẫn dùng tikwm.com nên chưa kiểm chứng được với link thật.
