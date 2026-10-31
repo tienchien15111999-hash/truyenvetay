@@ -193,6 +193,9 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   </div>
   <p class="hint" id="nimgHint"></p>
   <label class="chk"><input type="checkbox" id="sub" checked>Hiện phụ đề</label>
+  <div style="margin:10px 0"><label>🎬 Kiểu video</label>
+    <select id="vmode" onchange="saveSet()"><option value="hand">✍️ Vẽ tay (bàn tay cầm bút vẽ từng nét)</option><option value="anim">🎬 Hoạt hình nhân vật (nhân vật cử động, mấp máy miệng theo giọng đọc)</option></select>
+    <p class="hint">Hoạt hình: tranh hiện ngay, nhân vật nhún nhảy, lắc nhẹ, nhân vật chính mở miệng theo giọng đọc; máy quay zoom và lia. Cảnh không có người chỉ zoom và lia.</p></div>
   <div style="margin:10px 0"><label>🎨 Chế độ màu</label>
     <select id="cmode" onchange="applyPalette();saveSet()"><option value="bw">Đen trắng</option><option value="accent" selected>Màu nhấn (chỉ chi tiết cần nhấn mạnh)</option><option value="color">Ảnh màu (tô màu cả tranh)</option></select></div>
   
@@ -285,7 +288,7 @@ const log = m => {
 };
 const A = () => ctxA || (ctxA = new (window.AudioContext || window.webkitAudioContext)());
 
-const CF = ['fmt', 'nimg', 'keys', 'isrc', 'style', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'musicOn', 'musicVol', 'musicMood', 'accentOn', 'cmode'];
+const CF = ['fmt', 'nimg', 'keys', 'isrc', 'style', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'musicOn', 'musicVol', 'musicMood', 'accentOn', 'cmode', 'vmode'];
 function setFmt() {
   const v = $('fmt').value === 'v';
   W = v ? 720 : 1280; H = v ? 1280 : 720;
@@ -738,6 +741,7 @@ function figureSvg(a, sw) {
   else if (acc === 'crown') g += `<path d="M-40 -318 L-46 -366 L-20 -342 L0 -374 L20 -342 L46 -366 L40 -318 Z" fill="#ffffff"/>`;
   else if (acc === 'glasses') g += `<circle cx="-21" cy="-272" r="15" fill="none"/><circle cx="21" cy="-272" r="15" fill="none"/><path d="M-6 -272 L6 -272"/>`;
   const rot = (pose.lean || 0) + (poseName === 'sad' ? -4 : 0);
+  _ppl.push({ x, y, size, flip, role });
   return `<g transform="translate(${x.toFixed(0)} ${y.toFixed(0)}) scale(${(flip * size).toFixed(3)} ${size.toFixed(3)}) rotate(${rot})" stroke="#111111" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none">${g}</g>`;
 }
 // Mỗi người trong cùng một tranh phải khác người khác ít nhất một nét (nón, râu, kính, tóc, họa tiết áo, tư thế).
@@ -783,7 +787,7 @@ function expandPeople(raw, sw) {
   raw.replace(re(), (m, attrs) => { list.push(figAttrs(attrs)); return m; });
   try { uniquePeople(list); } catch (e) { /* lỗi thì cứ vẽ như cũ */ }
   let i = 0;
-  return raw.replace(re(), () => { const a = list[i++]; try { return figureSvg(a, sw); } catch (e) { return ''; } });
+  return raw.replace(re(), () => { const a = list[i++]; const n0 = _ppl.length; try { const g = figureSvg(a, sw); return _ppl.length > n0 ? `<g data-pid="${n0}">${g}</g>` : g; } catch (e) { return ''; } });
 }
 // ===== THƯ VIỆN ĐỒ VẬT / CẢNH VẬT VẼ SẴN (đẹp và đồng nhất, AI chỉ đặt chỗ bằng thẻ <prop/> <ground/>) =====
 const _R = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#ffffff"/>`;
@@ -811,6 +815,7 @@ const _Rc = (x, y, w, h, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h
 const _flame = (cx, w, h, c) => `<path d="M${cx - w} 0 C${cx - w * 1.4} ${-h * 0.45} ${cx - w * 0.3} ${-h * 0.55} ${cx} ${-h} C${cx + w * 0.1} ${-h * 0.6} ${cx + w * 1.5} ${-h * 0.6} ${cx + w} 0 Z" fill="${c}" data-keep="1"/>`;
 const _spiky = (n, ro, ri, c) => { let d = ''; for (let i = 0; i < n * 2; i++) { const a = i * Math.PI / n, r = i % 2 ? ri : ro; d += (i ? 'L' : 'M') + (Math.cos(a) * r).toFixed(1) + ' ' + (Math.sin(a) * r).toFixed(1); } return `<path d="${d} Z" fill="${c}" data-keep="1"/>`; };
 const _tags = [];
+const _ppl = []; // vị trí từng nhân vật (để tách lớp làm hoạt hình)
 const WHO = { trump: { n: 'Trump', acc: 'trump', mark: 'redtie' }, einstein: { n: 'Einstein', acc: 'einstein', mark: 'none' }, jobs: { n: 'Steve Jobs', acc: 'glasses', mark: 'turtle' }, bacho: { n: 'Bác Hồ', acc: 'bacho', mark: 'none' }, napoleon: { n: 'Napoleon', acc: 'napoleon', mark: 'none' }, lincoln: { n: 'Lincoln', acc: 'lincoln', mark: 'none' } };
 const PROPS = {
   map: { k: 1.3, n: '', g: () => _R(-70, -100, 140, 100) + _L('M-23 -100 L-23 0 M23 -100 L23 0 M-50 -30 Q-20 -80 10 -50 T50 -80') },
@@ -1490,12 +1495,92 @@ async function svgImage(s, blackInkOnly = false) {
   parts.push({ text: `${rule}\n${sceneCtx(s)}` });
   const d = await gemMulti(TXT_MODELS, { contents: [{ parts }] }, 75000);
   const t = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('');
-  _tags.length = 0;
+  _tags.length = 0; _ppl.length = 0;
   const svg = addTags(addDateLabels(sanitizeSvg(macro ? expandPeople(expandProps(t, st.sw), st.sw) : t, curStyle().wob), dl));
   { const d2 = new DOMParser().parseFromString(svg, 'image/svg+xml'); // kiểm tra chất lượng: SVG hợp lệ và không trống (lỗi thì vòng thử lại 3 lần có sẵn sẽ vẽ lại)
     if (d2.querySelector('parsererror')) throw new Error('SVG lỗi cú pháp');
     if (d2.querySelectorAll('path,rect,circle,ellipse,line,polygon,polyline').length < 2) throw new Error('Tranh trống'); }
-  return await inkify({ mimeType: 'image/svg+xml', data: btoa(unescape(encodeURIComponent(svg))) });
+  const full = await inkify({ mimeType: 'image/svg+xml', data: btoa(unescape(encodeURIComponent(svg))) });
+  const wantAnim = $('vmode') && $('vmode').value === 'anim';
+  if (!wantAnim) return Object.assign(full, { anim: false, bg: null, people: null });
+  let layers = { bg: null, people: null };
+  try { layers = await animLayers(svg, _ppl.slice()); } catch (e) { log('  ℹ Không tách được lớp nhân vật, cảnh này chỉ zoom/lia: ' + e.message); }
+  return Object.assign(full, { anim: true }, layers);
+}
+
+// ===== HOẠT HÌNH NHÂN VẬT: tách tranh thành nền + từng nhân vật =====
+async function rasterSvg(str) {
+  const im = await loadImg('data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(str))));
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  const h = fm.ah, sc = Math.min((W - 40) / im.width, h / im.height), w = im.width * sc, hh = im.height * sc;
+  const ox = (W - w) / 2, oy = 10 + (h - hh) / 2;
+  x.drawImage(im, ox, oy, w, hh);
+  return { c, x, sc, ox, oy };
+}
+async function animLayers(svg, ppl) {
+  if (!ppl.length) return { bg: null, people: null };
+  const mk = () => new DOMParser().parseFromString(svg, 'image/svg+xml');
+  const d0 = mk();
+  if (d0.querySelector('parsererror') || !d0.querySelector('[data-pid]')) return { bg: null, people: null };
+  const dBg = mk(); dBg.querySelectorAll('[data-pid]').forEach(n => n.remove());
+  const bg = (await rasterSvg(new XMLSerializer().serializeToString(dBg.documentElement))).c;
+  const people = [];
+  for (let k = 0; k < ppl.length; k++) {
+    const d = mk(), root = d.documentElement;
+    root.querySelectorAll('path,rect,circle,ellipse,line,polygon,polyline').forEach(n => { if (!n.closest(`[data-pid="${k}"]`) && !n.closest('defs')) n.remove(); });
+    const r = await rasterSvg(new XMLSerializer().serializeToString(root));
+    const img = r.x.getImageData(0, 0, W, H).data;
+    let x0 = W, y0 = H, x1 = -1, y1 = -1;
+    for (let y = 0; y < H; y += 2) for (let x = 0; x < W; x += 2) if (img[(y * W + x) * 4 + 3] > 10) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 < 0) continue;
+    x0 = Math.max(0, x0 - 6); y0 = Math.max(0, y0 - 6); x1 = Math.min(W - 1, x1 + 6); y1 = Math.min(H - 1, y1 + 6);
+    const cv = document.createElement('canvas'); cv.width = x1 - x0 + 1; cv.height = y1 - y0 + 1;
+    cv.getContext('2d').drawImage(r.c, x0, y0, cv.width, cv.height, 0, 0, cv.width, cv.height);
+    const q = ppl[k], to = (px, py) => [r.ox + px * r.sc, r.oy + py * r.sc];
+    const [ax, ay] = to(q.x, q.y), [mx, my] = to(q.x, q.y - 243 * q.size);
+    people.push({ cv, x0, y0, ax, ay, mx, my, mr: q.size * r.sc, sc: r.sc, role: q.role });
+  }
+  if (!people.length) return { bg: null, people: null };
+  const sp = people.find(p => p.role === 'MAIN') || people[0];
+  sp.speaker = true;
+  return { bg, people };
+}
+// Độ lớn giọng đọc theo thời gian (0..1) để nhân vật mở miệng
+function ampAt(s, tt) {
+  if (!s.buf || tt < 0) return 0;
+  if (!s._env) {
+    const ch = s.buf.getChannelData(0), st = Math.max(1, Math.round(s.buf.sampleRate / 30)), n = Math.ceil(ch.length / st), arr = new Float32Array(n);
+    let mx = 0;
+    for (let i = 0; i < n; i++) { let a = 0, c = 0; for (let j = i * st; j < Math.min(ch.length, (i + 1) * st); j += 4) { a += ch[j] * ch[j]; c++; } arr[i] = Math.sqrt(a / Math.max(1, c)); if (arr[i] > mx) mx = arr[i]; }
+    s._env = arr.map(v => mx ? Math.min(1, v / (mx * 0.6)) : 0);
+  }
+  const i = Math.floor(tt * 30);
+  if (i >= s._env.length) return 0;
+  return (s._env[i] + (s._env[i - 1] || 0)) / 2;
+}
+function drawAnim(x, s, lt) {
+  x.globalAlpha = Math.min(1, lt / 0.35);
+  x.drawImage(s.bg || s.cv, 0, 0);
+  x.globalAlpha = 1;
+  if (!s.people) return;
+  const amp = ampAt(s, lt - 0.3);
+  s.people.forEach((p, i) => {
+    const ph = i * 1.7, e = Math.min(1, Math.max(0, (lt - i * 0.12) / 0.5)), ez = 1 - Math.pow(1 - e, 3);
+    const talk = p.speaker ? amp : 0;
+    const bob = Math.sin(lt * 5.6 + ph) * 3 - talk * 5;
+    const rot = Math.sin(lt * 2.8 + ph) * 0.012 + (p.speaker ? Math.sin(lt * 9) * 0.014 * talk : 0);
+    const sy = 1 + Math.sin(lt * 6.9 + ph) * 0.006 + talk * 0.018;
+    x.save();
+    x.globalAlpha = ez;
+    x.translate(p.ax, p.ay + (1 - ez) * 40 + bob); x.rotate(rot); x.scale(1, sy); x.translate(-p.ax, -p.ay);
+    x.drawImage(p.cv, p.x0, p.y0);
+    if (p.speaker && talk > 0.06) {
+      x.beginPath(); x.ellipse(p.mx, p.my, 9 * p.mr * (0.7 + 0.5 * talk), (3 + 13 * talk) * p.mr, 0, 0, Math.PI * 2);
+      x.fillStyle = '#fff'; x.fill(); x.lineWidth = Math.max(2, 6 * p.sc); x.strokeStyle = '#111'; x.stroke();
+    }
+    x.restore();
+  });
 }
 
 async function makeImage(s, sceneNo) {
@@ -2551,6 +2636,7 @@ function makeRenderer(vs, st, x) {
     x.translate(cx + dx, cy);
     x.scale(z, z);
     x.translate(-cx, -cy);
+    if (s.anim) drawAnim(x, s, lt); else {
     const N = s.ord ? s.ord.length : 0, k = Math.min(1, lt / (s.dur * 0.7)) * N, kf = Math.floor(k);
     if (s.cv) {
       while (ptr < Math.min(kf, N)) {
@@ -2568,6 +2654,7 @@ function makeRenderer(vs, st, x) {
     const sp0 = tg[0] > W ? 0.07 : 0.5, sp = 1 - Math.pow(1 - sp0, dt * 60);
     pos = [pos[0] + (tg[0] - pos[0]) * sp, pos[1] + (tg[1] - pos[1]) * sp];
     hand(x, pos[0], pos[1]);
+    }
     x.restore();
     const fo = Math.min(1, Math.max(0, lt - (s.dur - 0.5)) / 0.5);
     if (fo > 0) {

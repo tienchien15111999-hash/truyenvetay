@@ -208,3 +208,10 @@ Tháp Eiffel vẽ lại (thân cong lõm, vòm chân, 3 tầng, ăng-ten). `PROP
 - Phụ thuộc dịch vụ bên thứ ba (tikwm.com), có thể đổi hoặc ngừng bất cứ lúc nào.
 - Mở thêm link Douyin (douyin.com, v.douyin.com, iesdouyin.com) trong api/tiktok.js và ô nhập; vẫn dùng tikwm.com nên chưa kiểm chứng được với link thật.
 - Giao diện: 3 thẻ chọn nguồn nội dung (Tự nhập / Link TikTok-Douyin / Video-MP3), mỗi lần hiện một khung; `srcTab()`; tùy chọn viết lại chỉ áp dụng khi nguồn không phải 'Tự nhập'.
+
+## Cập nhật: kiểu video "Hoạt hình nhân vật"
+- Ô `#vmode` (Vẽ tay / Hoạt hình nhân vật), lưu trong `CF`.
+- `figureSvg` ghi vị trí từng người vào `_ppl`; `expandPeople` bọc mỗi người trong `<g data-pid="n">`.
+- `svgImage`: nếu chọn hoạt hình, `animLayers()` tách nền (bỏ các `[data-pid]`) và từng nhân vật (cắt gọn theo vùng có nét), trả về `bg`, `people`, `anim:true`. Chế độ vẽ tay trả `anim:false` để xóa dữ liệu cũ khi vẽ lại cảnh.
+- `makeRenderer`: nhánh `drawAnim()` thay cho bàn tay vẽ: nền hiện dần, người trượt vào, nhún, lắc nhẹ; nhân vật chính (MAIN, hoặc người đầu tiên) mở miệng theo độ lớn giọng đọc (`ampAt()` tính từ `s.buf`, giọng bắt đầu sau 0,3 giây). Cảnh không người chỉ zoom/lia.
+- Giới hạn: chuyển động nhẹ (nhún, lắc, miệng), chưa có tay vẫy, chớp mắt hay đi bộ.
