@@ -181,3 +181,7 @@ Tháp Eiffel vẽ lại (thân cong lõm, vòm chân, 3 tầng, ăng-ten). `PROP
 - Thêm prop: `thought`, `speech` (bong bóng, f:1, x,y là tâm), `podium, camera, mic, megaphone, gavel, golf, rocket, briefcase, scales, ballot, throne` và nhiều alias (`Object.assign(propAliases, ...)` ngay sau `propAliases`).
 - `SVGR_SCENE`: thêm luật MISSING OBJECTS (đồ không có trong thư viện thì AI tự vẽ, không thay bằng đồ khác), luật bong bóng và chia khung.
 - Giao diện: ẩn ô "Cách vẽ tranh" và "Phong cách vẽ" (`#drawPick`), mỗi lần mở ép `isrc=svg_ink`, `style=ref` (chế độ tự động). Ô ảnh mẫu vẫn dùng được.
+
+## Cập nhật: vẽ đủ + bỏ khung thừa
+- Đạo diễn hình ảnh: quy tắc 11 "VẼ ĐỦ" (mỗi người/vật được nhắc đều phải có mặt, mô tả kết thúc bằng `MUST SHOW: ...`); `SVGR_SCENE` có luật tương ứng.
+- `dropFrameRects()` (gọi trong `sanitizeSvg`): tự xóa rect/path chữ nhật phủ ≥ 80% khung tranh, tránh viền mỏng thừa bên trong.

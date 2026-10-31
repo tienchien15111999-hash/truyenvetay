@@ -475,6 +475,7 @@ async function refineImages(sc) {
 8) Ý TRỪU TƯỢNG (ước mơ, mong muốn, suy nghĩ, lời nói, kế hoạch, so sánh, cảm xúc): dùng [PERSON], vẽ MAIN đang nghĩ hoặc nói, ghi rõ \"thought bubble containing <vật ước mơ>\" hoặc \"speech bubble containing <vật>\". Không vẽ riêng vật ước mơ như thể nó có thật.
 9) TƯƠNG PHẢN (người thường vs nhân vật chính, trước vs sau, hai quan điểm): ghi \"split frame: left side ..., right side ...\" để chia đôi khung, mỗi bên một kiểu người/vật khác nhau.
 10) Nhân vật chính (nhất là khi truyện về một người thật nổi tiếng, hãy ghi rõ tên người đó) phải có mặt ở ít nhất 2/3 số cảnh và luôn cùng ngoại hình. Mỗi cảnh phải tự kể được ý chính mà người xem không cần đọc lời kể; không bao giờ để khung gần như trống.
+11) VẼ ĐỦ: trước khi viết mỗi mô tả, tự liệt kê MỌI người (cha, mẹ, con, sếp, đối thủ, đám đông...) và MỌI vật/địa điểm (tòa tháp, sân golf, sòng bạc, khách sạn, thành phố...) mà lời kể nhắc đến. Mỗi người được nhắc (ngoài nhân vật chính) phải được vẽ thành một người riêng (vai SECOND/THIRD...); mỗi vật/địa điểm phải có mặt trong tranh. Kết thúc mô tả bằng đúng một cụm: \"MUST SHOW: a, b, c\" liệt kê những thứ đó (tiếng Anh). Ví dụ lời kể \"Cha của ông là nhà kinh doanh bất động sản\" thì MUST SHOW: older man in suit (father), building, house. Lời kể về nhiều thứ (khách sạn, sòng bạc, sân golf) thì phải thấy từng thứ, mỗi thứ một hình rõ ràng.
 \nChỉ trả về JSON: {"images":["mô tả cảnh 1","mô tả cảnh 2"]} với đúng ${sc.scenes.length} phần tử theo thứ tự.
 Cốt truyện: ${sc.story || ''}
 Bối cảnh: ${sc.setting || ''}
@@ -933,6 +934,7 @@ STEP 1 - CHOOSE THE SCENE TYPE FROM THE NARRATION (the "Scene to draw" may start
 - MISSING OBJECTS: if an object the narration names is NOT in the PROPS lists, do NOT invent a prop type and do NOT replace it with a different object. Draw that one object yourself, where it belongs, with 3 to 8 simple shapes in the same style (rounded shapes, white fill, black outline, no tiny details), at least 150px big so it is recognisable at a glance. Never leave out an object the narration names.
 - DREAMS / WISHES / THOUGHTS / PLANS / WORDS SPOKEN: never draw the thing alone as if it were real. Draw the person (MAIN, pose think or shout, matching face) and put <prop type="thought" .../> (dream, wish, idea, plan) or <prop type="speech" .../> (something said aloud) beside and above the head, then place the prop that shows the dream or the words (cash, house, tower, bulb, chart_up...) INSIDE the bubble with a smaller size, drawn AFTER the bubble. The bubble prop x,y is its centre.
 - CONTRAST (ordinary people vs the hero, before vs after, two opposite opinions): split the frame into two halves with a clear gap: one side a CROWD person with a small hut/house, the other side MAIN with a big building/tower.
+- MUST SHOW: if the description contains a 'MUST SHOW:' list, EVERY item in it must appear in the picture (people as separate <person> tags with a different role and look, objects as props or your own simple drawing). Do not drop any item to keep the picture simple; shrink and arrange them instead.
 - The frame is never left almost empty: if the narration is about a person, show that person; the picture alone must tell the story.
 - NEWS / NUMBERS / ECONOMY / ABSTRACT IDEAS: use SYMBOLS instead of a literal drawing of the words. Prices, stocks, sales or the economy falling = <prop type="chart_down"/> (rising = chart_up); a drop or rise = arrow_down / arrow_up; a discount or rate = percent; danger, risk or a warning = warning; savings, spending or personal money = wallet + cash; a headline, report or announcement = newspaper; an idea = bulb; a secret = key; success = trophy; debt = paper + cash. Show 1 to 3 symbols BIG (size 2 to 3.5), then at most one or two people reacting (worried, surprised). Never try to draw the abstract word itself with random shapes.
 - Do NOT put a person in the scene just to fill space. Do NOT add decoration the narration does not mention or clearly imply (sun, clouds, trees, houses, birds, fences, grass). EMPTY WHITE SPACE IS GOOD. A ground line is optional: use <ground> only when people or buildings need to stand on something.
@@ -1214,6 +1216,24 @@ function accentOf(v) {
   if (h >= 195 && h < 260) return COL.blue;
   return null;
 }
+// Xóa khung/viền chữ nhật phủ gần hết tranh (AI đôi khi tự vẽ khung làm tranh có thêm viền mỏng bên trong)
+function dropFrameRects(svg, W, H = 900) {
+  const num = (t, n) => { const m = t.match(new RegExp('\\s' + n + '="(-?[\\d.]+)"')); return m ? +m[1] : null; };
+  const big = (xs, ys) => xs.length > 1 && ys.length > 1 && (Math.max(...xs) - Math.min(...xs)) >= W * 0.8 && (Math.max(...ys) - Math.min(...ys)) >= H * 0.8;
+  return svg
+    .replace(/<rect\b[^>]*>(\s*<\/rect>)?/gi, tag => { const w = num(tag, 'width'), h = num(tag, 'height'); return (w != null && h != null && w >= W * 0.8 && h >= H * 0.8) ? '' : tag; })
+    .replace(/<path\b[^>]*>(\s*<\/path>)?/gi, tag => {
+      const m = tag.match(/\sd="([^"]*)"/); if (!m || !/^[MLHVZ\s\d.,-]+$/.test(m[1])) return tag; // chỉ xét đường thẳng tuyệt đối (khung chữ nhật)
+      const xs = [], ys = []; let cx = 0, cy = 0;
+      for (const seg of m[1].match(/[MLHVZ][^MLHVZ]*/g) || []) {
+        const n = (seg.slice(1).match(/-?[\d.]+/g) || []).map(Number);
+        if (seg[0] === 'H') { cx = n[0]; xs.push(cx); } else if (seg[0] === 'V') { cy = n[0]; ys.push(cy); }
+        else if (seg[0] === 'M' || seg[0] === 'L') { for (let i = 0; i + 1 < n.length; i += 2) { cx = n[i]; cy = n[i + 1]; xs.push(cx); ys.push(cy); } }
+      }
+      return (xs.length <= 8 && big(xs, ys)) ? '' : tag;
+    });
+}
+
 function sanitizeSvg(raw, wob = 5) {
   const a = raw.indexOf('<svg'), b = raw.lastIndexOf('</svg>');
   if (a < 0 || b < 0) throw new Error('Không có thẻ SVG');
@@ -1249,7 +1269,7 @@ function sanitizeSvg(raw, wob = 5) {
   const defs = '<defs><filter id="wob" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="'+wob+'" xChannelSelector="R" yChannelSelector="G"/></filter></defs>';
   const out = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${fm.vw} 900" width="${fm.vw}" height="900">` + defs +
     '<g filter="url(#wob)" stroke="#111111" fill="none" stroke-linecap="round" stroke-linejoin="round">' + inner + '</g></svg>';
-  return whitenBigBlack(out);
+  return whitenBigBlack(dropFrameRects(out, fm.vw));
 }
 
 // Chốt chặn: hình nào tô ĐEN mà phủ quá lớn (trời đen, nền đen, mảng nhà đen...) thì đổi sang tô trắng (giữ nguyên nét viền)
