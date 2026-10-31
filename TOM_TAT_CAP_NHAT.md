@@ -175,3 +175,9 @@ Tháp Eiffel vẽ lại (thân cong lõm, vòm chân, 3 tầng, ăng-ten). `PROP
 - Màu: chart_down/arrow_down đỏ (giảm, nguy hiểm), chart_up/arrow_up xanh lá (tăng), warning vàng, wallet có tiền xanh. Nằm trong `COL` nên đổi theo chế độ màu `cmode`, và tắt màu nhấn thì thành trắng như các đồ vật khác.
 - Kiểm thử: Chrome headless vẽ 8 biểu tượng + 5 người CROWD + 2 người MAIN trùng nhau (người trùng tự đổi nét). Chưa thử key Gemini thật: cần xem AI có chọn chart_down/arrow_down... cho cảnh tin tức không.
 - CHƯA làm (các điều khác trong góp ý): điều 1 (giới hạn tối đa 3 đối tượng/cảnh, một chủ thể to), điều 2 (dùng cả khung dọc, không để trống đáy), điều 3 (chèn chữ khóa viết tay/con số như "-40%").
+
+## Cập nhật: cảnh trừu tượng + chế độ tự động
+- Đạo diễn hình ảnh (`refineImages`): `[OBJECT]` chỉ dùng cho vật/số liệu cụ thể; ước mơ/suy nghĩ/lời nói dùng [PERSON] kèm bong bóng; cảnh tương phản chia đôi khung; nhân vật chính có mặt ≥ 2/3 số cảnh, không để khung trống (quy tắc 8-10).
+- Thêm prop: `thought`, `speech` (bong bóng, f:1, x,y là tâm), `podium, camera, mic, megaphone, gavel, golf, rocket, briefcase, scales, ballot, throne` và nhiều alias (`Object.assign(propAliases, ...)` ngay sau `propAliases`).
+- `SVGR_SCENE`: thêm luật MISSING OBJECTS (đồ không có trong thư viện thì AI tự vẽ, không thay bằng đồ khác), luật bong bóng và chia khung.
+- Giao diện: ẩn ô "Cách vẽ tranh" và "Phong cách vẽ" (`#drawPick`), mỗi lần mở ép `isrc=svg_ink`, `style=ref` (chế độ tự động). Ô ảnh mẫu vẫn dùng được.
