@@ -1315,7 +1315,7 @@ async function genFreeFluxImg(sceneText, seedNum) {
     const i = new Image();
     i.crossOrigin = 'anonymous';
     const to = setTimeout(() => { i.src = ''; no(new Error('Quá thời gian chờ máy chủ ảnh miễn phí')); }, 30000);
-    i.onload = () => { clearTimeout(to); ok(i); };
+    i.onload = () => { clearTimeout(to); if (isLimitImg(i)) return no(new Error('Pollinations hết lượt miễn phí')); ok(i); };
     i.onerror = () => { clearTimeout(to); no(new Error('Máy chủ ảnh miễn phí bận')); };
     i.src = url;
   });
@@ -1734,6 +1734,7 @@ function drawAnim(x, s, lt) {
 }
 
 // ===== ẢNH AI 3D HOẠT HÌNH NHIỀU MÀU (miễn phí): Hugging Face FLUX nếu có token, không thì Pollinations =====
+let charRefParts = [];
 let aiImgQueue = Promise.resolve(), aiSeed = Math.floor(Math.random() * 900000) + 1000;
 // Nhân vật nổi tiếng luôn vẽ giống người thật (chỉ mượn nét vẽ từ ảnh mẫu)
 const FAMOUS_LOOK = {
@@ -1763,6 +1764,7 @@ async function analyzeCharRef() {
       parts.push({ inlineData: { mimeType: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.85).split(',')[1] } });
     }
     parts.push({ text: 'Describe the reference image(s) for an AI image generator, in English, under 130 words total, in exactly this format:\nSTYLE: art style, rendering, lighting, color palette, texture, camera feel.\nCHARACTERS: for each visible character: gender, apparent age, hair (color, length, style), skin tone, face shape, eyes and eyebrows, glasses or accessories, clothing with colors and patterns, body proportions.\nDescribe only what is visible. Do not name real people or film characters.' });
+    charRefParts = parts.filter(x => x.inlineData).map(x => ({ inlineData: { mimeType: x.inlineData.mimeType, data: x.inlineData.data } }));
     const d = await gemMulti(TXT_MODELS, { contents: [{ parts }] }, 90000);
     const t = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('').trim();
     if (!t) throw new Error('Gemini không trả về mô tả');
@@ -1786,15 +1788,68 @@ async function loadAiImg(src, ms) {
   return await new Promise((ok, no) => {
     const i = new Image(); i.crossOrigin = 'anonymous';
     const to = setTimeout(() => { i.src = ''; no(new Error('Quá thời gian chờ')); }, ms);
-    i.onload = () => { clearTimeout(to); ok(i); };
+    i.onload = () => {
+      clearTimeout(to);
+      if (/pollinations/.test(src) && isLimitImg(i)) return no(new Error('Pollinations hết lượt miễn phí (Free limit reached)'));
+      ok(i);
+    };
     i.onerror = () => { clearTimeout(to); no(new Error('Máy chủ ảnh bận')); };
     i.src = src;
   });
 }
+// Pollinations khi hết lượt miễn phí KHÔNG báo lỗi, mà trả về 1 ảnh nền vàng/cam trơn có chữ "Free limit reached".
+// Nhận ra bằng cách thu nhỏ ảnh: ít màu và 1 màu chiếm gần hết thì là ảnh báo hết lượt, không phải tranh thật.
+function isLimitImg(im) {
+  try {
+    const c = document.createElement('canvas'); c.width = c.height = 32;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    x.drawImage(im, 0, 0, 32, 32);
+    const p = x.getImageData(0, 0, 32, 32).data, cnt = {};
+    for (let i = 0; i < p.length; i += 4) {
+      const k = (p[i] >> 5) + ',' + (p[i + 1] >> 5) + ',' + (p[i + 2] >> 5);
+      cnt[k] = (cnt[k] || 0) + 1;
+    }
+    const v = Object.values(cnt).sort((a, b) => b - a);
+    return v.length <= 8 && v[0] / 1024 > 0.7;
+  } catch (e) { return false; }
+}
+// Vẽ bằng Gemini Image có GỬI KÈM ảnh mẫu của bạn -> nhân vật giống ảnh mẫu và giống nhau giữa các cảnh (cần key đã bật thanh toán)
+async function genGemRefImg(prompt) {
+  if (gemImgDeadInSession) throw new Error('Gemini Image chưa dùng được');
+  if (!keys.length) throw new Error('Chưa có key Gemini');
+  const parts = charRefParts.slice(0, 3).slice();
+  const intro = parts.length ? 'Use the attached reference image(s) as the exact character design and art style (same face, hair, outfit, colors, line style). ' : '';
+  parts.push({ text: intro + prompt });
+  let lastErr = '';
+  for (const m of GEM_IMG_MODELS) {
+    if (retiredModels.has(m)) continue;
+    try {
+      let d;
+      try {
+        d = await gem(m, { contents: [{ parts }], generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: fm.ar } } }, 70000);
+      } catch (e) {
+        if (!/^400/.test(e.message)) throw e;
+        d = await gem(m, { contents: [{ parts }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } }, 70000);
+      }
+      const part = (d.candidates?.[0]?.content?.parts || []).find(x => x.inlineData);
+      if (part) return await loadAiImg(`data:${part.inlineData.mimeType};base64,${part.inlineData.data}`, 20000);
+    } catch (e) {
+      if (abortGen) throw e;
+      lastErr = e.message;
+      if (/429|403|limit:\s*0|billing|PERMISSION/i.test(lastErr)) retiredModels.add(m);
+    }
+  }
+  gemImgDeadInSession = true;
+  throw new Error(lastErr || 'Key không hỗ trợ Gemini Image');
+}
 async function genAiColor(prompt, seed) {
   const w = fm.v ? 576 : 1024, h = fm.v ? 1024 : 576, tok = $('hftok').value.trim().replace(/^Bearer\s+/i, '');
   let lastErr = '';
-  for (let t = 0; t < 3; t++) {
+  if (!(tok) && !gemImgDeadInSession && keys.length) {
+    try { return await genGemRefImg(prompt); }
+    catch (e) { if (abortGen) throw e; lastErr = e.message; }
+  }
+  for (let t = 0; t < 4; t++) {
     if (abortGen) throw new Error('Đã dừng');
     try {
       if (tok && t < 2) {
@@ -1814,7 +1869,9 @@ async function genAiColor(prompt, seed) {
     } catch (e) {
       if (abortGen) throw e;
       lastErr = e.message;
-      await new Promise(r => setTimeout(r, 1500 + t * 1500));
+      const limited = /hết lượt/.test(lastErr);
+      if (limited && typeof log === 'function') log(`  ⏳ Pollinations hết lượt miễn phí, chờ ${20 + t * 20}s rồi thử lại...`);
+      await new Promise(r => setTimeout(r, limited ? (20 + t * 20) * 1000 : 1500 + t * 1500));
     }
   }
   throw new Error(lastErr || 'Không tạo được ảnh AI');
@@ -1824,7 +1881,7 @@ async function aiColorImage(s, sceneNo) {
   let done; aiImgQueue = new Promise(r => { done = r; });
   await prev;
   try {
-    await new Promise(r => setTimeout(r, 700));
+    await new Promise(r => setTimeout(r, $('hftok').value.trim() ? 700 : 6000));
     const im = await genAiColor(ai3dPrompt(s), aiSeed);
     const c = document.createElement('canvas'); c.width = W; c.height = H;
     const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, W, H);
@@ -1840,7 +1897,7 @@ async function makeImage(s, sceneNo) {
     try { return await aiColorImage(s, sceneNo); }
     catch (e) {
       if (abortGen) throw e;
-      log(`  ⚠ Cảnh ${sceneNo}: máy chủ ảnh AI miễn phí đang bận (${e.message}), tạm vẽ bằng nét mực.`);
+      log(`  ⚠ Cảnh ${sceneNo}: chưa tạo được ảnh màu (${e.message}), tạm vẽ nét mực. Chờ vài phút rồi bấm 🔄 Vẽ lại ở cảnh này.`);
       return await svgImage(s, false);
     }
   }
