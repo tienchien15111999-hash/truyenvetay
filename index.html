@@ -1750,6 +1750,16 @@ function famousInStory() {
   String(typeof chars === 'string' ? chars : '').replace(/who\s*=\s*([a-z]+)/gi, (_, w) => { set.add(w.toLowerCase()); return ''; });
   return [...set].filter(w => FAMOUS_LOOK[w]).map(w => FAMOUS_LOOK[w]);
 }
+setTimeout(async () => {
+  try {
+    const a = await idb.get('charref');
+    if (Array.isArray(a) && a.length) {
+      charRefParts = a;
+      const st = $('charRefStat');
+      if (st) st.textContent = `✅ Đã nhớ ${a.length} ảnh mẫu từ lần trước, không cần tải lại. Chọn ảnh mới nếu muốn đổi.`;
+    }
+  } catch (e) {}
+}, 0);
 async function analyzeCharRef() {
   const files = [...$('charRef').files].slice(0, 3), st = $('charRefStat');
   if (!files.length) return;
@@ -1765,6 +1775,7 @@ async function analyzeCharRef() {
     }
     parts.push({ text: 'Describe the reference image(s) for an AI image generator, in English, under 130 words total, in exactly this format:\nSTYLE: art style, rendering, lighting, color palette, texture, camera feel.\nCHARACTERS: for each visible character: gender, apparent age, hair (color, length, style), skin tone, face shape, eyes and eyebrows, glasses or accessories, clothing with colors and patterns, body proportions.\nDescribe only what is visible. Do not name real people or film characters.' });
     charRefParts = parts.filter(x => x.inlineData).map(x => ({ inlineData: { mimeType: x.inlineData.mimeType, data: x.inlineData.data } }));
+    idb.set('charref', charRefParts);
     const d = await gemMulti(TXT_MODELS, { contents: [{ parts }] }, 90000);
     const t = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('').trim();
     if (!t) throw new Error('Gemini không trả về mô tả');
@@ -2744,6 +2755,14 @@ function cap(x, x1, y1, x2, y2, w, col, ol) {
   x.stroke();
 }
 
+// Kho lưu ảnh lâu dài trong trình duyệt (IndexedDB, chứa được ảnh lớn; localStorage dễ đầy nên mất ảnh)
+const idb = {
+  _db: null,
+  open() { return this._db || (this._db = new Promise((ok, no) => { const r = indexedDB.open('truyenvetay', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); })); },
+  async set(k, v) { try { const d = await this.open(); await new Promise((ok, no) => { const t = d.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = ok; t.onerror = () => no(t.error); }); return true; } catch (e) { return false; } },
+  async get(k) { try { const d = await this.open(); return await new Promise((ok, no) => { const q = d.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => ok(q.result); q.onerror = () => no(q.error); }); } catch (e) { return null; } },
+  async del(k) { try { const d = await this.open(); await new Promise(ok => { const t = d.transaction('kv', 'readwrite'); t.objectStore('kv').delete(k); t.oncomplete = ok; t.onerror = ok; }); } catch (e) {} }
+};
 let handImg = null, handPts = null, handStep = 0;
 function handShow() {
   const c = $('handPrev'); if (!c || !handImg) return;
@@ -2752,7 +2771,10 @@ function handShow() {
   if (handPts) { g.fillStyle = '#e63946'; g.beginPath(); g.arc(handPts.tx, handPts.ty, 7, 0, 7); g.fill(); g.fillStyle = '#3a86ff'; g.beginPath(); g.arc(handPts.ex, handPts.ey, 7, 0, 7); g.fill(); }
   $('handStat').textContent = handStep === 1 ? 'Bước 2: bấm vào ĐUÔI bút (chấm xanh).' : handPts ? '✅ Đã dùng bàn tay thật. Bấm lại vào ảnh nếu muốn chọn lại ngòi/đuôi bút.' : 'Bước 1: bấm vào ĐẦU NGÒI bút (chấm đỏ).';
 }
-function handSave() { try { localStorage.setItem('handimg_v1', handImg.src); localStorage.setItem('handpts_v1', JSON.stringify(handPts)); } catch (e) { alert('Dùng được lần này nhưng trình duyệt không lưu lại được (ảnh quá nặng).'); } }
+async function handSave() {
+  const ok = await idb.set('hand', { src: handImg.src, pts: handPts });
+  try { localStorage.setItem('handimg_v1', handImg.src); localStorage.setItem('handpts_v1', JSON.stringify(handPts)); } catch (e) { if (!ok) alert('Dùng được lần này nhưng trình duyệt không lưu lại được (ảnh quá nặng hoặc đang ở chế độ ẩn danh).'); }
+}
 function handUpload(inp) {
   const f = inp.files && inp.files[0]; if (!f) return;
   const fr = new FileReader();
@@ -2771,9 +2793,16 @@ function handClick(e) {
   else { handPts.ex = px; handPts.ey = py; handStep = 0; if (Math.hypot(handPts.ex - handPts.tx, handPts.ey - handPts.ty) < 20) { alert('Hai điểm quá gần nhau, chọn lại nhé.'); handPts = null; } else handSave(); }
   handShow();
 }
-function handReset() { handImg = null; handPts = null; handStep = 0; try { localStorage.removeItem('handimg_v1'); localStorage.removeItem('handpts_v1'); } catch (e) {} $('handPrev').hidden = true; $('handStat').textContent = 'Chưa có: đang dùng bàn tay vẽ sẵn.'; }
+function handReset() { handImg = null; handPts = null; handStep = 0; idb.del('hand'); try { localStorage.removeItem('handimg_v1'); localStorage.removeItem('handpts_v1'); } catch (e) {} $('handPrev').hidden = true; $('handStat').textContent = 'Chưa có: đang dùng bàn tay vẽ sẵn.'; }
 setTimeout(applyPalette, 0);
-setTimeout(async () => { try { const d = localStorage.getItem('handimg_v1'), p = JSON.parse(localStorage.getItem('handpts_v1') || 'null'); if (d && p) { handImg = await loadImg(d); handPts = p; handShow(); } } catch (e) {} }, 0);
+setTimeout(async () => {
+  try {
+    let d = null, p = null; const o = await idb.get('hand');
+    if (o && o.src && o.pts) { d = o.src; p = o.pts; }
+    else { d = localStorage.getItem('handimg_v1'); p = JSON.parse(localStorage.getItem('handpts_v1') || 'null'); }
+    if (d && p) { handImg = await loadImg(d); handPts = p; handShow(); }
+  } catch (e) {}
+}, 0);
 function hand(x, px, py) {
   // Bàn tay cầm bút vẽ bằng đường cong (Path2D). Gốc tọa độ = đầu ngòi bút, trục +x chạy dọc thân bút.
   const a = Math.max(0.52, Math.min(1.05, Math.atan2(H + 500 - py, W + 300 - px))) + Math.sin(performance.now() / 110) * 0.02;
