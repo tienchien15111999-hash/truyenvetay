@@ -2519,9 +2519,18 @@ function srcTab(t) {
   $('ideaLbl').textContent = t === 'text' ? 'Câu chuyện hoặc ý tưởng' : 'Nội dung (chép lời xong sẽ hiện ở đây, bạn sửa được)';
 }
 // Nguồn là link/video/MP3: sửa chữ trong ô truyện thì độ dài video tự tính lại theo số từ (~190 từ/phút)
+// Chế độ văn bản: dán truyện hoàn chỉnh (từ 200 từ) thì độ dài tự theo số từ; ý tưởng ngắn thì giữ ô chọn như cũ. Bạn tự chọn lại ô phút thì tool không tự đổi nữa.
+let minManual = false;
+$('min').addEventListener('change', e => { if (e.isTrusted) { minManual = true; if (srcMode === 'text') $('minLbl').textContent = 'Độ dài video'; } });
 $('idea').addEventListener('input', () => {
-  if (srcMode === 'text') return;
   const w = $('idea').value.split(/\s+/).filter(Boolean).length;
+  if (srcMode === 'text') {
+    if (!w) minManual = false;
+    if (minManual) return;
+    if (w >= 200) { setMinutes(Math.min(45, Math.max(1, Math.round(w / 192)))); $('minLbl').textContent = 'Độ dài video (tự theo văn bản của bạn, bấm chọn để đổi)'; }
+    else { const o = $('minSrc'); if (o) { o.remove(); $('min').value = '4'; nimgHint(); } $('minLbl').textContent = 'Độ dài video'; }
+    return;
+  }
   if (w) setMinutes(Math.min(45, Math.max(1, Math.round(w / 192))));
 });
 async function transcribeBuffer(raw) {

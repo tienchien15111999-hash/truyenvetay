@@ -265,3 +265,7 @@ Tháp Eiffel vẽ lại (thân cong lõm, vòm chân, 3 tầng, ăng-ten). `PROP
 - Cuối `figureSvg`, toàn bộ hình người (trừ đồ cầm tay vốn đã qua `_sketch`) được bọc `_sketch(...)` để có nét rung + viền đôi giống đồ vật. Hạt giống rung `_dS` lấy theo vị trí x,y.
 - Đã kiểm tra: `animLayers` vẫn tách đủ 6 bộ phận (legL, legR, body, head, armL, armR) cho mọi tư thế mẫu (stand, point, carry, wave, cheer, walk, sit, run, think).
 - Muốn tay chân mảnh/dày hơn: đổi cặp số độ rộng trong `tube(..., 26, 19)` (tay) và `tube(..., 30, 22)` (chân).
+
+## Cập nhật: độ dài video tự theo văn bản (chế độ "Câu chuyện hoặc ý tưởng")
+- Listener `input` của `#idea` (grep `minManual`): ở chế độ văn bản, nếu dán từ 200 từ trở lên thì `setMinutes(round(từ/192))` (tối đa 45 phút) và nhãn đổi thành "tự theo văn bản của bạn"; dưới 200 từ coi là ý tưởng ngắn, trả ô phút về 4 và cho tự chọn. Người dùng tự bấm đổi ô phút (`change` thật, `e.isTrusted`) thì `minManual = true` và tool không tự đổi nữa cho tới khi xóa trống ô văn bản.
+- Chế độ link/file giữ nguyên: ô phút bị khóa và tự theo nội dung.
