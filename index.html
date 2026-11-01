@@ -129,7 +129,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   <div style="margin:10px 0"><label>🖐 Bàn tay thật (tuỳ chọn): tải ảnh bàn tay cầm bút, PNG nền trong suốt</label>
     <input type="file" id="handFile" accept="image/png" onchange="handUpload(this)">
     <canvas id="handPrev" width="10" height="10" style="display:block;max-width:280px;margin-top:6px;border:1.5px solid #888;border-radius:4px;cursor:crosshair;background:repeating-conic-gradient(#ddd 0 25%,#fff 0 50%) 0 0/16px 16px" onclick="handClick(event)" hidden></canvas>
-    <div class="hint" id="handStat" style="margin:4px 0">Chưa có: đang dùng bàn tay vẽ sẵn.</div>
+    <div class="hint" id="handStat" style="margin:4px 0">Chưa có: đang dùng bàn tay vẽ sẵn. <i>(bản có nhớ ảnh v2)</i></div>
     <button type="button" onclick="handReset()">Dùng lại bàn tay vẽ sẵn</button></div>
 
   <div class="savebox">
@@ -2782,7 +2782,7 @@ function handUpload(inp) {
     const im = await loadImg(fr.result), k = Math.min(1, 600 / Math.max(im.width, im.height));
     const c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
     c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
-    handImg = await loadImg(c.toDataURL('image/png')); handPts = null; handStep = 0; handShow();
+    handImg = await loadImg(c.toDataURL('image/png')); handPts = null; handStep = 0; handShow(); idb.set('hand', { src: handImg.src, pts: null });
   };
   fr.readAsDataURL(f);
 }
@@ -2797,10 +2797,11 @@ function handReset() { handImg = null; handPts = null; handStep = 0; idb.del('ha
 setTimeout(applyPalette, 0);
 setTimeout(async () => {
   try {
+    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
     let d = null, p = null; const o = await idb.get('hand');
-    if (o && o.src && o.pts) { d = o.src; p = o.pts; }
+    if (o && o.src) { d = o.src; p = o.pts || null; }
     else { d = localStorage.getItem('handimg_v1'); p = JSON.parse(localStorage.getItem('handpts_v1') || 'null'); }
-    if (d && p) { handImg = await loadImg(d); handPts = p; handShow(); }
+    if (d) { handImg = await loadImg(d); handPts = p; handStep = 0; handShow(); }
   } catch (e) {}
 }, 0);
 function hand(x, px, py) {
