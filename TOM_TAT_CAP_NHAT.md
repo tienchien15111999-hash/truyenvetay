@@ -244,3 +244,11 @@ Tháp Eiffel vẽ lại (thân cong lõm, vòm chân, 3 tầng, ăng-ten). `PROP
 - Ảnh được cắt phủ kín khung rồi trả về `{ cv, ord: [], anim: true, photo: true }`: dựng video bằng nhánh `drawAnim` (hiện dần + zoom/lia), không có bàn tay vẽ, không có miệng/tay cử động.
 - Lỗi cả ba lần thì cảnh đó tạm vẽ bằng nét mực SVG và ghi log.
 - `refineBatch`: khi chọn `ai3d`, quy tắc 13 yêu cầu mô tả như cảnh phim hoạt hình 3D bằng tiếng Anh, nhắc lại ngoại hình nhân vật mỗi lần.
+
+## Cập nhật: ảnh mẫu nhân vật cho kiểu Ảnh AI 3D
+- Khung `#aiRefBox` (chỉ hiện khi chọn `ai3d`): `#charRef` (tối đa 3 ảnh) gọi `analyzeCharRef()`; Gemini nhìn ảnh và viết mô tả STYLE + CHARACTERS (không gọi tên người thật/nhân vật phim) vào `#charStyle` (sửa được, được lưu cùng cài đặt).
+- `ai3dPrompt`: nét vẽ và ngoại hình nhân vật thường lấy từ `#charStyle`; nhân vật nổi tiếng (`who=` trong bảng nhân vật hoặc `castLock`) dùng `FAMOUS_LOOK` để giữ giống người thật, vẽ cùng nét vẽ.
+
+## Cập nhật: chỉ còn phong cách "Theo ảnh mẫu"
+- `#style` chỉ còn lựa chọn `ref` (ẩn, bị ép về `ref` mỗi lần mở trang); các kiểu stick/doodle/marker/pencil/manga/brush/minimal/kids bị gỡ khỏi giao diện.
+- Khi chọn `ai3d`, ô ảnh mẫu SVG (`#refBox`) và gợi ý phong cách (`#styleHint`) được ẩn; chỉ hiện khung ảnh mẫu của ảnh AI (`#aiRefBox`).

@@ -60,17 +60,8 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
     <option value="ai3d">🎬 Ảnh AI 3D hoạt hình, nhiều màu (Miễn phí, thử nghiệm)</option>
   </select>
 
-  <label>Phong cách vẽ (tất cả đều đen trắng)</label>
-  <select id="style">
+  <select id="style" hidden>
     <option value="ref" selected>🖼️ Theo ảnh mẫu của bạn (tải ảnh lên)</option>
-    <option value="stick">🏃 Người que bảng trắng (đơn giản, dễ hiểu)</option>
-    <option value="doodle">✏️ Doodle hoạt hình (đầu to, dễ thương)</option>
-    <option value="marker">🖊️ Bút lông marker nét đậm</option>
-    <option value="pencil">✎ Phác thảo bút chì (nét mảnh, đan nét đổ bóng)</option>
-    <option value="manga">📖 Truyện tranh manga nét mực</option>
-    <option value="brush">🖌️ Cọ mực Tàu (nét to nhỏ, mảng đen)</option>
-    <option value="minimal">▫️ Tối giản nét mảnh (nhiều khoảng trắng)</option>
-    <option value="kids">🧒 Nét vẽ trẻ con ngây ngô</option>
   </select>
   </div>
   <p class="hint" id="styleHint"></p>
@@ -87,6 +78,14 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
     <p class="hint">Nhân vật và đồ vật/cảnh vật do tool tự vẽ theo bộ mẫu có sẵn nên luôn đồng nhất; ảnh này chỉ gửi kèm AI làm tham khảo cảm giác nét. Ảnh nên có nét rõ, nền trắng. Tranh vẫn được ép về đen trắng.</p>
   </div>
 
+  <div id="aiRefBox" hidden>
+    <label>🖼️ Ảnh mẫu nhân vật / phong cách (tối đa 3 ảnh)</label>
+    <input type="file" id="charRef" accept="image/*" multiple onchange="analyzeCharRef()">
+    <p class="hint" id="charRefStat">Chọn ảnh, tool nhờ Gemini nhìn ảnh rồi tự viết ra đặc điểm nhân vật và nét vẽ (tóc, kính, quần áo, màu, ánh sáng...). Mọi cảnh sẽ vẽ theo mô tả này. Nhân vật nổi tiếng (Trump, Einstein, Steve Jobs, Bác Hồ, Napoleon, Lincoln) vẫn được vẽ giống người thật, chỉ lấy nét vẽ từ ảnh mẫu. Nên dùng nhân vật của bạn hoặc bạn có quyền dùng.</p>
+    <label>Mô tả tool nhận được (bạn sửa được)</label>
+    <textarea id="charStyle" rows="4" placeholder="Chọn ảnh mẫu ở trên, mô tả sẽ hiện ở đây. Hoặc tự gõ bằng tiếng Anh, ví dụ: STYLE: 3D animated film, soft light. CHARACTERS: young woman with short auburn hair, pink dress..."></textarea>
+    <button type="button" onclick="analyzeCharRef()">🔍 Phân tích lại ảnh mẫu</button>
+  </div>
   <div id="hfBox" hidden>
     <p class="hint" id="ai3dHint" hidden>🎬 Ảnh AI 3D: nên nhập token Hugging Face miễn phí (huggingface.co/settings/tokens, loại Read) để ảnh ổn định hơn. Không có token thì tool dùng Pollinations (không cần key nhưng hay bận). Nhân vật chỉ giống nhau nhờ mô tả chữ nên có thể lệch giữa các cảnh; video dựng bằng zoom và lia, không có miệng hay tay cử động.</p>
     <label>Hugging Face Token (Tùy chọn - Để trống vẫn chạy bình thường)</label>
@@ -290,7 +289,7 @@ const log = m => {
 };
 const A = () => ctxA || (ctxA = new (window.AudioContext || window.webkitAudioContext)());
 
-const CF = ['fmt', 'nimg', 'keys', 'isrc', 'style', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'musicOn', 'musicVol', 'musicMood', 'accentOn', 'cmode', 'vmode'];
+const CF = ['fmt', 'nimg', 'keys', 'isrc', 'style', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'musicOn', 'musicVol', 'musicMood', 'accentOn', 'cmode', 'vmode', 'charStyle'];
 function setFmt() {
   const v = $('fmt').value === 'v';
   W = v ? 720 : 1280; H = v ? 1280 : 720;
@@ -356,7 +355,7 @@ function importSet(inp) {
         }
       });
       if (!n) throw new Error('không thấy mục cài đặt nào');
-      if (!['svg_ink', 'svg', 'ai3d'].includes($('isrc').value)) $('isrc').value = 'svg_ink';
+      if (!['svg_ink', 'svg', 'ai3d'].includes($('isrc').value)) $('isrc').value = 'svg_ink'; $('style').value = 'ref';
       vui(); nimgHint(); if (typeof styleUI === 'function') styleUI(); saveSet();
       alert('Đã nạp cài đặt từ file sao lưu.');
     } catch (e) { alert('File này không đọc được: ' + e.message); }
@@ -375,6 +374,9 @@ function vui() {
   const mode = $('isrc').value;
   $('hfBox').hidden = !(mode === 'free_img' || mode === 'img' || mode === 'ai3d');
   $('ai3dHint').hidden = mode !== 'ai3d';
+  $('aiRefBox').hidden = mode !== 'ai3d';
+  if ($('styleHint')) $('styleHint').hidden = mode === 'ai3d';
+  try { refUI(); } catch (e) { /* chưa khởi tạo xong, lát nữa styleUI sẽ gọi */ }
 }
 try {
   const o = JSON.parse(localStorage.getItem('cfg_v3') || localStorage.getItem('cfg') || '{}');
@@ -386,7 +388,7 @@ try {
   });
   if (o.keys) $('set').open = false;
 } catch (e) {}
-if (!['svg_ink', 'svg', 'ai3d'].includes($('isrc').value)) $('isrc').value = 'svg_ink';
+if (!['svg_ink', 'svg', 'ai3d'].includes($('isrc').value)) $('isrc').value = 'svg_ink'; $('style').value = 'ref';
 if (!['bw', 'accent', 'color'].includes($('cmode').value)) $('cmode').value = 'accent'; // chế độ tự động: luôn dùng cách vẽ có nhân vật dựng sẵn + bong bóng + chia khung
 vui();
 $('set').addEventListener('input', saveSet);
@@ -1150,7 +1152,7 @@ try {
 const refB64 = () => refData.split(',')[1];
 const refMime = () => (refData.match(/^data:([^;]+);/) || [])[1] || 'image/jpeg';
 function refUI() {
-  const on = $('style').value === 'ref';
+  const on = $('style').value === 'ref' && $('isrc').value !== 'ai3d';
   $('refBox').hidden = !on;
   $('refPrev').src = refData;
   $('refStat').textContent = refCustom ? '✅ Đang dùng ảnh bạn đã tải lên.' : 'Đang dùng ảnh mẫu có sẵn (người doodle đầu tròn). Chọn file ở trên để đổi sang ảnh của bạn.';
@@ -1733,10 +1735,52 @@ function drawAnim(x, s, lt) {
 
 // ===== ẢNH AI 3D HOẠT HÌNH NHIỀU MÀU (miễn phí): Hugging Face FLUX nếu có token, không thì Pollinations =====
 let aiImgQueue = Promise.resolve(), aiSeed = Math.floor(Math.random() * 900000) + 1000;
+// Nhân vật nổi tiếng luôn vẽ giống người thật (chỉ mượn nét vẽ từ ảnh mẫu)
+const FAMOUS_LOOK = {
+  trump: 'Donald Trump (real likeness: swept blond-orange hair, long red tie, dark suit)',
+  einstein: 'Albert Einstein (real likeness: wild white hair, bushy mustache, rumpled jacket)',
+  jobs: 'Steve Jobs (real likeness: black turtleneck, small round glasses, jeans)',
+  bacho: 'President Ho Chi Minh (real likeness: thin white goatee, kind face, simple khaki suit)',
+  napoleon: 'Napoleon Bonaparte (real likeness: black bicorne hat, blue military coat)',
+  lincoln: 'Abraham Lincoln (real likeness: tall black stovepipe hat, beard without mustache, black coat)'
+};
+function famousInStory() {
+  const set = new Set(Object.values(castLock).map(o => o && o.who).filter(Boolean));
+  String(typeof chars === 'string' ? chars : '').replace(/who\s*=\s*([a-z]+)/gi, (_, w) => { set.add(w.toLowerCase()); return ''; });
+  return [...set].filter(w => FAMOUS_LOOK[w]).map(w => FAMOUS_LOOK[w]);
+}
+async function analyzeCharRef() {
+  const files = [...$('charRef').files].slice(0, 3), st = $('charRefStat');
+  if (!files.length) return;
+  if (!keysOk()) return;
+  st.textContent = '⏳ Đang xem ảnh mẫu...';
+  try {
+    const parts = [];
+    for (const f of files) {
+      const bmp = await createImageBitmap(f), k = Math.min(1, 1024 / Math.max(bmp.width, bmp.height));
+      const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+      c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+      parts.push({ inlineData: { mimeType: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.85).split(',')[1] } });
+    }
+    parts.push({ text: 'Describe the reference image(s) for an AI image generator, in English, under 130 words total, in exactly this format:\nSTYLE: art style, rendering, lighting, color palette, texture, camera feel.\nCHARACTERS: for each visible character: gender, apparent age, hair (color, length, style), skin tone, face shape, eyes and eyebrows, glasses or accessories, clothing with colors and patterns, body proportions.\nDescribe only what is visible. Do not name real people or film characters.' });
+    const d = await gemMulti(TXT_MODELS, { contents: [{ parts }] }, 90000);
+    const t = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('').trim();
+    if (!t) throw new Error('Gemini không trả về mô tả');
+    $('charStyle').value = t; saveSet();
+    st.textContent = '✅ Đã nhận diện xong. Mô tả bên dưới sẽ được dùng cho mọi cảnh (bạn sửa được).';
+  } catch (e) { st.textContent = '❌ Chưa phân tích được ảnh mẫu: ' + e.message; }
+}
 function ai3dPrompt(s) {
-  const desc = String(s.image || s.text || '').replace(/\[(OBJECT|PERSON|PLACE)\]/gi, '').replace(/\s+/g, ' ').trim().slice(0, 420);
-  const cast = String(typeof chars === 'string' ? chars : '').replace(/who\s*=\s*\w+/gi, '').replace(/job\s*=\s*(\w+)/gi, 'works as $1').replace(/\s+/g, ' ').trim().slice(0, 300);
-  return `3D animated movie still, Pixar-style cartoon characters, soft cinematic lighting, vibrant colors, detailed background, depth of field, no text, no letters, no watermark. ${desc}.${cast ? ' Characters (look identical in every shot): ' + cast + '.' : ''}`;
+  const desc = String(s.image || s.text || '').replace(/\[(OBJECT|PERSON|PLACE)\]/gi, '').replace(/\s+/g, ' ').trim().slice(0, 320);
+  const cast = String(typeof chars === 'string' ? chars : '').replace(/who\s*=\s*\w+/gi, '').replace(/job\s*=\s*(\w+)/gi, 'works as $1').replace(/\(\s*[;,]\s*/g, '(').replace(/\(\s*\)/g, '').replace(/\s+/g, ' ').trim().slice(0, 240);
+  const ref = ($('charStyle') ? $('charStyle').value : '').replace(/\s+/g, ' ').trim().slice(0, 440);
+  const fam = famousInStory();
+  const head = ref ? '3D animated movie still, no text, no letters, no watermark.' : '3D animated movie still, Pixar-style cartoon characters, soft cinematic lighting, vibrant colors, detailed background, depth of field, no text, no letters, no watermark.';
+  return [head,
+    ref ? `Art style and look of non-famous characters must follow this reference: ${ref}` : '',
+    fam.length ? `Famous people must look like their real selves, drawn in the same art style: ${fam.join('; ')}.` : '',
+    `Scene: ${desc}.`,
+    cast ? `Characters (look identical in every shot): ${cast}.` : ''].filter(Boolean).join(' ').slice(0, 1300);
 }
 async function loadAiImg(src, ms) {
   return await new Promise((ok, no) => {
