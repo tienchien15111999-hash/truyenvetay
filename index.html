@@ -17,6 +17,7 @@ textarea{min-height:90px}
 button{font:inherit;font-weight:700;padding:10px 16px;border:2px solid #111;background:#1d4ed8;color:#fff;border-radius:6px;cursor:pointer;margin:8px 8px 0 0}
 button.w{background:#fff;color:#111}
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 8px}.tabs button{margin:0;padding:8px 12px;background:#fff;color:#111;border:1.5px solid #888;font-weight:600}.tabs button.on{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+select:disabled{background:#e6e6e6;color:#888;cursor:not-allowed;opacity:.8}
 .srcbox{margin:0 0 6px;padding:10px;border:1.5px dashed #888;border-radius:6px;background:#fafafa}.srcbox[hidden]{display:none}
 button.warn{background:#d97706;color:#fff}
 button.sm{padding:6px 12px;font-size:14px}
@@ -51,12 +52,12 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   <button type="button" class="w sm" onclick="testGemini()">🔍 Kiểm tra key Gemini</button>
   <div id="gtestResult" class="hint" style="white-space:pre-wrap"></div>
 
-  <p class="hint" style="margin:10px 0">🎨 Cách vẽ: <b>tự động</b>. Tool tự chọn cách vẽ tốt nhất (miễn phí, có bàn tay cầm bút vẽ từng nét), bạn không cần chọn gì thêm.</p>
-  <div id="drawPick" hidden>
+    <div id="drawPick">
   <label>Cách vẽ tranh (Tất cả đều có bàn tay cầm bút vẽ từng nét)</label>
   <select id="isrc" onchange="vui()">
     <option value="svg_ink">✒️ Vẽ tranh nét mực đen trắng bằng AI (Miễn phí 100%, nhanh & ổn định nhất)</option>
     <option value="svg">🏃 Người que đen trắng nét bút lông (Miễn phí - đã nâng cấp)</option>
+    <option value="ai3d">🎬 Ảnh AI 3D hoạt hình, nhiều màu (Miễn phí, thử nghiệm)</option>
   </select>
 
   <label>Phong cách vẽ (tất cả đều đen trắng)</label>
@@ -87,6 +88,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   </div>
 
   <div id="hfBox" hidden>
+    <p class="hint" id="ai3dHint" hidden>🎬 Ảnh AI 3D: nên nhập token Hugging Face miễn phí (huggingface.co/settings/tokens, loại Read) để ảnh ổn định hơn. Không có token thì tool dùng Pollinations (không cần key nhưng hay bận). Nhân vật chỉ giống nhau nhờ mô tả chữ nên có thể lệch giữa các cảnh; video dựng bằng zoom và lia, không có miệng hay tay cử động.</p>
     <label>Hugging Face Token (Tùy chọn - Để trống vẫn chạy bình thường)</label>
     <input id="hftok" type="password" placeholder="hf_... (Nếu có sẽ hỗ trợ vẽ ảnh bằng FLUX.1-schnell cực nhanh)">
   </div>
@@ -166,7 +168,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   <textarea id="idea" placeholder="Ví dụ: Chuyện cậu bé nghèo nhặt được chiếc ví đầy tiền và quyết định đi tìm người đánh rơi để trả lại..."></textarea>
   <div class="row">
     <div>
-      <label>Độ dài video</label>
+      <label id="minLbl">Độ dài video</label>
       <select id="min">
         <option value="1">1 phút (chạy thử)</option>
         <option value="2">2 phút</option>
@@ -354,7 +356,7 @@ function importSet(inp) {
         }
       });
       if (!n) throw new Error('không thấy mục cài đặt nào');
-      if (!['svg_ink', 'svg'].includes($('isrc').value)) $('isrc').value = 'svg_ink';
+      if (!['svg_ink', 'svg', 'ai3d'].includes($('isrc').value)) $('isrc').value = 'svg_ink';
       vui(); nimgHint(); if (typeof styleUI === 'function') styleUI(); saveSet();
       alert('Đã nạp cài đặt từ file sao lưu.');
     } catch (e) { alert('File này không đọc được: ' + e.message); }
@@ -371,7 +373,8 @@ function vui() {
   const v = $('vsrc').value;
   $('vb').hidden = v !== 'vbee';
   const mode = $('isrc').value;
-  $('hfBox').hidden = !(mode === 'free_img' || mode === 'img');
+  $('hfBox').hidden = !(mode === 'free_img' || mode === 'img' || mode === 'ai3d');
+  $('ai3dHint').hidden = mode !== 'ai3d';
 }
 try {
   const o = JSON.parse(localStorage.getItem('cfg_v3') || localStorage.getItem('cfg') || '{}');
@@ -383,8 +386,8 @@ try {
   });
   if (o.keys) $('set').open = false;
 } catch (e) {}
-if (!['svg_ink', 'svg'].includes($('isrc').value)) $('isrc').value = 'svg_ink';
-$('isrc').value = 'svg_ink'; if ($('style').value !== 'ref') $('style').value = 'ref'; if (!['bw', 'accent', 'color'].includes($('cmode').value)) $('cmode').value = 'accent'; // chế độ tự động: luôn dùng cách vẽ có nhân vật dựng sẵn + bong bóng + chia khung
+if (!['svg_ink', 'svg', 'ai3d'].includes($('isrc').value)) $('isrc').value = 'svg_ink';
+if (!['bw', 'accent', 'color'].includes($('cmode').value)) $('cmode').value = 'accent'; // chế độ tự động: luôn dùng cách vẽ có nhân vật dựng sẵn + bong bóng + chia khung
 vui();
 $('set').addEventListener('input', saveSet);
 updStat();
@@ -468,7 +471,7 @@ async function makeScriptPart(idea, min, opt) {
   const rw = $('rewriteOn') && $('rewriteOn').checked && srcMode !== 'text';
   const REWRITE = 'Nội dung bên dưới có thể là bản chép lời từ một video tham khảo. KHÔNG giữ nguyên câu chữ và không dịch sát từng câu: hãy viết lại hoàn toàn thành một câu chuyện mới của riêng người kể, bằng lời văn khác, cách mở đầu và cách dẫn dắt khác, chỉ giữ lại các sự kiện, thông tin và ý chính (tên người, mốc thời gian, số liệu thật). Bỏ lời chào đầu cuối video, quảng cáo và lời kêu gọi đăng ký kênh. Nếu chỉ là ý tưởng ngắn thì viết thành truyện hay có mở đầu, cao trào, kết. Nếu nội dung dài thì phải kể HẾT toàn bộ từ đầu đến cuối, không bỏ phần nào, không tóm tắt quá ngắn.';
   const p = `Bạn là biên kịch video kể chuyện vẽ tay. Từ nội dung bên dưới, tạo kịch bản video dài ${min} phút: khoảng ${total} từ lời kể, chia đúng ${n} cảnh, mỗi cảnh khoảng ${Math.round(total / n)} từ. ${opt.note || ''} ${rw ? REWRITE : 'Nếu nội dung đã là truyện hoàn chỉnh thì giữ nguyên lời văn, chỉ chia cảnh. Nếu chỉ là ý tưởng thì viết thành truyện hay có mở đầu, cao trào, kết.'} Ngày, tháng, năm viết bằng CHỮ SỐ (ví dụ \"ngày 15 tháng 3 năm 2020\", \"năm 1945\"), không viết bằng chữ, để tool vẽ lịch lên tranh; giữ nguyên mọi mốc thời gian có trong nội dung.
-Chỉ trả về JSON: {"story":"tóm tắt cốt truyện 1-2 câu, tiếng Anh","setting":"bối cảnh chung (thời gian, địa điểm, không khí), tiếng Anh","characters":"mỗi nhân vật một ý, tiếng Anh, ngắn gọn, ghi rõ vai trò MAIN (nhân vật chính), SECOND, THIRD, FOURTH (các nhân vật khác xuất hiện nhiều, mỗi người một vai riêng, không dùng chung), CROWD (quần chúng) và tên/đặc điểm nhận diện (mũ, râu, kính, tóc, họa tiết áo); MỖI nhân vật PHẢI khác tất cả nhân vật còn lại ít nhất một nét nhìn thấy được, không ai giống ai","scenes":[{"text":"lời kể tiếng Việt của cảnh","image":"mô tả cảnh để vẽ tranh, tiếng Anh, 2 câu. BẮT ĐẦU bằng đúng một nhãn loại cảnh: [OBJECT] nếu lời kể nói về một vật/tiền/giấy tờ/sự việc/con số/ý tưởng (cận cảnh đồ vật, KHÔNG có người), [PERSON] nếu có người đang làm gì đó (nêu rõ họ cầm/đưa/đếm/mang vật gì, ví dụ người đàn ông cầm tiền thì phải ghi cash stack), [PLACE] nếu lời kể tả một nơi chốn/hành trình/thời điểm. Sau nhãn: vẽ đúng khoảnh khắc cụ thể nhìn thấy được, nêu rõ MỌI vật/địa điểm/hành động được nhắc đến trong lời kể của cảnh này, KHÔNG thêm cảnh vật trang trí mà lời kể không nhắc (mặt trời, mây, cây, nhà...). Chỉ ghi vai trò MAIN/SECOND/THIRD/FOURTH/CROWD và cảm xúc khi cảnh thật sự có người","mood":"tâm trạng của cảnh để chọn nhạc nền, chỉ chọn MỘT trong: calm, sad, tense, mystery, happy, epic, hopeful"}]}
+Chỉ trả về JSON: {"story":"tóm tắt cốt truyện 1-2 câu, tiếng Anh","setting":"bối cảnh chung (thời gian, địa điểm, không khí), tiếng Anh","characters":"BẢNG NHÂN VẬT CỐ ĐỊNH cho cả truyện, tiếng Anh, mỗi người một mục ngăn bằng dấu chấm phẩy, dạng 'MAIN = tên (who=trump nếu là người nổi tiếng thuộc danh sách trump/einstein/jobs/bacho/napoleon/lincoln; job=nghề hoặc chức vụ nếu biết, chọn một trong doctor/nurse/police/soldier/chef/worker/farmer/teacher/judge/king/firefighter/pilot/businessman/president/artist/student/monk/scientist): đặc điểm nhận diện (mũ, râu, kính, tóc)'. Chỉ tối đa 4 người xuất hiện lặp lại, mỗi người MỘT vai riêng (MAIN, SECOND, THIRD, FOURTH) và giữ vai đó mãi mãi, không ai dùng chung vai; mọi người còn lại là CROWD. Mỗi nhân vật PHẢI khác tất cả những người còn lại ít nhất một nét nhìn thấy được","scenes":[{"text":"lời kể tiếng Việt của cảnh","image":"mô tả cảnh để vẽ tranh, tiếng Anh, 2 câu. BẮT ĐẦU bằng đúng một nhãn loại cảnh: [OBJECT] nếu lời kể nói về một vật/tiền/giấy tờ/sự việc/con số/ý tưởng (cận cảnh đồ vật, KHÔNG có người), [PERSON] nếu có người đang làm gì đó (nêu rõ họ cầm/đưa/đếm/mang vật gì, ví dụ người đàn ông cầm tiền thì phải ghi cash stack), [PLACE] nếu lời kể tả một nơi chốn/hành trình/thời điểm. Sau nhãn: vẽ đúng khoảnh khắc cụ thể nhìn thấy được, nêu rõ MỌI vật/địa điểm/hành động được nhắc đến trong lời kể của cảnh này, KHÔNG thêm cảnh vật trang trí mà lời kể không nhắc (mặt trời, mây, cây, nhà...). Chỉ ghi vai trò MAIN/SECOND/THIRD/FOURTH/CROWD và cảm xúc khi cảnh thật sự có người","mood":"tâm trạng của cảnh để chọn nhạc nền, chỉ chọn MỘT trong: calm, sad, tense, mystery, happy, epic, hopeful"}]}
 Nội dung: ${idea}`;
 
   const d = await gemMulti(TXT_MODELS, {
@@ -509,7 +512,7 @@ async function makeScript(idea, min) {
     const prevTail = scenes.slice(-2).map(x => x.text).join(' ').slice(-400);
     const note = `Đây là PHẦN ${i + 1}/${parts} của video dài ${min} phút (chỉ viết ${cnt} cảnh của phần này). ` +
       (slice ? 'Nội dung bên dưới là đoạn tương ứng của phần này: kể đủ mọi ý, không bỏ sót. ' : `Hãy chia câu chuyện thành ${parts} phần cân đối rồi chỉ viết phần ${i + 1}. `) +
-      (i > 0 ? `Nhân vật đã có (giữ nguyên vai trò và ngoại hình): ${res.characters || ''}. Bối cảnh: ${res.setting || ''}. Phần trước kết thúc bằng: ${prevTail}. Viết tiếp liền mạch, không mở bài lại, không lặp lại. ` : '') +
+      (i > 0 ? `Bảng nhân vật CỐ ĐỊNH đã có (giữ nguyên mọi vai, KHÔNG đổi vai của ai; người mới quan trọng phải dùng vai còn trống; trong trường characters hãy trả về bảng ĐẦY ĐỦ gồm cả người cũ): ${res.characters || ''}. Bối cảnh: ${res.setting || ''}. Phần trước kết thúc bằng: ${prevTail}. Viết tiếp liền mạch, không mở bài lại, không lặp lại. ` : '') +
       (i < parts - 1 ? 'Chưa kết thúc truyện ở phần này.' : 'Đây là phần cuối: hãy kết truyện.');
     log(`✍️ Đang viết kịch bản phần ${i + 1}/${parts}...`);
     let r = null;
@@ -517,7 +520,7 @@ async function makeScript(idea, min) {
       try { r = await makeScriptPart(slice ? pieces[i] : idea, Math.round(min * cnt / n * 10) / 10, { n: cnt, total: Math.round(total * cnt / n), note }); }
       catch (e) { if (abortGen || t) throw e; }
     }
-    if (!res) res = r;
+    if (!res) res = r; else if (r.characters && r.characters.length >= (res.characters || '').length * 0.8) res.characters = r.characters;
     scenes.push(...r.scenes);
   }
   res.scenes = scenes;
@@ -527,7 +530,7 @@ async function makeScript(idea, min) {
 let storyCtx = '', settingCtx = '';
 
 function sceneCtx(s) {
-  return `Story: ${storyCtx}\nSetting: ${settingCtx}\nCharacters: ${chars}\nNarration of this scene (Vietnamese, the picture MUST show what it says): ${s.text}\nPrevious scene picture: ${s.prev || 'none (this is the first scene)'}\nScene to draw: ${s.image}`;
+  return `Story: ${storyCtx}\nSetting: ${settingCtx}\nFIXED CAST for the whole video (the same person ALWAYS uses the same role in EVERY scene; never swap roles, never give one role to two different people; anyone not listed is CROWD): ${chars}\nNarration of this scene (Vietnamese, the picture MUST show what it says): ${s.text}\nPrevious scene picture: ${s.prev || 'none (this is the first scene)'}\nScene to draw: ${s.image}`;
 }
 
 // Bước đạo diễn: đọc cả truyện rồi viết lại mô tả vẽ cho từng cảnh khớp với lời kể
@@ -546,10 +549,11 @@ async function refineBatch(sc, part, from) {
 9) TƯƠNG PHẢN (người thường vs nhân vật chính, trước vs sau, hai quan điểm): ghi \"split frame: left side ..., right side ...\" để chia đôi khung, mỗi bên một kiểu người/vật khác nhau.
 10) Nhân vật chính (nhất là khi truyện về một người thật nổi tiếng, hãy ghi rõ tên người đó) phải có mặt ở ít nhất 2/3 số cảnh và luôn cùng ngoại hình. Mỗi cảnh phải tự kể được ý chính mà người xem không cần đọc lời kể; không bao giờ để khung gần như trống.
 11) VẼ ĐỦ: trước khi viết mỗi mô tả, tự liệt kê MỌI người (cha, mẹ, con, sếp, đối thủ, đám đông...) và MỌI vật/địa điểm (tòa tháp, sân golf, sòng bạc, khách sạn, thành phố...) mà lời kể nhắc đến. Mỗi người được nhắc (ngoài nhân vật chính) phải được vẽ thành một người riêng (vai SECOND/THIRD...); mỗi vật/địa điểm phải có mặt trong tranh. Kết thúc mô tả bằng đúng một cụm: \"MUST SHOW: a, b, c\" liệt kê những thứ đó (tiếng Anh). Ví dụ lời kể \"Cha của ông là nhà kinh doanh bất động sản\" thì MUST SHOW: older man in suit (father), building, house. Lời kể về nhiều thứ (khách sạn, sòng bạc, sân golf) thì phải thấy từng thứ, mỗi thứ một hình rõ ràng.
+12) Khi cảnh có người trong bảng nhân vật, ghi rõ vai và tên trong mô tả, ví dụ 'MAIN (Trump, president)', 'SECOND (his father, businessman)'; nếu nghề/chức vụ của người đó rõ từ lời kể thì ghi nghề đó (doctor, police, soldier, chef, worker, judge, king...) để tranh mặc đúng đồng phục. Người đó luôn dùng đúng vai đó ở mọi cảnh; không bao giờ gán vai khác cho họ hay cho người khác dùng vai đó.${$('isrc').value === 'ai3d' ? '\n13) KIỂU ẢNH AI 3D HOẠT HÌNH: mô tả như một cảnh phim hoạt hình 3D bằng tiếng Anh: nhân vật, hành động, biểu cảm, bối cảnh, góc máy, ánh sáng. KHÔNG dùng thẻ [OBJECT]/[PERSON]/[PLACE], KHÔNG nhắc bong bóng, nền trắng hay nét vẽ. Mỗi lần nhắc nhân vật phải kèm lại ngoại hình cố định (tóc, màu da, quần áo, kính, tuổi) giống hệt mọi cảnh.' : ''}
 \nChỉ trả về JSON: {"images":["mô tả cảnh 1","mô tả cảnh 2"]} với đúng ${part.length} phần tử theo thứ tự (chỉ cho các cảnh trong danh sách).
 Cốt truyện: ${sc.story || ''}
 Bối cảnh: ${sc.setting || ''}
-Nhân vật: ${sc.characters || ''}
+Bảng nhân vật CỐ ĐỊNH (mỗi người luôn đúng MỘT vai ở MỌI cảnh, không đổi vai; người ngoài bảng là CROWD): ${sc.characters || ''}
 ${from ? 'Cảnh ngay trước nhóm này (để liền mạch, KHÔNG viết lại): ' + sc.scenes[from - 1].text + '\n' : ''}Các cảnh cần viết mô tả (giữ đúng thứ tự):
 ${list}`;
   const d = await gemMulti(TXT_MODELS, {
@@ -649,6 +653,39 @@ function featSvg(a) {
   if (tc) g += `<path d="M-8 -206 L8 -206 L14 -120 L0 -104 L-14 -120 Z" fill="#111111"/>`;
   return g;
 }
+// ===== TRANG PHỤC THEO NGHỀ / CHỨC VỤ: <person job="doctor"/> =====
+const JOB_ALIAS = { physician: 'doctor', surgeon: 'doctor', cop: 'police', officer: 'police', policeman: 'police', army: 'soldier', general: 'soldier', military: 'soldier', cook: 'chef', baker: 'chef', builder: 'worker', construction: 'worker', engineer: 'worker', labourer: 'worker', laborer: 'worker', professor: 'teacher', lecturer: 'teacher', scholar: 'teacher', lawyer: 'businessman', ceo: 'businessman', boss: 'businessman', manager: 'businessman', banker: 'businessman', businesswoman: 'businessman', executive: 'businessman', politician: 'president', minister: 'president', mayor: 'president', senator: 'president', queen: 'king', emperor: 'king', prince: 'king', fireman: 'firefighter', painter: 'artist', researcher: 'scientist', chemist: 'scientist', pupil: 'student', priest: 'monk' };
+const JOB_LIST = ['doctor', 'nurse', 'police', 'soldier', 'chef', 'worker', 'farmer', 'teacher', 'judge', 'king', 'firefighter', 'pilot', 'businessman', 'president', 'artist', 'student', 'monk', 'scientist'];
+function jobName(j) { j = String(j || '').toLowerCase().replace(/[^a-z]/g, ''); j = JOB_ALIAS[j] || j; return JOB_LIST.includes(j) ? j : ''; }
+function jobSvg(job) {
+  job = jobName(job); if (!job) return null;
+  const m = cmodeV(), col = c => (m === 'accent' || m === 'bw') ? 'fill="#ffffff"' : `fill="${c}" data-keep="1"`;
+  const K = c => `fill="${c}" data-keep="1"`, T = 'M-34 -205 C-52 -170 -66 -130 -50 -110 Q0 -92 50 -110 C66 -130 52 -170 34 -205 Q0 -220 -34 -205 Z';
+  const torso = c => `<path d="${T}" ${col(c)}/>`, W = 'fill="#ffffff"';
+  const lap = '<path d="M-34 -205 L-8 -158 L-28 -112"/><path d="M34 -205 L8 -158 L28 -112"/>';
+  const cap = (badge) => `<path d="M-58 -314 Q-56 -368 0 -366 Q56 -368 58 -314 Z" ${W}/><path d="M-58 -324 L58 -324"/><path d="M-62 -314 L62 -314 L50 -302 L-50 -302 Z" fill="#111111"/>${badge}`;
+  const J = {
+    doctor: { head: `<path d="M-60 -312 Q0 -334 60 -312"/><circle cx="-14" cy="-322" r="11" ${W}/>`, body: torso('#ffffff') + lap + '<path d="M14 -150 L36 -150 L36 -128 L14 -128 Z"/><path d="M-16 -206 Q-26 -164 0 -158 Q26 -164 16 -206"/><circle cx="0" cy="-156" r="6" ' + W + '/>' },
+    nurse: { head: `<path d="M-42 -318 L-34 -354 L34 -354 L42 -318 Z" ${W}/><rect x="-3" y="-348" width="6" height="22" ${K(COL.red)}/><rect x="-11" y="-340" width="22" height="6" ${K(COL.red)}/>`, body: torso(COL.green) + '<path d="M-14 -205 L0 -178 L14 -205"/><path d="M14 -150 L36 -150 L36 -128 L14 -128 Z"/>' },
+    police: { head: cap(`<circle cx="0" cy="-342" r="8" ${K(COL.yellow)}/>`), body: torso(COL.blue) + '<path d="M-14 -205 L0 -180 L14 -205"/><path d="M-52 -126 L52 -126"/>' + `<circle cx="-22" cy="-168" r="7" ${K(COL.yellow)}/>` + markSvg('tie') },
+    soldier: { head: `<path d="M-68 -298 Q-72 -380 0 -382 Q72 -380 68 -298 Q0 -318 -68 -298 Z" ${col(COL.green)}/><path d="M-66 -312 Q0 -330 66 -312"/>`, body: torso(COL.green) + '<path d="M-40 -170 L-18 -170 L-18 -146 L-40 -146 Z"/><path d="M18 -170 L40 -170 L40 -146 L18 -146 Z"/><path d="M-52 -126 L52 -126"/><path d="M-40 -204 L-20 -207"/><path d="M40 -204 L20 -207"/>' },
+    chef: { head: `<path d="M-44 -318 Q-74 -348 -44 -372 Q-36 -400 0 -388 Q36 -400 44 -372 Q74 -348 44 -318 Z" ${W}/><path d="M-46 -326 L46 -326"/>`, body: torso('#ffffff') + '<path d="M-24 -208 Q0 -198 24 -208"/>' + [-180, -154, -128].map(y => `<circle cx="-12" cy="${y}" r="4" fill="#111111" stroke="none"/><circle cx="12" cy="${y}" r="4" fill="#111111" stroke="none"/>`).join('') },
+    worker: { head: `<path d="M-64 -312 Q-62 -384 0 -386 Q62 -384 64 -312 Z" ${K(COL.yellow)}/><path d="M-78 -312 L78 -312"/><path d="M0 -386 L0 -332"/>`, body: torso(COL.orange) + '<path d="M-22 -205 L-26 -110"/><path d="M22 -205 L26 -110"/><path d="M-50 -150 L50 -150"/>' },
+    farmer: { head: `<ellipse cx="0" cy="-316" rx="94" ry="14" ${W}/><path d="M-46 -318 Q0 -392 46 -318 Z" ${W}/><path d="M-46 -324 Q0 -336 46 -324"/>`, body: torso('#ffffff') + `<path d="M-28 -190 L28 -190 L30 -140 L-30 -140 Z" ${col(COL.blue)}/><path d="M-28 -205 L-28 -190"/><path d="M28 -205 L28 -190"/>` },
+    teacher: { keep: 1, head: '', acc: 'glasses', body: '<path d="M-14 -205 L0 -184 L14 -205"/>' + markSvg('tie') },
+    judge: { head: `<circle cx="-70" cy="-290" r="15" ${W}/><circle cx="70" cy="-290" r="15" ${W}/><circle cx="-76" cy="-264" r="13" ${W}/><circle cx="76" cy="-264" r="13" ${W}/><path d="M-62 -312 Q0 -352 62 -312 Q0 -330 -62 -312 Z" ${W}/>`, body: `<path d="${T}" fill="#111111"/><path d="M-12 -205 L-14 -130 L14 -130 L12 -205 Z" ${W}/>` },
+    king: { acc: 'crown', head: '', body: torso(COL.red) + `<path d="M-48 -204 Q0 -172 48 -204 L44 -190 Q0 -160 -44 -190 Z" ${W}/><circle cx="-20" cy="-186" r="3" fill="#111111" stroke="none"/><circle cx="0" cy="-180" r="3" fill="#111111" stroke="none"/><circle cx="20" cy="-186" r="3" fill="#111111" stroke="none"/>` },
+    firefighter: { head: `<path d="M-66 -304 Q-64 -374 0 -376 Q64 -374 66 -304 Z" ${col(COL.red)}/><path d="M-78 -304 L-60 -288 L60 -288 L78 -304 Z" ${W}/><circle cx="0" cy="-340" r="9" ${K(COL.yellow)}/>`, body: torso(COL.orange) + '<path d="M-52 -165 L52 -165"/><path d="M-50 -135 L50 -135"/><path d="M0 -205 L0 -112"/>' },
+    pilot: { head: cap(`<path d="M-16 -342 L0 -336 L16 -342 L0 -350 Z" ${K(COL.yellow)}/>`), body: torso(COL.blue) + '<path d="M-14 -205 L0 -180 L14 -205"/><path d="M-44 -202 L-24 -206"/><path d="M-44 -194 L-24 -198"/><path d="M44 -202 L24 -206"/><path d="M44 -194 L24 -198"/>' + markSvg('tie') },
+    businessman: { keep: 1, head: '', body: torso(COL.blue) + lap + markSvg('tie') + `<path d="M20 -170 L32 -172 L30 -160 Z" ${W}/>` },
+    president: { keep: 1, head: '', body: torso(COL.blue) + lap + markSvg('redtie') + `<circle cx="-22" cy="-182" r="5" ${K(COL.red)}/>` },
+    artist: { head: `<path d="M-66 -312 Q-60 -366 10 -356 Q70 -350 66 -312 Q0 -296 -66 -312 Z" ${W}/><path d="M6 -358 L10 -372"/>`, body: torso(COL.orange) + `<circle cx="-18" cy="-160" r="5" ${K(COL.red)}/><circle cx="14" cy="-140" r="5" ${K(COL.blue)}/><circle cx="22" cy="-176" r="4" ${K(COL.yellow)}/>` },
+    student: { keep: 1, head: '', body: torso('#ffffff') + '<path d="M-28 -205 L-34 -130"/><path d="M28 -205 L34 -130"/><path d="M-14 -205 L0 -186 L14 -205"/>' },
+    monk: { head: '', body: torso(COL.orange) + '<path d="M-34 -205 L30 -110"/><path d="M34 -205 L-24 -112"/>' + [[-30, -198], [-24, -182], [-14, -172], [0, -168], [14, -172], [24, -182], [30, -198]].map(q => `<circle cx="${q[0]}" cy="${q[1]}" r="4" fill="#111111" stroke="none"/>`).join('') },
+    scientist: { head: `<path d="M-66 -278 L66 -278"/><circle cx="-21" cy="-274" r="15" fill="none"/><circle cx="21" cy="-274" r="15" fill="none"/>`, body: torso('#ffffff') + lap + '<path d="M20 -150 L36 -150 L36 -128 L20 -128 Z"/><path d="M26 -150 L26 -164"/><path d="M31 -150 L31 -160"/>' }
+  }[job];
+  return Object.assign({ job }, J);
+}
 function figureSvg(a, sw) {
   const role = String(a.role || 'MAIN').toUpperCase();
   const def = ROLE_DEF[role] || ROLE_DEF.MAIN;
@@ -668,6 +705,8 @@ function figureSvg(a, sw) {
   const who = WHO[String(a.who || '').toLowerCase().replace(/[^a-z]/g, '')];
   if (!who && (a.hair || a.hat) && !/^(beard|long|glasses)$/.test(acc)) acc = 'x';
   if (who) { acc = who.acc; mark = who.mark; _tags.push({ x, y, n: who.n }); }
+  const JB = who ? null : jobSvg(a.job); // trang phục theo nghề
+  if (JB) { mark = 'none'; if (JB.acc) acc = JB.acc; else if (!JB.keep) acc = 'none'; }
   const flip = String(a.facing || 'right').toLowerCase() === 'left' ? -1 : 1;
   const w = (sw / size).toFixed(1);
   const arm = (p) => `<path d="M${p[0] > 0 ? 37 : -37} -192 Q${p[0]} ${p[1]} ${p[2]} ${p[3]}"/><ellipse cx="${p[2]}" cy="${p[3]}" rx="9" ry="10" fill="#ffffff"/>`;
@@ -675,16 +714,19 @@ function figureSvg(a, sw) {
   // chân
   const lg = pose.legs || [-26, -6, 26, -6];
   if (pose.sit) {
-    g += `<path d="M-22 -104 Q40 -100 78 -96 L82 -52"/><path d="M22 -104 Q70 -92 110 -86 L116 -44"/>`;
-    g += `<ellipse cx="96" cy="-44" rx="16" ry="7" fill="#ffffff"/><ellipse cx="130" cy="-38" rx="16" ry="7" fill="#ffffff"/>`;
+    g += `<!--@legL--><path d="M-22 -104 Q40 -100 78 -96 L82 -52"/><ellipse cx="96" cy="-44" rx="16" ry="7" fill="#ffffff"/>`;
+    g += `<!--@legR--><path d="M22 -104 Q70 -92 110 -86 L116 -44"/><ellipse cx="130" cy="-38" rx="16" ry="7" fill="#ffffff"/>`;
   } else {
-    g += `<path d="M-22 -108 Q${lg[0] - 6} -56 ${lg[0]} ${lg[1] - 6}"/><path d="M22 -108 Q${lg[2] + 6} -56 ${lg[2]} ${lg[3] - 6}"/>`;
-    g += `<ellipse cx="${lg[0] + 8}" cy="${lg[1] - 3}" rx="17" ry="7.5" fill="#ffffff"/><ellipse cx="${lg[2] + 8}" cy="${lg[3] - 3}" rx="17" ry="7.5" fill="#ffffff"/>`;
+    g += `<!--@legL--><path d="M-22 -108 Q${lg[0] - 6} -56 ${lg[0]} ${lg[1] - 6}"/><ellipse cx="${lg[0] + 8}" cy="${lg[1] - 3}" rx="17" ry="7.5" fill="#ffffff"/>`;
+    g += `<!--@legR--><path d="M22 -108 Q${lg[2] + 6} -56 ${lg[2]} ${lg[3] - 6}"/><ellipse cx="${lg[2] + 8}" cy="${lg[3] - 3}" rx="17" ry="7.5" fill="#ffffff"/>`;
   }
   // thân hình quả lê
+  g += '<!--@body-->';
   g += `<path d="M-34 -205 C-52 -170 -66 -130 -50 -110 Q0 -92 50 -110 C66 -130 52 -170 34 -205 Q0 -220 -34 -205 Z" ${shirtFill(role)}/>`;
   g += markSvg(mark);
+  if (JB) g += JB.body;
   // đầu to hình oval
+  g += '<!--@head-->';
   g += `<ellipse cx="0" cy="-268" rx="66" ry="58" fill="#ffffff"/>`;
   // phụ kiện sau đầu
   if (acc === 'long') g += `<path d="M-60 -290 Q-82 -250 -66 -214"/><path d="M60 -290 Q82 -250 66 -214"/>`;
@@ -712,8 +754,7 @@ function figureSvg(a, sw) {
   else if (face === 'angry') g += `<path d="M-15 -242 Q0 -250 15 -242"/>`;
   else g += `<path d="M-14 -244 L14 -244"/>`;
   if (face === 'cry') g += `<path d="M-26 -258 Q-30 -246 -26 -240" stroke-width="${w * 0.7}"/><path d="M26 -258 Q30 -246 26 -240" stroke-width="${w * 0.7}"/>`;
-  // tay (vẽ sau thân và đầu để cầm đồ, chống cằm được)
-  g += arm(pose.L) + arm(pose.R);
+  let holdStr = '';
   // đồ vật đang cầm trong tay: <person hold="cash"/> (tên đồ vật lấy từ PROPS), holdsize chỉnh to nhỏ
   if (a.hold) {
     let ht = String(a.hold).toLowerCase().replace(/[\s-]+/g, '_').replace(/[^a-z_]/g, '');
@@ -725,7 +766,7 @@ function figureSvg(a, sw) {
       const hy = poseName === 'carry' ? (pose.L[3] + pose.R[3]) / 2 : pose.R[3];
       let hs = hd.k * 0.5 * (isFinite(+a.holdsize) && +a.holdsize > 0 ? +a.holdsize : 1);
       hs = Math.max(0.3, Math.min(2.5, hs));
-      g += `<g transform="translate(${hx} ${hy + (hd.f ? -4 : 12)}) scale(${hs.toFixed(3)})" stroke-width="${(+w / hs).toFixed(2)}">${hd.g()}</g>`;
+      holdStr = `<g transform="translate(${hx} ${hy + (hd.f ? -4 : 12)}) scale(${hs.toFixed(3)})" stroke-width="${(+w / hs).toFixed(2)}">${hd.g()}</g>`;
     }
   }
   // phụ kiện
@@ -740,8 +781,12 @@ function figureSvg(a, sw) {
   else if (acc === 'cap') g += `<path d="M-56 -314 Q0 -396 56 -314 Z" fill="#ffffff"/><path d="M34 -322 Q90 -326 98 -304 L44 -310"/>`;
   else if (acc === 'crown') g += `<path d="M-40 -318 L-46 -366 L-20 -342 L0 -374 L20 -342 L46 -366 L40 -318 Z" fill="#ffffff"/>`;
   else if (acc === 'glasses') g += `<circle cx="-21" cy="-272" r="15" fill="none"/><circle cx="21" cy="-272" r="15" fill="none"/><path d="M-6 -272 L6 -272"/>`;
+  if (JB && JB.head) g += JB.head;
+  // tay vẽ sau cùng (đè lên đầu/thân) để cầm đồ, chống cằm được; đồ đang cầm đi theo tay phải
+  g += '<!--@armL-->' + arm(pose.L) + '<!--@armR-->' + arm(pose.R) + holdStr;
+  { const sg = g.split(/<!--@(\w+)-->/); g = ''; for (let k = 1; k < sg.length; k += 2) g += `<g data-part="${sg[k]}">${sg[k + 1]}</g>`; }
   const rot = (pose.lean || 0) + (poseName === 'sad' ? -4 : 0);
-  _ppl.push({ x, y, size, flip, role });
+  _ppl.push({ x, y, size, flip, role, pose: poseName, face, rot, hold: !!holdStr });
   return `<g transform="translate(${x.toFixed(0)} ${y.toFixed(0)}) scale(${(flip * size).toFixed(3)} ${size.toFixed(3)}) rotate(${rot})" stroke="#111111" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none">${g}</g>`;
 }
 // Mỗi người trong cùng một tranh phải khác người khác ít nhất một nét (nón, râu, kính, tóc, họa tiết áo, tư thế).
@@ -781,10 +826,33 @@ function uniquePeople(list) {
     poses.add(ps);
   });
 }
+// Khóa ngoại hình từng vai (MAIN/SECOND/THIRD/FOURTH) cho cả truyện: cảnh nào cũng cùng tóc/mũ/phụ kiện/áo
+let castLock = {};
+const CAST_LOCK = ['who', 'job', 'hair', 'hat', 'acc', 'mark'];
+function parseCast(str) {
+  castLock = {};
+  ['MAIN', 'SECOND', 'THIRD', 'FOURTH'].forEach(r => {
+    const seg = (String(str || '').split(/;|\n/).find(x => new RegExp('\\b' + r + '\\b', 'i').test(x)) || '');
+    const w = seg.match(/who\s*=\s*([a-z]+)/i), j = seg.match(/job\s*=\s*([a-z]+)/i), o = {};
+    if (w && WHO[w[1].toLowerCase()]) o.who = w[1].toLowerCase();
+    if (j && jobName(j[1])) o.job = jobName(j[1]);
+    if (Object.keys(o).length) castLock[r] = o;
+  });
+}
+function lockCast(list) {
+  list.forEach(a => {
+    const role = String(a.role || 'MAIN').toUpperCase();
+    if (!/^(MAIN|SECOND|THIRD|FOURTH)$/.test(role)) return;
+    const lk = castLock[role] || (castLock[role] = {});
+    if (!lk._seen) { lk._seen = 1; CAST_LOCK.forEach(f => { if (!lk[f] && a[f]) lk[f] = a[f]; }); }
+    CAST_LOCK.forEach(f => { if (lk[f]) a[f] = lk[f]; else delete a[f]; });
+  });
+}
 function expandPeople(raw, sw) {
   const re = () => /<person\b([^>]*?)\/?>(\s*<\/person>)?/gi;
   const list = [];
   raw.replace(re(), (m, attrs) => { list.push(figAttrs(attrs)); return m; });
+  try { lockCast(list); } catch (e) { /* lỗi thì cứ vẽ như cũ */ }
   try { uniquePeople(list); } catch (e) { /* lỗi thì cứ vẽ như cũ */ }
   let i = 0;
   return raw.replace(re(), () => { const a = list[i++]; const n0 = _ppl.length; try { const g = figureSvg(a, sw); return _ppl.length > n0 ? `<g data-pid="${n0}">${g}</g>` : g; } catch (e) { return ''; } });
@@ -1033,6 +1101,7 @@ PEOPLE: NEVER draw people yourself. For EVERY person write exactly one self-clos
   pose (pick the one that shows the action): stand, wave, cheer, point, walk, run, sit, sad, carry, think, shout, hips.
   face: smile, happy, open, flat, sad, cry, angry, surprised.
   acc: none, tuft, hat, cap, glasses, beard, crown, long (long hair). mark (shirt pattern): none, stripe, dots, vest, tie. Copy each character's acc and mark from the Characters list and keep them IDENTICAL in every scene (if the list gives none, OMIT acc and mark and the tool uses the role's default look: MAIN = tuft, SECOND = hat + stripes, THIRD = glasses + dots, FOURTH = long hair + vest, CROWD = plain).
+  job (optional but IMPORTANT when the narration shows someone's occupation or position): doctor, nurse, police, soldier, chef, worker (builder/engineer), farmer, teacher, judge (lawyer in court), king (queen/emperor), firefighter, pilot, businessman (CEO/boss/banker), president (politician/minister), artist, student, monk, scientist. The tool dresses the person in the matching uniform and hat, so do NOT add acc/mark/hat for that person. Copy each character's job from the Characters list and keep it IDENTICAL in every scene; a CROWD person may also carry a job (e.g. a crowd of workers).
   hold (optional): a prop type name from the lists below, drawn IN THE PERSON'S HAND (e.g. hold="cash", hold="book", hold="gift", hold="phone", hold="key", hold="bag"). Use pose="carry" (both hands in front) for things held with two hands, or pose="point"/"wave" for one hand. holdsize (optional, 0.6 to 2) makes the held item smaller or bigger.
   CAMERA: the description may carry a shot tag after the scene tag: WIDE (small figures, big place), MEDIUM, CLOSE (one face/hand/object fills over half the frame), XCLOSE (one detail fills the frame), TOP (seen from above), LOW (subject large and tall, low viewpoint), SIDE (profile), OTS (big back of a person at one edge, the other subject beyond). Follow it. Do NOT centre every subject: use thirds. DEPTH (only when the narration needs it): draw in 3 layers in this order: background first (small, high on the page, size 0.4-0.8), middle (main action), foreground last (large size 1.5+, partly cut by a frame edge). Nearer = bigger and lower; let near objects overlap far ones. Never add objects just to fill space.
   FAMOUS PLACES AND PEOPLE (viewers must recognise them at a glance): if the narration names a famous place, city or country, make its landmark prop the main picture, drawn at size 0.9-1.4 so the WHOLE landmark stays inside the frame (never cropped) with its base on the ground line (y about 740-800). Put people small, beside it or in the foreground below it, and NEVER draw people, props or crowds on top of the landmark. Keep the rest of the scene sparse: Paris = eiffel, New York / USA = liberty, London = bigben, Egypt = pyramid, Rome / Italy = colosseum, Pisa = pisa, Japan = fuji, Washington / US government = whitehouse, Hanoi = khue or motcot, China = greatwall. If the narration names one of these real people, add who="trump" / "einstein" / "jobs" / "bacho" / "napoleon" / "lincoln" to that <person> (hair, hat, tie are set automatically). The tool adds a name label under landmarks and these people, so never write <text> yourself. For ANYTHING ELSE that must be named, add <label text="Name" x=".." y=".."/> (x,y = the thing's feet/base, max 3 words).
@@ -1302,6 +1371,26 @@ function accentOf(v) {
   if (h >= 195 && h < 260) return COL.blue;
   return null;
 }
+// Nét nào mỏng hơn ~60% độ dày chuẩn (kể cả khi bị thu nhỏ bởi scale của nhóm cha) thì dày lên, tránh nét nhạt/mờ
+function fixStrokes(svg, sw) {
+  const d = new DOMParser().parseFromString(svg, 'image/svg+xml');
+  if (d.querySelector('parsererror')) return svg;
+  const scaleOf = el => {
+    let k = 1;
+    for (let n = el; n && n.nodeType === 1; n = n.parentNode) {
+      const t = n.getAttribute('transform'), m = t && t.match(/scale\(\s*(-?[\d.]+)(?:[\s,]+(-?[\d.]+))?\s*\)/);
+      if (m && +m[1]) k *= Math.abs(+m[1]);
+    }
+    return k;
+  };
+  d.querySelectorAll('[stroke-width]').forEach(el => {
+    const v = parseFloat(el.getAttribute('stroke-width'));
+    if (!(v > 0)) return;
+    const k = scaleOf(el);
+    if (v * k < sw * 0.6) el.setAttribute('stroke-width', (sw * 0.8 / k).toFixed(2));
+  });
+  return new XMLSerializer().serializeToString(d.documentElement);
+}
 // Xóa khung/viền chữ nhật phủ gần hết tranh (AI đôi khi tự vẽ khung làm tranh có thêm viền mỏng bên trong)
 function dropFrameRects(svg, W, H = 900) {
   const num = (t, n) => { const m = t.match(new RegExp('\\s' + n + '="(-?[\\d.]+)"')); return m ? +m[1] : null; };
@@ -1320,7 +1409,7 @@ function dropFrameRects(svg, W, H = 900) {
     });
 }
 
-function sanitizeSvg(raw, wob = 5) {
+function sanitizeSvg(raw, wob = 5, sw = 7) {
   const a = raw.indexOf('<svg'), b = raw.lastIndexOf('</svg>');
   if (a < 0 || b < 0) throw new Error('Không có thẻ SVG');
   let inner = raw.slice(a, b + 6)
@@ -1354,8 +1443,8 @@ function sanitizeSvg(raw, wob = 5) {
   // Bộ lọc làm nét rung nhẹ như vẽ tay bằng bút lông
   const defs = '<defs><filter id="wob" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="'+wob+'" xChannelSelector="R" yChannelSelector="G"/></filter></defs>';
   const out = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${fm.vw} 900" width="${fm.vw}" height="900">` + defs +
-    '<g filter="url(#wob)" stroke="#111111" fill="none" stroke-linecap="round" stroke-linejoin="round">' + inner + '</g></svg>';
-  return whitenBigBlack(dropFrameRects(out, fm.vw));
+    `<g filter="url(#wob)" stroke="#111111" stroke-width="${sw}" fill="none" stroke-linecap="round" stroke-linejoin="round">` + inner + '</g></svg>';
+  return whitenBigBlack(fixStrokes(dropFrameRects(out, fm.vw), sw));
 }
 
 // Chốt chặn: hình nào tô ĐEN mà phủ quá lớn (trời đen, nền đen, mảng nhà đen...) thì đổi sang tô trắng (giữ nguyên nét viền)
@@ -1496,7 +1585,7 @@ async function svgImage(s, blackInkOnly = false) {
   const d = await gemMulti(TXT_MODELS, { contents: [{ parts }] }, 75000);
   const t = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('');
   _tags.length = 0; _ppl.length = 0;
-  const svg = addTags(addDateLabels(sanitizeSvg(macro ? expandPeople(expandProps(t, st.sw), st.sw) : t, curStyle().wob), dl));
+  const svg = addTags(addDateLabels(sanitizeSvg(macro ? expandPeople(expandProps(t, st.sw), st.sw) : t, curStyle().wob, st.sw), dl));
   { const d2 = new DOMParser().parseFromString(svg, 'image/svg+xml'); // kiểm tra chất lượng: SVG hợp lệ và không trống (lỗi thì vòng thử lại 3 lần có sẵn sẽ vẽ lại)
     if (d2.querySelector('parsererror')) throw new Error('SVG lỗi cú pháp');
     if (d2.querySelectorAll('path,rect,circle,ellipse,line,polygon,polyline').length < 2) throw new Error('Tranh trống'); }
@@ -1518,6 +1607,7 @@ async function rasterSvg(str) {
   x.drawImage(im, ox, oy, w, hh);
   return { c, x, sc, ox, oy };
 }
+const ANIM_PARTS = ['legL', 'legR', 'body', 'head', 'armL', 'armR'];
 async function animLayers(svg, ppl) {
   if (!ppl.length) return { bg: null, people: null };
   const mk = () => new DOMParser().parseFromString(svg, 'image/svg+xml');
@@ -1525,21 +1615,39 @@ async function animLayers(svg, ppl) {
   if (d0.querySelector('parsererror') || !d0.querySelector('[data-pid]')) return { bg: null, people: null };
   const dBg = mk(); dBg.querySelectorAll('[data-pid]').forEach(n => n.remove());
   const bg = (await rasterSvg(new XMLSerializer().serializeToString(dBg.documentElement))).c;
+  const sc = Math.min((W - 40) / fm.vw, fm.ah / 900), ox = (W - fm.vw * sc) / 2, oy = 10 + (fm.ah - 900 * sc) / 2;
   const people = [];
   for (let k = 0; k < ppl.length; k++) {
-    const d = mk(), root = d.documentElement;
-    root.querySelectorAll('path,rect,circle,ellipse,line,polygon,polyline').forEach(n => { if (!n.closest(`[data-pid="${k}"]`) && !n.closest('defs')) n.remove(); });
-    const r = await rasterSvg(new XMLSerializer().serializeToString(root));
-    const img = r.x.getImageData(0, 0, W, H).data;
-    let x0 = W, y0 = H, x1 = -1, y1 = -1;
-    for (let y = 0; y < H; y += 2) for (let x = 0; x < W; x += 2) if (img[(y * W + x) * 4 + 3] > 10) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-    if (x1 < 0) continue;
-    x0 = Math.max(0, x0 - 6); y0 = Math.max(0, y0 - 6); x1 = Math.min(W - 1, x1 + 6); y1 = Math.min(H - 1, y1 + 6);
-    const cv = document.createElement('canvas'); cv.width = x1 - x0 + 1; cv.height = y1 - y0 + 1;
-    cv.getContext('2d').drawImage(r.c, x0, y0, cv.width, cv.height, 0, 0, cv.width, cv.height);
-    const q = ppl[k], to = (px, py) => [r.ox + px * r.sc, r.oy + py * r.sc];
-    const [ax, ay] = to(q.x, q.y), [mx, my] = to(q.x, q.y - 243 * q.size);
-    people.push({ cv, x0, y0, ax, ay, mx, my, mr: q.size * r.sc, sc: r.sc, role: q.role });
+    const q = ppl[k], u = q.size * sc, f = q.flip, ax = ox + q.x * sc, ay = oy + q.y * sc;
+    const rx = q.x - 320 * q.size, ry = q.y - 520 * q.size, rw = 640 * q.size, rh = 600 * q.size;
+    const cw = Math.max(8, Math.ceil(rw * sc)), ch = Math.max(8, Math.ceil(rh * sc)), parts = {};
+    for (const name of ANIM_PARTS) {
+      if (!d0.querySelector(`[data-pid="${k}"] [data-part="${name}"] *`)) continue;
+      const d = mk(), root = d.documentElement;
+      root.querySelectorAll('path,rect,circle,ellipse,line,polygon,polyline').forEach(n => {
+        if (!(n.closest(`[data-pid="${k}"]`) && n.closest(`[data-part="${name}"]`)) && !n.closest('defs')) n.remove();
+      });
+      root.setAttribute('viewBox', `${rx} ${ry} ${rw} ${rh}`); root.setAttribute('width', cw); root.setAttribute('height', ch);
+      const im = await loadImg('data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(new XMLSerializer().serializeToString(root)))));
+      const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+      const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(im, 0, 0, cw, ch);
+      const px = x.getImageData(0, 0, cw, ch).data;
+      let x0 = cw, y0 = ch, x1 = -1, y1 = -1;
+      for (let y = 0; y < ch; y += 2) for (let xx = 0; xx < cw; xx += 2) if (px[(y * cw + xx) * 4 + 3] > 10) { if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      if (x1 < 0) continue;
+      x0 = Math.max(0, x0 - 4); y0 = Math.max(0, y0 - 4); x1 = Math.min(cw - 1, x1 + 4); y1 = Math.min(ch - 1, y1 + 4);
+      const cv = document.createElement('canvas'); cv.width = x1 - x0 + 1; cv.height = y1 - y0 + 1;
+      cv.getContext('2d').drawImage(c, x0, y0, cv.width, cv.height, 0, 0, cv.width, cv.height);
+      parts[name] = { cv, x0: ox + rx * sc + x0, y0: oy + ry * sc + y0 };
+    }
+    if (!Object.keys(parts).length) continue;
+    const r = q.rot * Math.PI / 180, cr = Math.cos(r), sr = Math.sin(r);
+    const L2F = (lx, ly) => [ax + f * u * (lx * cr - ly * sr), ay + u * (lx * sr + ly * cr)];
+    people.push({
+      parts, u, f, sc, role: q.role, pose: q.pose, face: q.face, hold: q.hold,
+      hipL: L2F(-22, -108), hipR: L2F(22, -108), hip: L2F(0, -108), neck: L2F(0, -212),
+      shL: L2F(-37, -192), shR: L2F(37, -192), mouth: L2F(0, -243), eyeL: L2F(-21, -272), eyeR: L2F(21, -272)
+    });
   }
   if (!people.length) return { bg: null, people: null };
   const sp = people.find(p => p.role === 'MAIN') || people[0];
@@ -1559,32 +1667,139 @@ function ampAt(s, tt) {
   if (i >= s._env.length) return 0;
   return (s._env[i] + (s._env[i - 1] || 0)) / 2;
 }
+const _clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+// Chuyển động từng bộ phận: đầu gật, tay đưa khi nói, chân bước khi vào cảnh, chớp mắt, mấp máy miệng
+function drawPerson(x, p, lt, i, amp) {
+  const ph = i * 1.7, u = p.u, f = p.f;
+  const e = _clamp((lt - i * 0.18) / 0.75), ez = 1 - Math.pow(1 - e, 3), entering = e < 1;
+  const talk = p.speaker ? amp : 0;
+  const walking = /^(walk|run|flee)$/.test(p.pose) || entering;
+  const calm = /^(stand|hips|sad)$/.test(p.pose) && !p.hold;
+  const slide = -(1 - ez) * 170 * (i % 2 ? -1 : 1);
+  const hop = walking ? -Math.abs(Math.sin(lt * (entering ? 9 : 6.5) + ph)) * 5 * u : Math.sin(lt * 1.7 + ph) * 1.6;
+  const rock = Math.sin(lt * 1.3 + ph) * 0.012 + talk * Math.sin(lt * 6) * 0.006;
+  const breathe = 1 + Math.sin(lt * 2.1 + ph) * 0.011;
+  const nod = Math.sin(lt * 1.5 + ph) * 0.035 + talk * (Math.sin(lt * 7.5) * 0.05 + 0.03);
+  const draw = n => { const q = p.parts[n]; if (q) x.drawImage(q.cv, q.x0, q.y0); };
+  const around = (pv, ang, fn) => { x.save(); x.translate(pv[0], pv[1]); x.rotate(ang); x.translate(-pv[0], -pv[1]); fn(); x.restore(); };
+  x.save();
+  x.globalAlpha = _clamp(ez * 2);
+  x.translate(slide, hop);
+  // chân: bước luân phiên khi đi / khi mới vào cảnh
+  const step = walking ? Math.sin(lt * (entering ? 9 : 6.5) + ph) * 0.3 : 0;
+  around(p.hipL, step, () => draw('legL'));
+  around(p.hipR, -step, () => draw('legR'));
+  // thân + đầu + tay cùng nghiêng/thở quanh hông
+  x.save();
+  x.translate(p.hip[0], p.hip[1]); x.rotate(rock); x.scale(1, breathe); x.translate(-p.hip[0], -p.hip[1]);
+  draw('body');
+  around(p.neck, nod, () => {
+    draw('head');
+    const eyes = /^(smile|open|surprised|scared|determined|worried|angry|doubt|sad)$/.test(p.face);
+    if (eyes && (lt + ph) % 3.6 < 0.13) {
+      x.fillStyle = '#fff'; x.strokeStyle = '#111'; x.lineWidth = Math.max(2, 6 * p.sc);
+      [p.eyeL, p.eyeR].forEach(q => { x.beginPath(); x.ellipse(q[0], q[1], 9 * u, 8 * u, 0, 0, Math.PI * 2); x.fill(); x.beginPath(); x.moveTo(q[0] - 8 * u, q[1]); x.quadraticCurveTo(q[0], q[1] + 4 * u, q[0] + 8 * u, q[1]); x.stroke(); });
+    }
+    if (p.speaker && talk > 0.06) {
+      x.beginPath(); x.ellipse(p.mouth[0], p.mouth[1], 9 * u * (0.7 + 0.5 * talk), (3 + 13 * talk) * u, 0, 0, Math.PI * 2);
+      x.fillStyle = '#fff'; x.fill(); x.lineWidth = Math.max(2, 6 * p.sc); x.strokeStyle = '#111'; x.stroke();
+    }
+  });
+  // tay: đung đưa nhẹ, đi thì vung, người nói thì đưa tay theo nhịp câu
+  const armAng = (side, pv) => {
+    const sd = side * f;                      // -1 bên trái khung, +1 bên phải khung
+    let a = Math.sin(lt * 1.9 + ph + (side > 0 ? 0 : 1.7)) * 0.05;
+    if (walking) a = Math.sin(lt * (entering ? 9 : 6.5) + ph + (side > 0 ? 0 : Math.PI)) * 0.4;
+    else if (p.pose === 'wave' && side > 0) a = Math.sin(lt * 8) * 0.28;
+    else if (p.speaker && calm) {
+      const g = Math.pow(Math.max(0, Math.sin(lt * 2.4 + ph + (side > 0 ? 0 : 2.1))), 2) * (0.35 + 0.9 * talk);
+      a += (side > 0 ? 1 : 0.5) * g;         // đưa tay ra ngoài và lên
+    }
+    return walking ? a : -sd * a;
+  };
+  around(p.shL, armAng(-1), () => draw('armL'));
+  around(p.shR, armAng(1), () => draw('armR'));
+  x.restore();
+  x.restore();
+}
 function drawAnim(x, s, lt) {
   x.globalAlpha = Math.min(1, lt / 0.35);
   x.drawImage(s.bg || s.cv, 0, 0);
   x.globalAlpha = 1;
   if (!s.people) return;
   const amp = ampAt(s, lt - 0.3);
-  s.people.forEach((p, i) => {
-    const ph = i * 1.7, e = Math.min(1, Math.max(0, (lt - i * 0.12) / 0.5)), ez = 1 - Math.pow(1 - e, 3);
-    const talk = p.speaker ? amp : 0;
-    const bob = Math.sin(lt * 5.6 + ph) * 3 - talk * 5;
-    const rot = Math.sin(lt * 2.8 + ph) * 0.012 + (p.speaker ? Math.sin(lt * 9) * 0.014 * talk : 0);
-    const sy = 1 + Math.sin(lt * 6.9 + ph) * 0.006 + talk * 0.018;
-    x.save();
-    x.globalAlpha = ez;
-    x.translate(p.ax, p.ay + (1 - ez) * 40 + bob); x.rotate(rot); x.scale(1, sy); x.translate(-p.ax, -p.ay);
-    x.drawImage(p.cv, p.x0, p.y0);
-    if (p.speaker && talk > 0.06) {
-      x.beginPath(); x.ellipse(p.mx, p.my, 9 * p.mr * (0.7 + 0.5 * talk), (3 + 13 * talk) * p.mr, 0, 0, Math.PI * 2);
-      x.fillStyle = '#fff'; x.fill(); x.lineWidth = Math.max(2, 6 * p.sc); x.strokeStyle = '#111'; x.stroke();
-    }
-    x.restore();
+  s.people.forEach((p, i) => { if (p.parts) drawPerson(x, p, lt, i, amp); });
+}
+
+// ===== ẢNH AI 3D HOẠT HÌNH NHIỀU MÀU (miễn phí): Hugging Face FLUX nếu có token, không thì Pollinations =====
+let aiImgQueue = Promise.resolve(), aiSeed = Math.floor(Math.random() * 900000) + 1000;
+function ai3dPrompt(s) {
+  const desc = String(s.image || s.text || '').replace(/\[(OBJECT|PERSON|PLACE)\]/gi, '').replace(/\s+/g, ' ').trim().slice(0, 420);
+  const cast = String(typeof chars === 'string' ? chars : '').replace(/who\s*=\s*\w+/gi, '').replace(/job\s*=\s*(\w+)/gi, 'works as $1').replace(/\s+/g, ' ').trim().slice(0, 300);
+  return `3D animated movie still, Pixar-style cartoon characters, soft cinematic lighting, vibrant colors, detailed background, depth of field, no text, no letters, no watermark. ${desc}.${cast ? ' Characters (look identical in every shot): ' + cast + '.' : ''}`;
+}
+async function loadAiImg(src, ms) {
+  return await new Promise((ok, no) => {
+    const i = new Image(); i.crossOrigin = 'anonymous';
+    const to = setTimeout(() => { i.src = ''; no(new Error('Quá thời gian chờ')); }, ms);
+    i.onload = () => { clearTimeout(to); ok(i); };
+    i.onerror = () => { clearTimeout(to); no(new Error('Máy chủ ảnh bận')); };
+    i.src = src;
   });
+}
+async function genAiColor(prompt, seed) {
+  const w = fm.v ? 576 : 1024, h = fm.v ? 1024 : 576, tok = $('hftok').value.trim().replace(/^Bearer\s+/i, '');
+  let lastErr = '';
+  for (let t = 0; t < 3; t++) {
+    if (abortGen) throw new Error('Đã dừng');
+    try {
+      if (tok && t < 2) {
+        const ac = new AbortController(), to = setTimeout(() => ac.abort(), 60000); ctl.add(ac);
+        try {
+          const r = await fetch('https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell', {
+            method: 'POST', headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ inputs: prompt, parameters: { width: w, height: h, seed: seed + t } }), signal: ac.signal
+          });
+          if (!r.ok) throw new Error('HF HTTP ' + r.status);
+          const blob = await r.blob();
+          if (!/^image\//.test(blob.type)) throw new Error('HF không trả về ảnh');
+          return await loadAiImg(URL.createObjectURL(blob), 20000);
+        } finally { clearTimeout(to); ctl.delete(ac); }
+      }
+      return await loadAiImg(`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?model=flux&width=${w}&height=${h}&nologo=true&seed=${seed + t}`, 60000);
+    } catch (e) {
+      if (abortGen) throw e;
+      lastErr = e.message;
+      await new Promise(r => setTimeout(r, 1500 + t * 1500));
+    }
+  }
+  throw new Error(lastErr || 'Không tạo được ảnh AI');
+}
+async function aiColorImage(s, sceneNo) {
+  const prev = aiImgQueue;
+  let done; aiImgQueue = new Promise(r => { done = r; });
+  await prev;
+  try {
+    await new Promise(r => setTimeout(r, 700));
+    const im = await genAiColor(ai3dPrompt(s), aiSeed);
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, W, H);
+    const ah = Math.min(H, fm.ah + 10), k = Math.max(W / im.width, ah / im.height), w = im.width * k, h = im.height * k;
+    x.save(); x.beginPath(); x.rect(0, 0, W, ah); x.clip(); x.drawImage(im, (W - w) / 2, (ah - h) / 2, w, h); x.restore();
+    return { cv: c, ord: [], anim: true, bg: null, people: null, photo: true };
+  } finally { done(); }
 }
 
 async function makeImage(s, sceneNo) {
   const mode = $('isrc').value;
+  if (mode === 'ai3d') {
+    try { return await aiColorImage(s, sceneNo); }
+    catch (e) {
+      if (abortGen) throw e;
+      log(`  ⚠ Cảnh ${sceneNo}: máy chủ ảnh AI miễn phí đang bận (${e.message}), tạm vẽ bằng nét mực.`);
+      return await svgImage(s, false);
+    }
+  }
   if (mode === 'svg' || mode === 'svg_ink') {
     return await svgImage(s, mode === 'svg_ink');
   }
@@ -2038,12 +2253,28 @@ function pcmToWavB64(f32, sr) {
   return btoa(bin);
 }
 let srcMode = 'text';
+function setMinutes(m) {
+  const sel = $('min'), old = $('minSrc'); if (old) old.remove();
+  if (![...sel.options].some(o => +o.value === m)) {
+    const o = document.createElement('option'); o.id = 'minSrc'; o.value = String(m); o.textContent = `${m} phút (theo nội dung)`;
+    sel.appendChild(o);
+  }
+  sel.value = String(m); nimgHint();
+}
 function srcTab(t) {
   srcMode = t;
   document.querySelectorAll('#srcTabs button').forEach((b, i) => b.classList.toggle('on', ['text', 'tt', 'file'][i] === t));
   $('srcTt').hidden = t !== 'tt'; $('srcFile').hidden = t !== 'file'; $('srcRw').hidden = t === 'text';
+  $('min').disabled = t !== 'text';
+  $('minLbl').textContent = t === 'text' ? 'Độ dài video' : 'Độ dài video (tự theo nội dung)';
   $('ideaLbl').textContent = t === 'text' ? 'Câu chuyện hoặc ý tưởng' : 'Nội dung (chép lời xong sẽ hiện ở đây, bạn sửa được)';
 }
+// Nguồn là link/video/MP3: sửa chữ trong ô truyện thì độ dài video tự tính lại theo số từ (~190 từ/phút)
+$('idea').addEventListener('input', () => {
+  if (srcMode === 'text') return;
+  const w = $('idea').value.split(/\s+/).filter(Boolean).length;
+  if (w) setMinutes(Math.min(45, Math.max(1, Math.round(w / 192))));
+});
 async function transcribeBuffer(raw) {
     const oc = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 16000, 16000);
     let ab;
@@ -2066,16 +2297,9 @@ async function transcribeBuffer(raw) {
     const all = out.join('\n\n').trim();
     if (!all) throw new Error('Không nghe thấy lời nói trong file này (có thể chỉ có nhạc).');
     $('idea').value = all;
-    { // độ dài video = đúng độ dài nội dung gốc (kể cả đoạn dài)
-      const m = Math.min(45, Math.max(1, Math.round(len / sr / 60)));
-      const sel = $('min'); const old = $('minSrc'); if (old) old.remove();
-      if (![...sel.options].some(o => +o.value === m)) {
-        const o = document.createElement('option'); o.id = 'minSrc'; o.value = String(m); o.textContent = `${m} phút (đúng độ dài nội dung gốc)`;
-        sel.appendChild(o);
-      }
-      sel.value = String(m); nimgHint();
-      log(`  ⏱ Đã chọn độ dài video ${m} phút = độ dài nội dung gốc${len / sr / 60 > 45 ? ' (giới hạn tối đa 45 phút)' : ''}.`);
-    }
+    const m = Math.min(45, Math.max(1, Math.round(len / sr / 60)));
+    setMinutes(m);
+    log(`  ⏱ Độ dài video tự đặt ${m} phút = độ dài nội dung gốc${len / sr / 60 > 45 ? ' (giới hạn tối đa 45 phút)' : ''}.`);
     log(`✅ Đã chép lời xong (${all.split(/\s+/).length} từ). Xem lại trong ô truyện, rồi bấm "Bắt đầu tạo video".`);
 }
 
@@ -2166,6 +2390,7 @@ async function start(isRetry = false) {
       $('bar').style.width = '0%';
       const sc = await makeScript(idea, +$('min').value);
       chars = sc.characters || '';
+      parseCast(chars);
       storyCtx = sc.story || '';
       settingCtx = sc.setting || '';
       try {

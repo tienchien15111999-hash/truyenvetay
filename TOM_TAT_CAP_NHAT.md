@@ -215,3 +215,32 @@ Tháp Eiffel vẽ lại (thân cong lõm, vòm chân, 3 tầng, ăng-ten). `PROP
 - `svgImage`: nếu chọn hoạt hình, `animLayers()` tách nền (bỏ các `[data-pid]`) và từng nhân vật (cắt gọn theo vùng có nét), trả về `bg`, `people`, `anim:true`. Chế độ vẽ tay trả `anim:false` để xóa dữ liệu cũ khi vẽ lại cảnh.
 - `makeRenderer`: nhánh `drawAnim()` thay cho bàn tay vẽ: nền hiện dần, người trượt vào, nhún, lắc nhẹ; nhân vật chính (MAIN, hoặc người đầu tiên) mở miệng theo độ lớn giọng đọc (`ampAt()` tính từ `s.buf`, giọng bắt đầu sau 0,3 giây). Cảnh không người chỉ zoom/lia.
 - Giới hạn: chuyển động nhẹ (nhún, lắc, miệng), chưa có tay vẫy, chớp mắt hay đi bộ.
+- Hiện lại ô 'Cách vẽ tranh' và 'Phong cách vẽ' (#drawPick), không còn ép về svg_ink/ref mỗi lần mở.
+- Ô 'Độ dài video' bị làm xám (disabled) khi nguồn là link TikTok/Douyin hoặc video/MP3 (tự theo nội dung, `setMinutes()`); sửa chữ trong ô truyện thì tự tính lại theo số từ.
+
+## Cập nhật: bảng nhân vật cố định
+- Kịch bản: trường `characters` là BẢNG NHÂN VẬT CỐ ĐỊNH ("MAIN = tên (who=trump): đặc điểm; SECOND = ..."), tối đa 4 người lặp lại, mỗi người một vai mãi mãi; phần sau của video dài nhận lại bảng và trả về bảng đầy đủ.
+- `sceneCtx` và `refineBatch`: nhắc AI dùng đúng vai ở mọi cảnh; quy tắc 12 ghi vai + tên trong mô tả ("MAIN (Trump)").
+- Code khóa ngoại hình: `parseCast()` đọc `who=` từ bảng, `lockCast()` (gọi trong `expandPeople`) khóa `who/hair/hat/acc/mark` của MAIN/SECOND/THIRD/FOURTH ở cảnh đầu tiên xuất hiện và áp lại cho mọi cảnh sau. CROWD không bị khóa.
+
+## Cập nhật: trang phục theo nghề / chức vụ
+- Thuộc tính mới `job` cho thẻ `<person>`: doctor, nurse, police, soldier, chef, worker, farmer, teacher, judge, king, firefighter, pilot, businessman, president, artist, student, monk, scientist (cùng các alias trong `JOB_ALIAS`, ví dụ cop → police, lawyer → businessman, queen → king).
+- `jobSvg(job)`: trả về phần áo (`body`, vẽ sau `markSvg`) và mũ/phụ kiện đầu (`head`, vẽ sau cùng); `figureSvg` dùng khi người đó không phải `who` (người nổi tiếng).
+- `CAST_LOCK` có thêm `job`; `parseCast()` đọc `job=` trong bảng nhân vật, nên mỗi vai luôn mặc đúng một bộ đồ ở mọi cảnh.
+- Prompt: `<person job=...>` được mô tả cho AI vẽ cảnh; schema `characters` và quy tắc 12 của đạo diễn nhắc ghi nghề.
+
+## Cập nhật: sửa nét nhạt
+- `sanitizeSvg(raw, wob, sw)`: nhóm gốc có `stroke-width = sw` (trước đây thiếu nên hình AI tự vẽ mà không ghi độ dày bị nét mặc định 1 rất mỏng).
+- `fixStrokes(svg, sw)`: nét nào mỏng hơn 60% độ dày chuẩn (tính cả scale của nhóm cha) thì nâng lên 80% chuẩn; prop/nhân vật đã bù scale nên không bị đổi.
+
+## Cập nhật: hoạt hình nhân vật theo bộ phận
+- `figureSvg` chia mỗi người thành 6 nhóm `<g data-part>`: `legL, legR, body, head, armL, armR` (tay vẽ sau cùng; đồ đang cầm đi theo tay phải). `_ppl` ghi thêm `pose, face, rot, hold`.
+- `animLayers` vẽ từng bộ phận ra ảnh riêng (cắt theo vùng người, sau đó cắt gọn theo nét), tính sẵn các điểm xoay (hông, cổ, vai, miệng, mắt).
+- `drawPerson`: chân bước luân phiên khi đi/vào cảnh, thân thở và nghiêng nhẹ quanh hông, đầu gật theo nhịp nói, chớp mắt mỗi ~3,6 giây, miệng mở theo giọng đọc, tay đung đưa; người đang nói (tư thế đứng) đưa tay theo nhịp câu.
+- Cảnh vẽ bằng bản cũ (không có `parts`) bị bỏ qua phần người, cần "Vẽ lại".
+
+## Cập nhật: kiểu "Ảnh AI 3D hoạt hình, nhiều màu" (miễn phí)
+- `#isrc` có thêm `ai3d`. `makeImage` gọi `aiColorImage()`: tạo prompt `ai3dPrompt()` (phong cách Pixar 3D + mô tả cảnh + bảng nhân vật), gọi Hugging Face FLUX.1-schnell nếu có token (`#hftok`), không thì Pollinations (`model=flux`), thử lại tối đa 3 lần, các cảnh xếp hàng một (`aiImgQueue`) cách nhau ~0,7 giây, cùng một seed cho cả truyện (`aiSeed`).
+- Ảnh được cắt phủ kín khung rồi trả về `{ cv, ord: [], anim: true, photo: true }`: dựng video bằng nhánh `drawAnim` (hiện dần + zoom/lia), không có bàn tay vẽ, không có miệng/tay cử động.
+- Lỗi cả ba lần thì cảnh đó tạm vẽ bằng nét mực SVG và ghi log.
+- `refineBatch`: khi chọn `ai3d`, quy tắc 13 yêu cầu mô tả như cảnh phim hoạt hình 3D bằng tiếng Anh, nhắc lại ngoại hình nhân vật mỗi lần.
