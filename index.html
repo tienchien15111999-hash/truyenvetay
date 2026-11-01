@@ -57,7 +57,6 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   <select id="isrc" onchange="vui()">
     <option value="svg_ink">✒️ Vẽ tranh nét mực đen trắng bằng AI (Miễn phí 100%, nhanh & ổn định nhất)</option>
     <option value="svg">🏃 Người que đen trắng nét bút lông (Miễn phí - đã nâng cấp)</option>
-    <option value="ai3d">🎬 Ảnh AI 3D hoạt hình, nhiều màu (Miễn phí, thử nghiệm)</option>
   </select>
 
   <select id="style" hidden>
@@ -76,6 +75,19 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
       </div>
     </div>
     <p class="hint">Nhân vật và đồ vật/cảnh vật do tool tự vẽ theo bộ mẫu có sẵn nên luôn đồng nhất; ảnh này chỉ gửi kèm AI làm tham khảo cảm giác nét. Ảnh nên có nét rõ, nền trắng. Tranh vẫn được ép về đen trắng.</p>
+  </div>
+
+  <div id="spriteBox" style="margin:12px 0">
+    <label>🧑‍🎨 Nhân vật chính của bạn (tuỳ chọn): tải ảnh nhân vật, tool đặt đúng nhân vật này vào mọi cảnh</label>
+    <input type="file" id="spriteFile" accept="image/*" onchange="spriteUpload(this)">
+    <div style="display:flex;gap:12px;align-items:center;margin-top:8px;flex-wrap:wrap">
+      <canvas id="spritePrev" width="10" height="10" hidden style="max-width:150px;max-height:200px;border:1.5px solid #888;border-radius:4px;background:repeating-conic-gradient(#ddd 0 25%,#fff 0 50%) 0 0/16px 16px"></canvas>
+      <div>
+        <div class="hint" id="spriteStat" style="margin:0 0 6px">Chưa có: đang dùng người que có sẵn.</div>
+        <button type="button" class="w sm" onclick="spriteReset()">↩ Dùng lại người que có sẵn</button>
+      </div>
+    </div>
+    <p class="hint">Ảnh đứng một mình, nền trơn càng tốt (tool tự xoá nền). Nhân vật giữ nguyên hình dáng và màu của ảnh ở mọi cảnh, chỉ đổi chỗ đứng và hướng nhìn, không đổi dáng. Tool nhớ ảnh cho lần sau.</p>
   </div>
 
   <div id="aiRefBox" hidden>
@@ -355,7 +367,7 @@ function importSet(inp) {
         }
       });
       if (!n) throw new Error('không thấy mục cài đặt nào');
-      if (!['svg_ink', 'svg', 'ai3d'].includes($('isrc').value)) $('isrc').value = 'svg_ink'; $('style').value = 'ref';
+      if (!['svg_ink', 'svg'].includes($('isrc').value)) $('isrc').value = 'svg_ink'; $('style').value = 'ref';
       vui(); nimgHint(); if (typeof styleUI === 'function') styleUI(); saveSet();
       alert('Đã nạp cài đặt từ file sao lưu.');
     } catch (e) { alert('File này không đọc được: ' + e.message); }
@@ -388,7 +400,7 @@ try {
   });
   if (o.keys) $('set').open = false;
 } catch (e) {}
-if (!['svg_ink', 'svg', 'ai3d'].includes($('isrc').value)) $('isrc').value = 'svg_ink'; $('style').value = 'ref';
+if (!['svg_ink', 'svg'].includes($('isrc').value)) $('isrc').value = 'svg_ink'; $('style').value = 'ref';
 if (!['bw', 'accent', 'color'].includes($('cmode').value)) $('cmode').value = 'accent'; // chế độ tự động: luôn dùng cách vẽ có nhân vật dựng sẵn + bong bóng + chia khung
 vui();
 $('set').addEventListener('input', saveSet);
@@ -711,24 +723,33 @@ function figureSvg(a, sw) {
   if (JB) { mark = 'none'; if (JB.acc) acc = JB.acc; else if (!JB.keep) acc = 'none'; }
   const flip = String(a.facing || 'right').toLowerCase() === 'left' ? -1 : 1;
   const w = (sw / size).toFixed(1);
-  const arm = (p) => `<path d="M${p[0] > 0 ? 37 : -37} -192 Q${p[0]} ${p[1]} ${p[2]} ${p[3]}"/><ellipse cx="${p[2]}" cy="${p[3]}" rx="9" ry="10" fill="#ffffff"/>`;
+  _cw = +w; _dS = (Math.abs(Math.round(x * 7 + y * 13)) % 2000) + 31;
+  // Tay chân dạng ống dày (đa giác bao quanh đường cong), có giày và bàn tay; điểm gắn vai/hông giữ nguyên để hoạt ảnh không lệch
+  const qp = (x0, y0, cx, cy, x1, y1, n = 9) => { const r = []; for (let i = 0; i <= n; i++) { const t = i / n, u = 1 - t; r.push([u * u * x0 + 2 * u * t * cx + t * t * x1, u * u * y0 + 2 * u * t * cy + t * t * y1]); } return r; };
+  const lp = (x0, y0, x1, y1, n = 4) => { const r = []; for (let i = 1; i <= n; i++) r.push([x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n]); return r; };
+  const tube = (P, w0, w1) => { const A = [], B = [], n = P.length; P.forEach((p, i) => { const a = P[Math.max(0, i - 1)], b = P[Math.min(n - 1, i + 1)]; let dx = b[0] - a[0], dy = b[1] - a[1]; const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l; const hw = (w0 + (w1 - w0) * i / (n - 1)) / 2; A.push([p[0] - dy * hw, p[1] + dx * hw]); B.push([p[0] + dy * hw, p[1] - dx * hw]); }); const q = A.concat(B.reverse()); return `<path d="M${q.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L')}Z" fill="#ffffff"/>`; };
+  const shoe = (ax, ay) => `<path d="M${ax - 15} ${ay - 6}L${ax + 12} ${ay - 6}Q${ax + 40} ${ay} ${ax + 40} ${ay + 12}L${ax - 17} ${ay + 12}Q${ax - 20} ${ay + 3} ${ax - 15} ${ay - 6}Z" fill="#ffffff"/>`;
+  const arm = (p) => { const sg = p[0] > 0 ? 37 : -37, t = p[0] > 0 ? -1 : 1; return tube(qp(sg, -192, p[0], p[1], p[2], p[3]), 26, 19) + `<circle cx="${p[2] + t * 11}" cy="${p[3] - 8}" r="6" fill="#ffffff"/><circle cx="${p[2]}" cy="${p[3]}" r="13" fill="#ffffff"/>`; };
+  const armOld = (p) => `<path d="M${p[0] > 0 ? 37 : -37} -192 Q${p[0]} ${p[1]} ${p[2]} ${p[3]}"/><ellipse cx="${p[2]}" cy="${p[3]}" rx="9" ry="10" fill="#ffffff"/>`;
   let g = '';
   // chân
   const lg = pose.legs || [-26, -6, 26, -6];
   if (pose.sit) {
-    g += `<!--@legL--><path d="M-22 -104 Q40 -100 78 -96 L82 -52"/><ellipse cx="96" cy="-44" rx="16" ry="7" fill="#ffffff"/>`;
-    g += `<!--@legR--><path d="M22 -104 Q70 -92 110 -86 L116 -44"/><ellipse cx="130" cy="-38" rx="16" ry="7" fill="#ffffff"/>`;
+    g += '<!--@legL-->' + tube(qp(-22, -104, 30, -102, 78, -96, 6).concat(lp(78, -96, 82, -54)), 30, 22) + shoe(82, -52);
+    g += '<!--@legR-->' + tube(qp(22, -104, 70, -92, 110, -86, 6).concat(lp(110, -86, 116, -46)), 30, 22) + shoe(116, -44);
   } else {
-    g += `<!--@legL--><path d="M-22 -108 Q${lg[0] - 6} -56 ${lg[0]} ${lg[1] - 6}"/><ellipse cx="${lg[0] + 8}" cy="${lg[1] - 3}" rx="17" ry="7.5" fill="#ffffff"/>`;
-    g += `<!--@legR--><path d="M22 -108 Q${lg[2] + 6} -56 ${lg[2]} ${lg[3] - 6}"/><ellipse cx="${lg[2] + 8}" cy="${lg[3] - 3}" rx="17" ry="7.5" fill="#ffffff"/>`;
+    g += '<!--@legL-->' + tube(qp(-22, -108, lg[0] - 6, -56, lg[0], lg[1] - 6), 30, 22) + shoe(lg[0], lg[1] - 6);
+    g += '<!--@legR-->' + tube(qp(22, -108, lg[2] + 6, -56, lg[2], lg[3] - 6), 30, 22) + shoe(lg[2], lg[3] - 6);
   }
   // thân hình quả lê
   g += '<!--@body-->';
   g += `<path d="M-34 -205 C-52 -170 -66 -130 -50 -110 Q0 -92 50 -110 C66 -130 52 -170 34 -205 Q0 -220 -34 -205 Z" ${shirtFill(role)}/>`;
+  g += _hat([[32, -196], [46, -172], [50, -140], [42, -120], [28, -114]], 12);
   g += markSvg(mark);
   if (JB) g += JB.body;
   // đầu to hình oval
   g += '<!--@head-->';
+  g += '<ellipse cx="-66" cy="-266" rx="9" ry="13" fill="#ffffff"/><ellipse cx="66" cy="-266" rx="9" ry="13" fill="#ffffff"/>';
   g += `<ellipse cx="0" cy="-268" rx="66" ry="58" fill="#ffffff"/>`;
   // phụ kiện sau đầu
   if (acc === 'long') g += `<path d="M-60 -290 Q-82 -250 -66 -214"/><path d="M60 -290 Q82 -250 66 -214"/>`;
@@ -768,7 +789,7 @@ function figureSvg(a, sw) {
       const hy = poseName === 'carry' ? (pose.L[3] + pose.R[3]) / 2 : pose.R[3];
       let hs = hd.k * 0.5 * (isFinite(+a.holdsize) && +a.holdsize > 0 ? +a.holdsize : 1);
       hs = Math.max(0.3, Math.min(2.5, hs));
-      holdStr = `<g transform="translate(${hx} ${hy + (hd.f ? -4 : 12)}) scale(${hs.toFixed(3)})" stroke-width="${(+w / hs).toFixed(2)}">${hd.g()}</g>`;
+      _cw = +w / hs; _dS = 11; holdStr = `<g transform="translate(${hx} ${hy + (hd.f ? -4 : 12)}) scale(${hs.toFixed(3)})" stroke-width="${(+w / hs).toFixed(2)}">${_sketch(hd.g())}</g>`;
     }
   }
   // phụ kiện
@@ -785,7 +806,7 @@ function figureSvg(a, sw) {
   else if (acc === 'glasses') g += `<circle cx="-21" cy="-272" r="15" fill="none"/><circle cx="21" cy="-272" r="15" fill="none"/><path d="M-6 -272 L6 -272"/>`;
   if (JB && JB.head) g += JB.head;
   // tay vẽ sau cùng (đè lên đầu/thân) để cầm đồ, chống cằm được; đồ đang cầm đi theo tay phải
-  g += '<!--@armL-->' + arm(pose.L) + '<!--@armR-->' + arm(pose.R) + holdStr;
+  g = _sketch(g + '<!--@armL-->' + arm(pose.L) + '<!--@armR-->' + arm(pose.R)) + holdStr;
   { const sg = g.split(/<!--@(\w+)-->/); g = ''; for (let k = 1; k < sg.length; k += 2) g += `<g data-part="${sg[k]}">${sg[k + 1]}</g>`; }
   const rot = (pose.lean || 0) + (poseName === 'sad' ? -4 : 0);
   _ppl.push({ x, y, size, flip, role, pose: poseName, face, rot, hold: !!holdStr });
@@ -857,7 +878,9 @@ function expandPeople(raw, sw) {
   try { lockCast(list); } catch (e) { /* lỗi thì cứ vẽ như cũ */ }
   try { uniquePeople(list); } catch (e) { /* lỗi thì cứ vẽ như cũ */ }
   let i = 0;
-  return raw.replace(re(), () => { const a = list[i++]; const n0 = _ppl.length; try { const g = figureSvg(a, sw); return _ppl.length > n0 ? `<g data-pid="${n0}">${g}</g>` : g; } catch (e) { return ''; } });
+  return raw.replace(re(), () => { const a = list[i++]; const n0 = _ppl.length; try { const g = figureSvg(a, sw);
+    if (spriteImg && _ppl.length > n0 && String(_ppl[_ppl.length - 1].role).toUpperCase() === 'MAIN') { const q = _ppl[_ppl.length - 1]; _spr.push({ x: q.x, y: q.y, size: q.size, flip: q.flip }); return '<path d="M0 0" stroke="none"/><path d="M1 1" stroke="none"/>'; }
+    return _ppl.length > n0 ? `<g data-pid="${n0}">${g}</g>` : g; } catch (e) { return ''; } });
 }
 // ===== THƯ VIỆN ĐỒ VẬT / CẢNH VẬT VẼ SẴN (đẹp và đồng nhất, AI chỉ đặt chỗ bằng thẻ <prop/> <ground/>) =====
 const _R = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#ffffff"/>`;
@@ -1026,7 +1049,120 @@ const PROPS = {
   thought: { k: 1.7, f: 1, g: () => _P('M-90 28 C-132 28 -142 -34 -102 -46 C-112 -98 -50 -120 -20 -88 C0 -124 72 -114 82 -72 C132 -78 152 -14 110 8 C132 50 80 66 50 46 C20 70 -40 66 -60 46 C-82 60 -114 50 -90 28 Z') + _C(-54, 92, 15) + _C(-82, 124, 10) + _C(-102, 148, 6) },
   speech: { k: 1.7, f: 1, g: () => _P('M-112 -72 Q-112 -92 -92 -92 L92 -92 Q112 -92 112 -72 L112 22 Q112 42 92 42 L12 42 L-36 92 L-30 42 L-92 42 Q-112 42 -112 22 Z') },
 };
+// ===== NÉT DOODLE VẼ TAY (v2): nét rung + viền kép + gạch bóng, áp dụng cho MỌI đồ vật trong thư viện =====
+let _dS = 7, _cw = 7; // _dS: hạt giống rung nét (ổn định theo vị trí), _cw: độ dày nét hiện tại
+const _rn = () => (_dS = (_dS * 16807) % 2147483647) / 2147483647 - 0.5;
+function _strokes(d) { // path tuyệt đối (M L H V Q C Z) -> các nét, mỗi nét là mảng điểm; null nếu có lệnh lạ
+  if (/[a-zA-Z]/.test(d.replace(/[MLHVQCZ]/g, ''))) return null;
+  const t = d.match(/[MLHVQCZ]|-?\d*\.?\d+/g) || [], S = []; let i = 0, cmd = '', x = 0, y = 0, c = null, sx = 0, sy = 0;
+  const num = () => +t[i++];
+  const ln = (X, Y) => { const n = Math.max(1, Math.ceil(Math.hypot(X - x, Y - y) / 14)); for (let k = 1; k <= n; k++) c.push([x + (X - x) * k / n, y + (Y - y) * k / n]); x = X; y = Y; };
+  while (i < t.length) {
+    if (/[A-Z]/.test(t[i])) cmd = t[i++];
+    if (!cmd) return null;
+    if (cmd === 'Z') { if (c) { ln(sx, sy); c.closed = 1; } cmd = ''; continue; }
+    if (cmd === 'M') { x = num(); y = num(); sx = x; sy = y; c = [[x, y]]; S.push(c); cmd = 'L'; continue; }
+    if (!c) return null;
+    if (cmd === 'L') { const X = num(), Y = num(); ln(X, Y); }
+    else if (cmd === 'H') ln(num(), y);
+    else if (cmd === 'V') ln(x, num());
+    else if (cmd === 'Q') { const x1 = num(), y1 = num(), X = num(), Y = num(); for (let k = 1; k <= 8; k++) { const u = k / 8, v = 1 - u; c.push([v * v * x + 2 * v * u * x1 + u * u * X, v * v * y + 2 * v * u * y1 + u * u * Y]); } x = X; y = Y; }
+    else if (cmd === 'C') { const x1 = num(), y1 = num(), x2 = num(), y2 = num(), X = num(), Y = num(); for (let k = 1; k <= 10; k++) { const u = k / 10, v = 1 - u; c.push([v * v * v * x + 3 * v * v * u * x1 + 3 * v * u * u * x2 + u * u * u * X, v * v * v * y + 3 * v * v * u * y1 + 3 * v * u * u * y2 + u * u * u * Y]); } x = X; y = Y; }
+    else return null;
+  }
+  return S;
+}
+function _wob(p, amp, drop) { // rung các điểm; drop = nét vẽ lại lần 2, bỏ bớt đầu/đuôi cho giống nét bút chồng lên
+  let ox = 0, oy = 0, q = p.map(a => { ox = ox * .72 + _rn() * 2 * amp * .75; oy = oy * .72 + _rn() * 2 * amp * .75; return [a[0] + ox, a[1] + oy]; }); // nhiễu mượt, không răng cưa
+  if (drop) { const n = q.length, a = Math.floor(n * (0.04 + (_rn() + .5) * .12)), b = Math.floor(n * (0.04 + (_rn() + .5) * .12)); q = q.slice(a, n - b); if (q.length < 3) return ''; }
+  return 'M' + q.map(a => a[0].toFixed(1) + ' ' + a[1].toFixed(1)).join('L') + (p.closed && !drop ? 'Z' : '');
+}
+function _sketch(s) { // biến hình học thẳng thành nét doodle: rung nhẹ + viền đôi
+  s = s.replace(/<(rect|circle|ellipse)\b([^>]*?)\/>/g, (m, t, at) => {
+    const g = k => { const r = at.match(new RegExp('\\s' + k + '="(-?[\\d.]+)"')); return r ? +r[1] : 0; };
+    let d;
+    if (t === 'rect') { const x = g('x'), y = g('y'), w = g('width'), h = g('height'); d = `M${x} ${y}L${x + w} ${y}L${x + w} ${y + h}L${x} ${y + h}Z`; }
+    else { const cx = g('cx'), cy = g('cy'), rx = t === 'circle' ? g('r') : g('rx'), ry = t === 'circle' ? g('r') : g('ry'); d = ''; for (let k = 0; k < 24; k++) { const q = k * Math.PI / 12; d += (k ? 'L' : 'M') + (cx + Math.cos(q) * rx).toFixed(1) + ' ' + (cy + Math.sin(q) * ry).toFixed(1); } d += 'Z'; }
+    return `<path d="${d}"${at.replace(/\s(x|y|width|height|cx|cy|r|rx|ry)="[^"]*"/g, '')}/>`;
+  });
+  return s.replace(/<path\b([^>]*?)\/>/g, (m, at) => {
+    const dm = at.match(/\sd="([^"]+)"/); if (!dm) return m;
+    const S = _strokes(dm[1]); if (!S) return m;
+    const rest = at.replace(/\sd="[^"]*"/, '');
+    const filled = /\sfill="(?!none)/.test(rest), noStroke = /stroke="none"/.test(rest);
+    let out = '';
+    S.forEach(p => {
+      if (p.length < 2) return;
+      let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9; p.forEach(a => { x0 = Math.min(x0, a[0]); x1 = Math.max(x1, a[0]); y0 = Math.min(y0, a[1]); y1 = Math.max(y1, a[1]); });
+      const diag = Math.hypot(x1 - x0, y1 - y0), amp = Math.max(0.25, Math.min(2.0, diag * 0.014));
+      out += `<path d="${_wob(p, amp)}"${rest}/>`;
+      if (!noStroke && diag > 46 && (filled || diag > 90)) { const w2 = _wob(p, amp * 1.5, 1); if (w2) out += `<path d="${w2}" fill="none"${rest.replace(/\sfill="[^"]*"/, '').replace(/\sdata-keep="1"/, '')}/>`; }
+    });
+    return out;
+  });
+}
+const _hat = (poly, gap = 11, ang = -60) => { // gạch bóng song song, cắt gọn trong đa giác
+  const r = ang * Math.PI / 180, c = Math.cos(r), s = Math.sin(r), P = poly.map(([x, y]) => [x * c + y * s, -x * s + y * c]);
+  const ys = P.map(p => p[1]), lo = Math.min(...ys), hi = Math.max(...ys); let d = '';
+  for (let y = lo + gap / 2; y < hi; y += gap) {
+    const xs = [];
+    for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length]; if ((a[1] <= y) !== (b[1] <= y)) xs.push(a[0] + (y - a[1]) / (b[1] - a[1]) * (b[0] - a[0])); }
+    xs.sort((m, n) => m - n);
+    for (let k = 0; k + 1 < xs.length; k += 2) { const a = xs[k] + 3, b = xs[k + 1] - 3; if (b - a > 5) d += `M${(a * c - y * s).toFixed(1)} ${(a * s + y * c).toFixed(1)}L${(b * c - y * s).toFixed(1)} ${(b * s + y * c).toFixed(1)}`; }
+  }
+  return d ? `<path d="${d}" stroke-width="${(_cw * 0.62).toFixed(2)}"/>` : '';
+};
+const _bump = (cx, cy, rx, ry, n, o = 1.28) => { let d = ''; for (let i = 0; i < n; i++) { const a = i * 2 * Math.PI / n, b = (i + 1) * 2 * Math.PI / n, m = (a + b) / 2; d += (i ? '' : `M${(cx + Math.cos(a) * rx).toFixed(1)} ${(cy + Math.sin(a) * ry).toFixed(1)}`) + `Q${(cx + Math.cos(m) * rx * o).toFixed(1)} ${(cy + Math.sin(m) * ry * o).toFixed(1)} ${(cx + Math.cos(b) * rx).toFixed(1)} ${(cy + Math.sin(b) * ry).toFixed(1)}`; } return d + 'Z'; };
+const _burst = (n, ro, ri, sx = 1, sy = 1) => { let d = ''; for (let i = 0; i < n * 2; i++) { const a = i * Math.PI / n + .2, r = (i % 2 ? ri : ro) * (1 + _rn() * .45); d += (i ? 'L' : 'M') + (Math.cos(a) * r * sx).toFixed(1) + ' ' + (Math.sin(a) * r * sy).toFixed(1); } return d + 'Z'; };
+const _tuft = (x, s = 1) => _L(`M${x} 0 L${x - 7 * s} ${-14 * s} M${x + 8 * s} 0 L${x + 8 * s} ${-19 * s} M${x + 16 * s} 0 L${x + 24 * s} ${-12 * s}`);
+
+// Đồ vật vẽ lại kiểu doodle (có gạch bóng, nét đôi) + hiệu ứng truyện tranh mới
+Object.assign(PROPS, {
+  house: { k: 2.6, g: () => _P('M46 -150 L46 -196 L76 -196 L76 -134 Z') + _L('M40 -196 L82 -196 M60 -210 Q44 -224 62 -236 Q80 -248 62 -262') +
+    _P('M-88 0 L-90 -108 L90 -110 L88 0 Z') + _hat([[66, -106], [88, -106], [86, -4], [66, -4]], 12) +
+    _P('M-114 -104 L0 -196 L114 -106 Z') + _hat([[4, -186], [104, -110], [4, -110]], 12) + _L('M-62 -140 L-42 -126 M-32 -166 L-14 -152 M-78 -118 L-62 -108') +
+    _P('M40 -92 L84 -92 L84 -48 L40 -48 Z') + _L('M62 -92 L62 -48 M40 -70 L84 -70 M36 -45 L88 -45') +
+    _P('M-84 -92 L-40 -92 L-40 -48 L-84 -48 Z') + _L('M-62 -92 L-62 -48 M-84 -70 L-40 -70 M-88 -45 L-36 -45') +
+    _P('M-22 0 L-22 -60 Q0 -84 22 -60 L22 0 Z') + _hat([[-18, -6], [-3, -6], [-3, -70], [-18, -58]], 11) + _D(12, -30, 3.5) + _tuft(-128, 1) + _tuft(108, 1) },
+  hut: { k: 2.6, g: () => _P('M-70 0 L-70 -62 L70 -62 L70 0 Z') + _hat([[46, -58], [68, -58], [68, -4], [46, -4]], 12) +
+    _P('M-110 -58 L0 -184 L110 -58 Q0 -76 -110 -58 Z') + _hat([[4, -174], [96, -64], [4, -70]], 11) + _L('M-72 -90 L-54 -78 M-38 -124 L-20 -110 M-6 -150 L10 -136 M-48 -66 L-34 -62 M56 -78 L68 -68') +
+    _P('M-22 0 L-22 -42 Q0 -62 22 -42 L22 0 Z') + _D(12, -22, 3) + _tuft(-96, 1) + _tuft(84, 1) },
+  building: { k: 2.1, g: () => { let s = _P('M-62 0 L-62 -262 L34 -266 L34 0 Z') + _P('M34 -266 L74 -246 L74 0 L34 0 Z') + _hat([[38, -252], [70, -238], [70, -6], [38, -6]], 11);
+    for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) s += _P(`M${-50 + c * 28} ${-240 + r * 44} L${-30 + c * 28} ${-240 + r * 44} L${-30 + c * 28} ${-214 + r * 44} L${-50 + c * 28} ${-214 + r * 44} Z`);
+    return s + _P('M-14 0 L-14 -34 L10 -34 L10 0 Z') + _L('M-14 -266 L-14 -314') + _C(-14, -322, 6); } },
+  tree: { k: 2.1, g: () => _P('M-20 0 Q-12 -40 -14 -92 L16 -92 Q12 -40 22 0 Z') + _hat([[2, -88], [13, -88], [14, -40], [12, -6], [2, -6]], 9) + _L('M-20 0 Q-34 6 -46 2 M22 0 Q36 6 48 2') +
+    _P(_bump(0, -158, 84, 66, 9, 1.22)) + _L('M-56 -176 Q-48 -196 -28 -192 M26 -204 Q46 -204 54 -184 M-54 -128 Q-44 -112 -26 -120 M34 -122 Q48 -124 56 -140 M0 -92 L-16 -118 M0 -92 L12 -112') },
+  rock: { k: 2.0, g: () => _P('M-88 0 L-82 -16 L-64 -24 L-46 0 Z') + _P('M-58 0 L-52 -34 L-24 -56 L16 -62 L48 -40 L60 0 Z') + _L('M-24 -56 L-10 -28 L8 -4 M-10 -28 L-52 -34 M-10 -28 L40 -32') + _hat([[-6, -26], [40, -32], [56, -4], [8, -4]], 9) + _P('M52 0 L60 -16 L82 -18 L92 0 Z') + _tuft(-112, .8) + _tuft(100, .8) },
+  fence: { k: 2.0, g: () => { let s = _P('M-124 -64 L124 -68 L124 -48 L-124 -44 Z') + _P('M-124 -30 L124 -34 L124 -14 L-124 -10 Z');
+    [-78, -26, 26, 78].forEach((x, i) => { const h = 84 + i % 2 * 6; s += _P(`M${x - 15} 0 L${x - 15} ${-h + 16} L${x} ${-h} L${x + 15} ${-h + 16} L${x + 15} 0 Z`) + _hat([[x + 3, -h + 22], [x + 13, -h + 22], [x + 13, -6], [x + 3, -6]], 15) + _D(x - 4, -h + 32, 3); });
+    return s + _tuft(-152, .8) + _tuft(132, .8); } },
+  sign: { k: 2.0, g: () => _P('M-10 0 L-10 -150 L10 -150 L10 0 Z') + _L('M2 -30 L2 -100') + _P('M-62 -176 L58 -184 L66 -130 L-56 -122 Z') + _D(-48, -160, 3.5) + _D(52, -168, 3.5) + _L('M-38 -150 L28 -156 M-30 -138 L10 -142') + _tuft(-34, .9) + _tuft(14, .9) },
+  crown: { k: 1.6, g: () => _Pc('M-46 0 L-58 -64 L-26 -36 L0 -82 L26 -36 L58 -64 L46 0 Z', COL.yellow) + _L('M-48 -12 L48 -12') + _C(-58, -72, 8) + _C(0, -90, 8) + _C(58, -72, 8) + _D(-24, -6, 3) + _D(0, -6, 3) + _D(24, -6, 3) },
+  heart: { k: 1.5, f: 1, g: () => _Pc('M0 30 C-66 -14 -34 -62 0 -28 C34 -62 66 -14 0 30 Z', COL.red) + _hat([[-30, -30], [-20, -38], [-8, -24], [-14, -2], [-26, -8]], 9) + _L('M56 -44 L70 -54 M64 -28 L80 -30 M48 -58 L54 -74') },
+  bulb: { k: 1.8, g: () => _Pc('M-24 -50 C-60 -80 -44 -134 0 -136 C44 -134 60 -80 24 -50 Z', COL.yellow) + _P('M-24 -50 L24 -50 L22 -34 L-22 -34 Z') + _P('M-20 -34 L20 -34 L18 -18 L-18 -18 Z') + _P('M-12 -18 L12 -18 L8 -4 L-8 -4 Z') +
+    _L('M-10 -50 L-10 -84 M-10 -84 Q-4 -94 0 -84 Q4 -74 10 -84 L10 -50 M-34 -98 Q-34 -112 -20 -122') + _L('M0 -158 L0 -176 M-58 -138 L-74 -152 M58 -138 L74 -152 M-74 -98 L-94 -102 M74 -98 L94 -102') },
+  speech: { k: 1.7, f: 1, g: () => _P('M0 -84 C64 -84 116 -52 116 -4 C116 42 64 70 4 70 C-12 70 -28 67 -42 62 L-96 98 L-78 48 C-106 34 -116 14 -116 -4 C-116 -52 -64 -84 0 -84 Z') + _L('M-86 -52 Q-98 -38 -100 -22 M30 -62 Q64 -54 78 -30') },
+  thought: { k: 1.7, f: 1, g: () => _P(_bump(0, -10, 104, 60, 8, 1.2)) + _C(70, 82, 16) + _C(98, 108, 10) + _C(114, 126, 6) },
+  burst: { k: 1.7, f: 1, g: () => _P(_burst(13, 118, 70, 1.25, .85)) + _L('M-176 -70 L-154 -60 M-182 -22 L-158 -20 M178 -80 L156 -66 M184 -26 L160 -24') },
+  exclaim: { k: 2.0, f: 1, g: () => { let s = ''; [[-56, -5], [0, 0], [56, 5]].forEach(([x, r]) => { s += `<g transform="translate(${x} 30) rotate(${r})">` + _P('M-17 -84 L17 -84 L10 -10 L-10 -10 Z') + _hat([[-11, -78], [11, -78], [6, -16], [-6, -16]], 9) + _C(0, 18, 12) + '</g>'; }); return s; } },
+  question: { k: 2.0, f: 1, g: () => _P('M-34 -98 C-34 -148 40 -150 40 -104 C40 -76 12 -70 10 -44 L-16 -44 C-16 -78 16 -84 16 -102 C16 -122 -10 -122 -10 -98 Z') + _hat([[-11, -48], [6, -48], [8, -62], [-8, -68]], 9) + _C(-3, -18, 13) },
+  speed: { k: 1.8, f: 1, g: () => _L('M-130 -40 L50 -46 M-150 -12 L70 -12 M-120 18 L40 24 M-90 46 L10 48') },
+  emph: { k: 1.6, f: 1, g: () => { let s = ''; for (let i = 0; i < 5; i++) { const a = (-150 + i * 30) * Math.PI / 180, r0 = 46 + (i % 2) * 14, r1 = 108 + (i === 2 ? 28 : 0) - (i % 2) * 8, p = (r, da) => `${(Math.cos(a + da) * r).toFixed(1)} ${(Math.sin(a + da) * r).toFixed(1)}`; s += _P(`M${p(r0, -.02)}L${p(r1, -.08)}L${p(r1, .08)}L${p(r0, .02)}Z`); } return s; } },
+  anger: { k: 1.9, f: 1, g: () => _L('M-14 -52 Q-14 -18 -50 -14 M14 -52 Q14 -18 50 -14 M-14 52 Q-14 18 -50 14 M14 52 Q14 18 50 14') },
+  twinkle: { k: 1.4, f: 1, g: () => { const st = (cx, cy, r) => _P(`M${cx} ${cy - r}Q${cx + r * .14} ${cy - r * .14} ${cx + r} ${cy}Q${cx + r * .14} ${cy + r * .14} ${cx} ${cy + r}Q${cx - r * .14} ${cy + r * .14} ${cx - r} ${cy}Q${cx - r * .14} ${cy - r * .14} ${cx} ${cy - r}Z`); return st(-50, -20, 24) + st(10, -50, 32) + st(34, 10, 28); } },
+  scribble: { k: 1.6, f: 1, g: () => { let d = ''; for (let i = 0; i < 70; i++) { const a = i * .57, r = 34 + 26 * Math.abs(Math.sin(i * .31)) + _rn() * 22; d += (i ? 'L' : 'M') + (Math.cos(a) * r * 1.1 + _rn() * 10).toFixed(1) + ' ' + (Math.sin(a) * r * .95 + _rn() * 10).toFixed(1); } return `<path d="${d}"/>`; } },
+  tornado: { k: 2.0, g: () => { let s = ''; for (let i = 0; i < 6; i++) { const y = -150 + i * 26, rx = 78 - i * 11; s += _L(`M${-rx} ${y} Q0 ${y + 14} ${rx} ${y} Q0 ${y - 10} ${-rx} ${y}`); } return s + _L('M-8 -6 Q14 -16 4 -34 Q-10 -46 6 -50'); } },
+  hourglass: { k: 1.8, g: () => _P('M-50 -158 L50 -158 L50 -142 L-50 -142 Z') + _P('M-50 -16 L50 -16 L50 0 L-50 0 Z') + _L('M-40 -142 L-40 -16 M40 -142 L40 -16') +
+    _P('M-32 -142 C-32 -100 -6 -88 -4 -79 L-4 -77 C-6 -68 -32 -56 -32 -16 L32 -16 C32 -56 6 -68 4 -77 L4 -79 C6 -88 32 -100 32 -142 Z') + _hat([[-24, -20], [24, -20], [8, -42], [-8, -42]], 8) + _hat([[-20, -136], [20, -136], [6, -108], [-6, -108]], 8) + _L('M0 -76 L0 -46') },
+  bomb: { k: 1.8, g: () => '<circle cx="0" cy="-50" r="48" fill="#111111" data-keep="1"/><path d="M-30 -70 Q-34 -52 -22 -38 M-24 -84 L-14 -76" stroke="#ffffff"/>' + _P('M-14 -96 L-10 -108 L12 -108 L16 -96 Z') + _L('M2 -108 Q4 -126 24 -128') + _Pc('M30 -150 L33 -137 L46 -142 L37 -131 L50 -124 L35 -124 L32 -112 L27 -124 L14 -120 L24 -131 L12 -142 L27 -139 Z', COL.yellow) },
+  grass: { k: 2.2, g: () => _L('M-50 0 Q-46 -26 -62 -50 M-30 0 Q-28 -34 -34 -68 M-8 0 Q-4 -40 10 -72 M12 0 Q14 -30 34 -52 M30 0 Q30 -18 54 -30') },
+  arrow: { k: 1.8, f: 1, g: () => _P('M-120 -14 L30 -22 L26 -52 L112 6 L24 62 L30 30 L-118 36 Z') + _L('M-118 36 L-120 48 L28 42 L24 62') },
+  board: { k: 1.8, f: 1, g: () => _P('M-132 -80 L130 -84 L128 80 L-134 82 Z') + _L('M-118 -66 L116 -70 L114 66 L-120 68 Z') },
+  torn_paper: { k: 1.8, f: 1, g: () => _P('M-112 -80 L-62 -86 L-14 -78 L40 -88 L104 -82 L108 -40 L98 -2 L110 42 L102 86 L40 78 L-18 88 L-72 80 L-114 86 L-104 30 L-114 -20 Z') + _L('M-90 -50 L-30 -56 M-88 -20 L40 -26') }
+});
+
 const propAliases = { cottage: 'hut', skyscraper: 'building', market: 'shop', store: 'shop', castle: 'tower', temple: 'pagoda', stone: 'rock', boulder: 'rock', trees: 'tree', sea: 'waves', river: 'waves', water: 'waves', wave: 'waves', flame: 'fire', bonfire: 'fire', desk: 'table', sack: 'bag', moneybag: 'bag', money_bag: 'bag', lantern: 'lamp', sofa: 'bed', puppy: 'dog', kitten: 'cat', lamppost: 'streetlight', streetlamp: 'streetlight', signpost: 'sign', broken_house: 'ruins', rubble: 'ruins', camp: 'tent', clouds: 'cloud', stars: 'star', birds: 'bird', phone_: 'phone', smartphone: 'phone', gold: 'coin', coins: 'coin', money: 'cash', cash_stack: 'cash', money_stack: 'cash', stack: 'cash', bundle: 'cash', banknotes: 'cash', bills: 'cash', bill: 'banknote', dollar: 'banknote', note: 'banknote', treasure: 'chest', envelope: 'letter', mail: 'letter', document: 'paper', contract: 'paper', form: 'paper', present: 'gift', fruit: 'apple', loaf: 'bread', food: 'bread', watch: 'clock', pail: 'bucket', laptop: 'computer', pc: 'computer', tv: 'computer', screen: 'computer', monitor: 'computer', bike: 'bicycle', airplane: 'plane', aeroplane: 'plane', jet: 'plane', gem: 'diamond', jewel: 'diamond', clinic: 'hospital', ox: 'buffalo', cow: 'buffalo', cattle: 'buffalo', cooking_pot: 'pot', cauldron: 'pot', rose: 'flower', award: 'trophy', trophies: 'trophy', coins_stack: 'coin', cup_search: 'magnifier', glass: 'magnifier', schoolhouse: 'school', van: 'bus', truck: 'bus', ship: 'boat', sailboat: 'boat', lock: 'key', bloodstain: 'blood', blood_pool: 'blood', blood_stain: 'blood', wound: 'blood', injury: 'blood', burning: 'flames', blaze: 'flames', inferno: 'flames', big_fire: 'fire_big', house_fire: 'fire_big', light_beam: 'beam', spotlight: 'beam', sunbeam: 'beam', light: 'beam', ray: 'beam', idea: 'bulb', lightbulb: 'bulb', sparkle: 'spark', sparkles: 'spark', twinkle: 'spark', shine: 'spark', glitter: 'spark', glow: 'spark', bolt: 'lightning', thunder: 'lightning', blast: 'explosion', boom: 'explosion', bomb_blast: 'explosion', tear: 'drop', teardrop: 'drop', waterdrop: 'drop', sweat: 'drop' };
+Object.assign(propAliases, { bubble: 'speech', chat: 'speech', talk: 'speech', say: 'speech', think: 'thought', idea_cloud: 'thought', bang: 'burst', shout: 'burst', pow: 'burst', crash: 'burst', exclamation: 'exclaim', shock: 'exclaim', surprise: 'exclaim', confused: 'question', doubt: 'question', mess: 'scribble', chaos: 'scribble', whirlwind: 'tornado', stars4: 'twinkle', shiny: 'twinkle', angry: 'anger', rage: 'anger', time: 'hourglass', waiting: 'hourglass', deadline: 'hourglass', explosive: 'bomb', speedlines: 'speed', fast: 'speed', rush: 'speed', emphasis: 'emph', wow: 'emph', arrow_right: 'arrow', next: 'arrow', tuft: 'grass', note: 'torn_paper', scroll: 'torn_paper', frame: 'board', billboard: 'board' });
 Object.assign(propAliases, { lectern: 'podium', stage: 'podium', rostrum: 'podium', pulpit: 'podium', video_camera: 'camera', movie_camera: 'camera', film_camera: 'camera', tripod: 'camera', filming: 'camera', microphone: 'mic', loudspeaker: 'megaphone', speaker: 'megaphone', hammer: 'gavel', judge_hammer: 'gavel', court: 'scales', law: 'scales', justice: 'scales', golf_club: 'golf', golf_course: 'golf', golf_ball: 'golf', hotel: 'building', casino: 'building', resort: 'building', office: 'building', apartment: 'building', condo: 'building', tower_building: 'building', suitcase: 'briefcase', case: 'briefcase', business: 'briefcase', ballot_box: 'ballot', vote: 'ballot', voting: 'ballot', election: 'ballot', missile: 'rocket', spaceship: 'rocket', launch: 'rocket', chair_royal: 'throne', seat_of_power: 'throne', president_chair: 'throne' });
 Object.entries({ eiffel: [374, 160], liberty: [330, 100], bigben: [410, 80], pyramid: [130, 320], colosseum: [120, 240], pisa: [226, 90], fuji: [150, 300], whitehouse: [196, 220], khue: [222, 152], motcot: [176, 152], greatwall: [170, 320] }).forEach(([k, v]) => { if (PROPS[k]) { PROPS[k].h = v[0]; PROPS[k].w = v[1]; } });
 Object.assign(propAliases, { crash: 'chart_down', decline: 'chart_down', loss: 'chart_down', recession: 'chart_down', stock_down: 'chart_down', falling_chart: 'chart_down', down_chart: 'chart_down', growth: 'chart_up', profit: 'chart_up', rise: 'chart_up', stock_up: 'chart_up', up_chart: 'chart_up', graph: 'chart_up', chart: 'chart_up', down: 'arrow_down', decrease: 'arrow_down', up: 'arrow_up', increase: 'arrow_up', discount: 'percent', percentage: 'percent', sale: 'percent', alert: 'warning', danger: 'warning', caution: 'warning', risk: 'warning', purse: 'wallet', news: 'newspaper', headline: 'newspaper', press: 'newspaper', magazine: 'newspaper' });
@@ -1058,8 +1194,8 @@ function propSvg(a, sw) {
     const hw = d.w / 2 * sc + 20; x = Math.max(hw, Math.min(fm.vw - hw, x)); y = Math.min(y, 840);
     _tags.push({ x, y, n: d.n });
   }
-  const w = (sw / sc).toFixed(2);
-  return `<g transform="translate(${x.toFixed(0)} ${y.toFixed(0)}) scale(${(flip * sc).toFixed(3)} ${sc.toFixed(3)})" stroke="#111111" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none">${d.g()}</g>`;
+  const w = (sw / sc).toFixed(2); _cw = +w; _dS = (Math.abs(Math.round(x * 7 + y * 13)) % 2000) + 7;
+  return `<g transform="translate(${x.toFixed(0)} ${y.toFixed(0)}) scale(${(flip * sc).toFixed(3)} ${sc.toFixed(3)})" stroke="#111111" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none">${_sketch(d.g())}</g>`;
 }
 function groundSvg(a, sw) {
   const y = isFinite(+a.y) ? +a.y : 800, x0 = 30, x1 = fm.vw - 30, kind = String(a.kind || 'grass').toLowerCase();
@@ -1116,7 +1252,7 @@ PROPS (ready-made, drawn cleanly in the same style as the people; use self-closi
   Ground props (x,y = bottom center, standing on the ground line): __GROUNDPROPS__.
   Floating props (x,y = CENTER, place in the sky or upper area): __FLOATPROPS__.
   Optional ground: <ground y="800" kind="grass"/> (kind: grass, plain, road, sea).
-  size 1 = natural size next to a MAIN person of size 1.3 (a house is about 1.2 times that person's height; mountains and hills size 1 to 1.6; sun, moon, clouds 0.8 to 1.2). Small items look best at size 1.5 to 3.5 when they are the subject. facing="left" mirrors the prop. cash = a bundle of banknotes (use it for money, salary, savings, a payment, a bribe); banknote = one note; bag = money sack; coin = a coin or gold; chest = treasure.
+  size 1 = natural size next to a MAIN person of size 1.3 (a house is about 1.2 times that person's height; mountains and hills size 1 to 1.6; sun, moon, clouds 0.8 to 1.2). Small items look best at size 1.5 to 3.5 when they are the subject. facing="left" mirrors the prop. cash = a bundle of banknotes (use it for money, salary, savings, a payment, a bribe); banknote = one note; bag = money sack; coin = a coin or gold; chest = treasure. COMIC EFFECTS (hand-drawn doodle style, floating props, use them sparingly to punch up a key moment next to a person): burst = shout / shock / impact star-burst; exclaim = surprise or alarm (!!!); question = confusion or doubt; speed = fast movement lines; emph = emphasis dashes around a key object; anger = anger mark; twinkle = shiny or clean; scribble = confusion, chaos, a mess; tornado = chaos or a storm; hourglass = time, deadline, waiting; bomb = danger or a ticking problem; arrow = next step or direction; board = a framed board or note; torn_paper = an old note or document; grass = a grass tuft.
   Layer order (back to front): sky props, mountain/hill, ground, far buildings and trees, near objects, and the <person> tags LAST. Overlap and group objects a little so the frame looks full without clutter.
 - If something the narration needs is NOT in the lists, draw it yourself inside the SVG with up to 6 simple, round, clean shapes (fill white), big enough to recognize. Never leave it out.
 - NEVER fill big areas with black (no black sky, no black ground, no black rectangles, no dark silhouettes). Backgrounds stay EMPTY WHITE: do not draw a background rectangle at all. Every shape MUST have an explicit fill="#ffffff" or fill="none" attribute (a shape without fill turns solid black). Night = moon + stars only if the narration says night.
@@ -1586,13 +1722,14 @@ async function svgImage(s, blackInkOnly = false) {
   parts.push({ text: `${rule}\n${sceneCtx(s)}` });
   const d = await gemMulti(TXT_MODELS, { contents: [{ parts }] }, 75000);
   const t = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('');
-  _tags.length = 0; _ppl.length = 0;
+  _tags.length = 0; _ppl.length = 0; _spr.length = 0;
   const svg = addTags(addDateLabels(sanitizeSvg(macro ? expandPeople(expandProps(t, st.sw), st.sw) : t, curStyle().wob, st.sw), dl));
   { const d2 = new DOMParser().parseFromString(svg, 'image/svg+xml'); // kiểm tra chất lượng: SVG hợp lệ và không trống (lỗi thì vòng thử lại 3 lần có sẵn sẽ vẽ lại)
     if (d2.querySelector('parsererror')) throw new Error('SVG lỗi cú pháp');
     if (d2.querySelectorAll('path,rect,circle,ellipse,line,polygon,polyline').length < 2) throw new Error('Tranh trống'); }
   const full = await inkify({ mimeType: 'image/svg+xml', data: btoa(unescape(encodeURIComponent(svg))) });
-  const wantAnim = $('vmode') && $('vmode').value === 'anim';
+  const usedSprite = addSprites(full);
+  const wantAnim = $('vmode') && $('vmode').value === 'anim' && !usedSprite;
   if (!wantAnim) return Object.assign(full, { anim: false, bg: null, people: null });
   let layers = { bg: null, people: null };
   try { layers = await animLayers(svg, _ppl.slice()); } catch (e) { log('  ℹ Không tách được lớp nhân vật, cảnh này chỉ zoom/lia: ' + e.message); }
@@ -1821,7 +1958,7 @@ function isLimitImg(im) {
       cnt[k] = (cnt[k] || 0) + 1;
     }
     const v = Object.values(cnt).sort((a, b) => b - a);
-    return v.length <= 8 && v[0] / 1024 > 0.7;
+    return v[0] / 1024 > 0.6 && v.length <= 40; // 1 màu chiếm hơn 60% ảnh + ít màu = ảnh nền trơn báo lỗi (chữ có viền mờ nên cho phép tới 40 màu)
   } catch (e) { return false; }
 }
 // Vẽ bằng Gemini Image có GỬI KÈM ảnh mẫu của bạn -> nhân vật giống ảnh mẫu và giống nhau giữa các cảnh (cần key đã bật thanh toán)
@@ -1881,8 +2018,8 @@ async function genAiColor(prompt, seed) {
       if (abortGen) throw e;
       lastErr = e.message;
       const limited = /hết lượt/.test(lastErr);
-      if (limited && typeof log === 'function') log(`  ⏳ Pollinations hết lượt miễn phí, chờ ${20 + t * 20}s rồi thử lại...`);
-      await new Promise(r => setTimeout(r, limited ? (20 + t * 20) * 1000 : 1500 + t * 1500));
+      if (limited && typeof log === 'function') log('  ⏳ Pollinations chỉ cho 1 ảnh mỗi 45 giây, chờ 47s rồi vẽ lại cảnh này...');
+      await new Promise(r => setTimeout(r, limited ? 47000 : 1500 + t * 1500));
     }
   }
   throw new Error(lastErr || 'Không tạo được ảnh AI');
@@ -1892,7 +2029,7 @@ async function aiColorImage(s, sceneNo) {
   let done; aiImgQueue = new Promise(r => { done = r; });
   await prev;
   try {
-    await new Promise(r => setTimeout(r, $('hftok').value.trim() ? 700 : 6000));
+    await new Promise(r => setTimeout(r, $('hftok').value.trim() ? 700 : (gemImgDeadInSession || !keys.length ? 46000 : 700)));
     const im = await genAiColor(ai3dPrompt(s), aiSeed);
     const c = document.createElement('canvas'); c.width = W; c.height = H;
     const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, W, H);
@@ -2763,6 +2900,91 @@ const idb = {
   async get(k) { try { const d = await this.open(); return await new Promise((ok, no) => { const q = d.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => ok(q.result); q.onerror = () => no(q.error); }); } catch (e) { return null; } },
   async del(k) { try { const d = await this.open(); await new Promise(ok => { const t = d.transaction('kv', 'readwrite'); t.objectStore('kv').delete(k); t.oncomplete = ok; t.onerror = ok; }); } catch (e) {} }
 };
+
+// ===== NHÂN VẬT CHÍNH TỪ ẢNH CỦA BẠN (thay người que MAIN, không cần dịch vụ ảnh nào) =====
+let spriteImg = null; const _spr = [];
+function cutBackground(c) {
+  const w = c.width, h = c.height, x = c.getContext('2d', { willReadFrequently: true }), d = x.getImageData(0, 0, w, h), p = d.data;
+  let tr = 0, bt = 0;
+  for (let i = 0; i < w; i++) for (const j of [0, h - 1]) { bt++; if (p[(j * w + i) * 4 + 3] < 20) tr++; }
+  for (let j = 0; j < h; j++) for (const i of [0, w - 1]) { bt++; if (p[(j * w + i) * 4 + 3] < 20) tr++; }
+  if (tr > bt * 0.5) return; // ảnh đã có nền trong suốt
+  const med = ch => { const a = []; const add = (i, j) => a.push(p[(j * w + i) * 4 + ch]); for (let i = 0; i < w; i += 3) { add(i, 0); add(i, h - 1); } for (let j = 0; j < h; j += 3) { add(0, j); add(w - 1, j); } a.sort((m, n) => m - n); return a[a.length >> 1]; };
+  const br = med(0), bg = med(1), bb = med(2), TOL = 62;
+  const dist = k => Math.hypot(p[k * 4] - br, p[k * 4 + 1] - bg, p[k * 4 + 2] - bb);
+  const seen = new Uint8Array(w * h), q = [];
+  const push = (i, j) => { const k = j * w + i; if (!seen[k] && dist(k) < TOL) { seen[k] = 1; q.push(k); } };
+  for (let i = 0; i < w; i++) { push(i, 0); push(i, h - 1); }
+  for (let j = 0; j < h; j++) { push(0, j); push(w - 1, j); }
+  while (q.length) {
+    const k = q.pop(), i = k % w, j = (k / w) | 0;
+    if (i > 0) push(i - 1, j); if (i < w - 1) push(i + 1, j); if (j > 0) push(i, j - 1); if (j < h - 1) push(i, j + 1);
+  }
+  for (let k = 0; k < w * h; k++) if (seen[k]) p[k * 4 + 3] = 0;
+  for (let j = 1; j < h - 1; j++) for (let i = 1; i < w - 1; i++) { // làm mềm viền
+    const k = j * w + i; if (seen[k]) continue;
+    if (seen[k - 1] || seen[k + 1] || seen[k - w] || seen[k + w]) { const dd = dist(k); if (dd < TOL * 1.6) p[k * 4 + 3] = Math.round(255 * (dd - TOL) / (TOL * 0.6)); }
+  }
+  x.putImageData(d, 0, 0);
+}
+function trimCanvas(c) {
+  const w = c.width, h = c.height, p = c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, w, h).data;
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (p[(y * w + x) * 4 + 3] > 24) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  if (x1 < 0) return c;
+  const o = document.createElement('canvas'); o.width = x1 - x0 + 1; o.height = y1 - y0 + 1;
+  o.getContext('2d').drawImage(c, x0, y0, o.width, o.height, 0, 0, o.width, o.height);
+  return o;
+}
+function spriteShow() {
+  const c = $('spritePrev'); if (!c || !spriteImg) return;
+  c.hidden = false; c.width = spriteImg.width; c.height = spriteImg.height; c.getContext('2d').drawImage(spriteImg, 0, 0);
+  $('spriteStat').textContent = '✅ Đang dùng nhân vật của bạn làm nhân vật chính ở mọi cảnh. Nếu nền chưa sạch, thử ảnh có nền trơn hơn.';
+}
+async function spriteLoad(src) { spriteImg = await loadImg(src); spriteShow(); }
+function spriteUpload(inp) {
+  const f = inp.files && inp.files[0]; if (!f) return;
+  const fr = new FileReader();
+  fr.onload = async () => {
+    try {
+      const im = await loadImg(fr.result), k = Math.min(1, 520 / Math.max(im.width, im.height));
+      let c = document.createElement('canvas'); c.width = Math.max(8, Math.round(im.width * k)); c.height = Math.max(8, Math.round(im.height * k));
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+      cutBackground(c); c = trimCanvas(c);
+      const url = c.toDataURL('image/png');
+      await spriteLoad(url); idb.set('sprite', url);
+      try { localStorage.setItem('sprite_v1', url); } catch (e) {}
+    } catch (e) { $('spriteStat').textContent = '❌ Không đọc được ảnh: ' + e.message; }
+  };
+  fr.readAsDataURL(f);
+}
+function spriteReset() { spriteImg = null; idb.del('sprite'); try { localStorage.removeItem('sprite_v1'); } catch (e) {} $('spritePrev').hidden = true; $('spriteStat').textContent = 'Chưa có: đang dùng người que có sẵn.'; $('spriteFile').value = ''; }
+setTimeout(async () => { try { const u = (await idb.get('sprite')) || localStorage.getItem('sprite_v1'); if (u) await spriteLoad(u); } catch (e) {} }, 0);
+// Vẽ nhân vật ảnh lên tranh đã tách nét, rồi thêm các ô của nó vào thứ tự để bàn tay vẽ ra
+function addSprites(full) {
+  if (!spriteImg || !_spr.length) return false;
+  const x = full.cv.getContext('2d', { willReadFrequently: true });
+  const sc = Math.min((W - 40) / fm.vw, fm.ah / 900), ox = (W - fm.vw * sc) / 2, oy = 10 + (fm.ah - 900 * sc) / 2;
+  const have = new Set(full.ord.map(o => o[0] + ',' + o[1])), add = [];
+  for (const q of _spr) {
+    const hh = 370 * q.size * sc, ww = hh * spriteImg.width / spriteImg.height, cx = ox + q.x * sc, by = oy + q.y * sc;
+    x.save(); x.translate(cx, by); if (q.flip < 0) x.scale(-1, 1);
+    x.shadowColor = 'rgba(0,0,0,.18)'; x.shadowBlur = 6; x.shadowOffsetY = 3;
+    x.drawImage(spriteImg, -ww / 2, -hh, ww, hh); x.restore();
+    const x0 = Math.max(0, Math.floor((cx - ww / 2 - 6) / C) * C), x1 = Math.min(W, cx + ww / 2 + 6), y0 = Math.max(0, Math.floor((by - hh - 6) / C) * C), y1 = Math.min(H, by + 10);
+    const p = x.getImageData(0, 0, W, H).data; let row = 0;
+    for (let cy = y0; cy < y1; cy += C, row++) {
+      const cols = []; for (let c2 = x0; c2 < x1; c2 += C) cols.push(c2);
+      if (row % 2) cols.reverse();
+      for (const c2 of cols) {
+        let n = 0; for (let y = cy; y < Math.min(H, cy + C); y += 2) for (let xx = c2; xx < Math.min(W, c2 + C); xx += 2) if (p[(y * W + xx) * 4 + 3] > 100) n++;
+        const key = c2 + ',' + cy; if (n > 1 && !have.has(key)) { have.add(key); add.push([c2, cy]); }
+      }
+    }
+  }
+  full.ord.push(...add); return true;
+}
+
 let handImg = null, handPts = null, handStep = 0;
 function handShow() {
   const c = $('handPrev'); if (!c || !handImg) return;

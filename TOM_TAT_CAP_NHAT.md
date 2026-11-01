@@ -252,3 +252,16 @@ Tháp Eiffel vẽ lại (thân cong lõm, vòm chân, 3 tầng, ăng-ten). `PROP
 ## Cập nhật: chỉ còn phong cách "Theo ảnh mẫu"
 - `#style` chỉ còn lựa chọn `ref` (ẩn, bị ép về `ref` mỗi lần mở trang); các kiểu stick/doodle/marker/pencil/manga/brush/minimal/kids bị gỡ khỏi giao diện.
 - Khi chọn `ai3d`, ô ảnh mẫu SVG (`#refBox`) và gợi ý phong cách (`#styleHint`) được ẩn; chỉ hiện khung ảnh mẫu của ảnh AI (`#aiRefBox`).
+
+## Cập nhật: nét doodle vẽ tay cho đồ vật (theo ảnh mẫu truyện tranh)
+- Khối code mới nằm ngay SAU `const PROPS = {...}` và TRƯỚC `const propAliases` (grep `NÉT DOODLE VẼ TAY`): `_sketch(svgStr)` biến mọi `<path>/<rect>/<circle>` của đồ vật thành nét rung mượt + viền đôi (nét bút vẽ lại), `_hat(poly, gap, ang)` vẽ gạch bóng song song cắt gọn trong đa giác, `_bump` (đường viền mây/tán cây), `_burst` (hình nổ gai), `_tuft` (cụm cỏ).
+- `propSvg` và đồ vật cầm tay (`hold=`) đều bọc `d.g()` bằng `_sketch(...)`; `_dS` (hạt giống rung) tính theo vị trí x,y nên cùng một đồ vật ở hai chỗ có nét hơi khác nhau; `_cw` = độ dày nét hiện tại (dùng cho gạch bóng).
+- Vẽ lại bằng `Object.assign(PROPS, {...})`: house, hut, building, tree, rock, fence, sign, crown, heart, bulb, speech, thought. Thêm mới: burst, exclaim, question, speed, emph, anger, twinkle, scribble, tornado, hourglass, bomb, grass, arrow, board, torn_paper (đồ vật nổi có `f:1` tự xuất hiện trong danh sách gửi AI qua `__GROUNDPROPS__`/`__FLOATPROPS__`). Alias mới (bubble, shout, shock, time, ...) nằm ngay sau dòng `const propAliases`. Câu mô tả nghĩa các hiệu ứng nằm trong `SVGR_SCENE`, ngay sau "chest = treasure."
+- Lưu ý: `_strokes` chỉ đọc path tuyệt đối (M L H V Q C Z); đồ vật nào dùng lệnh khác (chữ thường, A, S, T) thì giữ nguyên, không rung. Muốn nét bớt rung: giảm hệ số `0.014` và `Math.min(2.0, ...)` trong `_sketch`.
+
+## Cập nhật: người vẽ dày nét (không còn người que)
+- Chỉ sửa `figureSvg` (grep `Tay chân dạng ống dày`). Đầu, mặt, mũ, nghề, họa tiết áo và điểm gắn vai (±37,-192) / hông (±22,-108) / miệng / mắt GIỮ NGUYÊN để hoạt ảnh (`animLayers`, `ANIM_PARTS`) không lệch.
+- Tay và chân giờ là đa giác bao quanh đường cong (`qp` lấy mẫu đường cong, `tube` tạo ống dày, thon dần về cổ tay/cổ chân), có bàn tay (`arm`: vòng tròn + ngón cái) và giày (`shoe`). Chân ngồi gồm đùi + cẳng chân nối thành một ống. Thêm tai hai bên đầu và gạch bóng `_hat` ở nửa phải thân áo.
+- Cuối `figureSvg`, toàn bộ hình người (trừ đồ cầm tay vốn đã qua `_sketch`) được bọc `_sketch(...)` để có nét rung + viền đôi giống đồ vật. Hạt giống rung `_dS` lấy theo vị trí x,y.
+- Đã kiểm tra: `animLayers` vẫn tách đủ 6 bộ phận (legL, legR, body, head, armL, armR) cho mọi tư thế mẫu (stand, point, carry, wave, cheer, walk, sit, run, think).
+- Muốn tay chân mảnh/dày hơn: đổi cặp số độ rộng trong `tube(..., 26, 19)` (tay) và `tube(..., 30, 22)` (chân).
