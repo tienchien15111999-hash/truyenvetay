@@ -53,10 +53,11 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   <div id="gtestResult" class="hint" style="white-space:pre-wrap"></div>
 
     <div id="drawPick">
-  <label>Cách vẽ tranh (Tất cả đều có bàn tay cầm bút vẽ từng nét)</label>
+  <label>Cách vẽ tranh (hai kiểu đen trắng có bàn tay vẽ từng nét; kiểu Ảnh AI màu thì tranh hiện dần + zoom/lia)</label>
   <select id="isrc" onchange="vui()">
     <option value="svg_ink">✒️ Vẽ tranh nét mực đen trắng bằng AI (Miễn phí 100%, nhanh & ổn định nhất)</option>
     <option value="svg">🏃 Người que đen trắng nét bút lông (Miễn phí - đã nâng cấp)</option>
+    <option value="ai3d">🎨 Ảnh AI màu rực rỡ, sinh động (kiểu video hoạt hình giải thích lịch sử)</option>
   </select>
 
   <select id="style" hidden>
@@ -91,7 +92,12 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   </div>
 
   <div id="aiRefBox" hidden>
-    <label>🖼️ Ảnh mẫu nhân vật / phong cách (tối đa 3 ảnh)</label>
+    <label>🎨 Kiểu ảnh AI</label>
+    <select id="aiLook" onchange="saveSet()">
+      <option value="comic2d" selected>Hoạt hình 2D màu rực, người que đầu tròn trắng, nền chi tiết (giống video lịch sử/giải thích)</option>
+      <option value="pixar3d">Hoạt hình 3D kiểu Pixar</option>
+    </select>
+    <label>🖼️ Ảnh mẫu nhân vật / phong cách (tối đa 3 ảnh, không bắt buộc: chọn thì nét vẽ theo ảnh mẫu thay vì kiểu có sẵn ở trên)</label>
     <input type="file" id="charRef" accept="image/*" multiple onchange="analyzeCharRef()">
     <p class="hint" id="charRefStat">Chọn ảnh, tool nhờ Gemini nhìn ảnh rồi tự viết ra đặc điểm nhân vật và nét vẽ (tóc, kính, quần áo, màu, ánh sáng...). Mọi cảnh sẽ vẽ theo mô tả này. Nhân vật nổi tiếng (Trump, Einstein, Steve Jobs, Bác Hồ, Napoleon, Lincoln) vẫn được vẽ giống người thật, chỉ lấy nét vẽ từ ảnh mẫu. Nên dùng nhân vật của bạn hoặc bạn có quyền dùng.</p>
     <label>Mô tả tool nhận được (bạn sửa được)</label>
@@ -99,7 +105,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
     <button type="button" onclick="analyzeCharRef()">🔍 Phân tích lại ảnh mẫu</button>
   </div>
   <div id="hfBox" hidden>
-    <p class="hint" id="ai3dHint" hidden>🎬 Ảnh AI 3D: nên nhập token Hugging Face miễn phí (huggingface.co/settings/tokens, loại Read) để ảnh ổn định hơn. Không có token thì tool dùng Pollinations (không cần key nhưng hay bận). Nhân vật chỉ giống nhau nhờ mô tả chữ nên có thể lệch giữa các cảnh; video dựng bằng zoom và lia, không có miệng hay tay cử động.</p>
+    <p class="hint" id="ai3dHint" hidden>🎨 Ảnh AI màu: nếu key Gemini của bạn dùng được tạo ảnh (cần bật thanh toán) thì tool dùng luôn, đẹp và đúng ảnh mẫu nhất. Nếu không, nên nhập token Hugging Face miễn phí (huggingface.co/settings/tokens, loại Read) để ảnh ổn định hơn. Không có token thì tool dùng Pollinations (không cần key nhưng hay bận). Nhân vật chỉ giống nhau nhờ mô tả chữ nên có thể lệch giữa các cảnh; video dựng bằng zoom và lia, không có miệng hay tay cử động.</p>
     <label>Hugging Face Token (Tùy chọn - Để trống vẫn chạy bình thường)</label>
     <input id="hftok" type="password" placeholder="hf_... (Nếu có sẽ hỗ trợ vẽ ảnh bằng FLUX.1-schnell cực nhanh)">
   </div>
@@ -313,7 +319,7 @@ const log = m => {
 };
 const A = () => ctxA || (ctxA = new (window.AudioContext || window.webkitAudioContext)());
 
-const CF = ['fmt', 'nimg', 'keys', 'isrc', 'style', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'musicOn', 'musicVol', 'musicMood', 'accentOn', 'cmode', 'vmode', 'charStyle', 'libOn'];
+const CF = ['fmt', 'nimg', 'keys', 'isrc', 'style', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'musicOn', 'musicVol', 'musicMood', 'accentOn', 'cmode', 'vmode', 'charStyle', 'libOn', 'aiLook'];
 function setFmt() {
   const v = $('fmt').value === 'v';
   W = v ? 720 : 1280; H = v ? 1280 : 720;
@@ -379,7 +385,7 @@ function importSet(inp) {
         }
       });
       if (!n) throw new Error('không thấy mục cài đặt nào');
-      if (!['svg_ink', 'svg'].includes($('isrc').value)) $('isrc').value = 'svg_ink'; $('style').value = 'ref';
+      if (!['svg_ink', 'svg', 'ai3d'].includes($('isrc').value)) $('isrc').value = 'svg_ink'; if (!['comic2d', 'pixar3d'].includes($('aiLook').value)) $('aiLook').value = 'comic2d'; $('style').value = 'ref';
       vui(); nimgHint(); if (typeof styleUI === 'function') styleUI(); saveSet();
       alert('Đã nạp cài đặt từ file sao lưu.');
     } catch (e) { alert('File này không đọc được: ' + e.message); }
@@ -412,7 +418,7 @@ try {
   });
   if (o.keys) $('set').open = false;
 } catch (e) {}
-if (!['svg_ink', 'svg'].includes($('isrc').value)) $('isrc').value = 'svg_ink'; $('style').value = 'ref';
+if (!['svg_ink', 'svg', 'ai3d'].includes($('isrc').value)) $('isrc').value = 'svg_ink'; if (!['comic2d', 'pixar3d'].includes($('aiLook').value)) $('aiLook').value = 'comic2d'; $('style').value = 'ref';
 if (!['bw', 'accent', 'color'].includes($('cmode').value)) $('cmode').value = 'accent'; // chế độ tự động: luôn dùng cách vẽ có nhân vật dựng sẵn + bong bóng + chia khung
 vui();
 $('set').addEventListener('input', saveSet);
@@ -575,7 +581,7 @@ async function refineBatch(sc, part, from) {
 9) TƯƠNG PHẢN (người thường vs nhân vật chính, trước vs sau, hai quan điểm): ghi \"split frame: left side ..., right side ...\" để chia đôi khung, mỗi bên một kiểu người/vật khác nhau.
 10) Nhân vật chính (nhất là khi truyện về một người thật nổi tiếng, hãy ghi rõ tên người đó) phải có mặt ở ít nhất 2/3 số cảnh và luôn cùng ngoại hình. Mỗi cảnh phải tự kể được ý chính mà người xem không cần đọc lời kể; không bao giờ để khung gần như trống.
 11) VẼ ĐỦ: trước khi viết mỗi mô tả, tự liệt kê MỌI người (cha, mẹ, con, sếp, đối thủ, đám đông...) và MỌI vật/địa điểm (tòa tháp, sân golf, sòng bạc, khách sạn, thành phố...) mà lời kể nhắc đến. Mỗi người được nhắc (ngoài nhân vật chính) phải được vẽ thành một người riêng (vai SECOND/THIRD...); mỗi vật/địa điểm phải có mặt trong tranh. Kết thúc mô tả bằng đúng một cụm: \"MUST SHOW: a, b, c\" liệt kê những thứ đó (tiếng Anh). Ví dụ lời kể \"Cha của ông là nhà kinh doanh bất động sản\" thì MUST SHOW: older man in suit (father), building, house. Lời kể về nhiều thứ (khách sạn, sòng bạc, sân golf) thì phải thấy từng thứ, mỗi thứ một hình rõ ràng.
-12) Khi cảnh có người trong bảng nhân vật, ghi rõ vai và tên trong mô tả, ví dụ 'MAIN (Trump, president)', 'SECOND (his father, businessman)'; nếu nghề/chức vụ của người đó rõ từ lời kể thì ghi nghề đó (doctor, police, soldier, chef, worker, judge, king...) để tranh mặc đúng đồng phục. Người đó luôn dùng đúng vai đó ở mọi cảnh; không bao giờ gán vai khác cho họ hay cho người khác dùng vai đó.\n12b) NHẬN DIỆN BỐI CẢNH: nếu BỘ NHẬN DIỆN không rỗng thì MỌI cảnh phải có ít nhất MỘT dấu hiệu trong đó, vẽ to và rõ: cờ nước (tên như flag_china đặt trên cột sau lưng nhân vật), địa danh, biểu tượng, hoặc người mặc đồng phục đặc trưng của nước đó (ghi nghề cụ thể theo nước, ví dụ Chinese army officer with red-star cap). Cảnh [OBJECT] cận cảnh vật thì thêm một lá cờ nhỏ hoặc con dấu của nước đó ngay cạnh. Luôn ghi dấu hiệu đó vào cụm MUST SHOW. Không bao giờ dùng cờ của nước khác.${$('isrc').value === 'ai3d' ? '\n13) KIỂU ẢNH AI 3D HOẠT HÌNH: mô tả như một cảnh phim hoạt hình 3D bằng tiếng Anh: nhân vật, hành động, biểu cảm, bối cảnh, góc máy, ánh sáng. KHÔNG dùng thẻ [OBJECT]/[PERSON]/[PLACE], KHÔNG nhắc bong bóng, nền trắng hay nét vẽ. Mỗi lần nhắc nhân vật phải kèm lại ngoại hình cố định (tóc, màu da, quần áo, kính, tuổi) giống hệt mọi cảnh.' : ''}
+12) Khi cảnh có người trong bảng nhân vật, ghi rõ vai và tên trong mô tả, ví dụ 'MAIN (Trump, president)', 'SECOND (his father, businessman)'; nếu nghề/chức vụ của người đó rõ từ lời kể thì ghi nghề đó (doctor, police, soldier, chef, worker, judge, king...) để tranh mặc đúng đồng phục. Người đó luôn dùng đúng vai đó ở mọi cảnh; không bao giờ gán vai khác cho họ hay cho người khác dùng vai đó.\n12b) NHẬN DIỆN BỐI CẢNH: nếu BỘ NHẬN DIỆN không rỗng thì MỌI cảnh phải có ít nhất MỘT dấu hiệu trong đó, vẽ to và rõ: cờ nước (tên như flag_china đặt trên cột sau lưng nhân vật), địa danh, biểu tượng, hoặc người mặc đồng phục đặc trưng của nước đó (ghi nghề cụ thể theo nước, ví dụ Chinese army officer with red-star cap). Cảnh [OBJECT] cận cảnh vật thì thêm một lá cờ nhỏ hoặc con dấu của nước đó ngay cạnh. Luôn ghi dấu hiệu đó vào cụm MUST SHOW. Không bao giờ dùng cờ của nước khác.${$('isrc').value === 'ai3d' ? ($('aiLook') && $('aiLook').value === 'pixar3d' ? '\n13) KIỂU ẢNH AI 3D HOẠT HÌNH: mô tả như một cảnh phim hoạt hình 3D bằng tiếng Anh: nhân vật, hành động, biểu cảm, bối cảnh, góc máy, ánh sáng. KHÔNG dùng thẻ [OBJECT]/[PERSON]/[PLACE], KHÔNG nhắc bong bóng, nền trắng hay nét vẽ. Mỗi lần nhắc nhân vật phải kèm lại ngoại hình cố định (tóc, màu da, quần áo, kính, tuổi) giống hệt mọi cảnh.' : '\n13) KIỂU ẢNH AI 2D MÀU HOẠT HÌNH GIẢI THÍCH: mô tả bằng tiếng Anh như một bức minh họa màu sặc sỡ, nhiều chi tiết nhỏ: bối cảnh rộng (bản đồ, thành phố, cánh đồng, biển, nhà máy, chiến trường... theo đúng lời kể), nhiều đồ vật và người nhỏ trong nền, ánh sáng ấm, màu bão hòa mạnh; nhân vật chính là người que đầu tròn trắng (mắt chấm, miệng nhỏ, tay chân mảnh đen) đứng nổi bật ở tiền cảnh với biểu cảm rõ. Ghi rõ góc máy (toàn cảnh, nhìn từ trên cao, cận cảnh). KHÔNG dùng thẻ [OBJECT]/[PERSON]/[PLACE], KHÔNG nhắc bong bóng, nền trắng hay chữ trên tranh.') : ''}
 \nChỉ trả về JSON: {"images":["mô tả cảnh 1","mô tả cảnh 2"]} với đúng ${part.length} phần tử theo thứ tự (chỉ cho các cảnh trong danh sách).
 Cốt truyện: ${sc.story || ''}
 Bối cảnh: ${sc.setting || ''}
@@ -2132,16 +2138,19 @@ async function analyzeCharRef() {
   } catch (e) { st.textContent = '❌ Chưa phân tích được ảnh mẫu: ' + e.message; }
 }
 function ai3dPrompt(s) {
-  const desc = String(s.image || s.text || '').replace(/\[(OBJECT|PERSON|PLACE)\]/gi, '').replace(/\s+/g, ' ').trim().slice(0, 320);
+  const desc = String(s.image || s.text || '').replace(/\[(OBJECT|PERSON|PLACE|WIDE|MEDIUM|CLOSE|XCLOSE|TOP|LOW|SIDE|OTS)\]/gi, '').replace(/\s+/g, ' ').trim().slice(0, 320);
   const cast = String(typeof chars === 'string' ? chars : '').replace(/who\s*=\s*\w+/gi, '').replace(/job\s*=\s*(\w+)/gi, 'works as $1').replace(/\(\s*[;,]\s*/g, '(').replace(/\(\s*\)/g, '').replace(/\s+/g, ' ').trim().slice(0, 240);
   const ref = ($('charStyle') ? $('charStyle').value : '').replace(/\s+/g, ' ').trim().slice(0, 440);
   const fam = famousInStory();
-  const head = ref ? '3D animated movie still, no text, no letters, no watermark.' : '3D animated movie still, Pixar-style cartoon characters, soft cinematic lighting, vibrant colors, detailed background, depth of field, no text, no letters, no watermark.';
+  const comic = ($('aiLook') ? $('aiLook').value : 'comic2d') !== 'pixar3d';
+  const COMIC_LOOK = '2D cartoon illustration in the style of popular history-explainer YouTube animations: hand-inked comic look, thick dark outlines, flat cel colors with soft painted shading, VERY rich saturated vivid palette (golden yellow, warm orange, teal-blue water, lush green, brick red, sky blue), highly detailed busy background full of tiny details and tiny people, wide establishing shot or bird\'s-eye view. Main characters are simple white round-headed stick-figure people: big plain white circle head, two small black dot eyes, tiny expressive mouth, thin black stick arms and legs, small simple clothes. No text, no letters, no watermark.';
+  const head = ref ? (comic ? '2D cartoon illustration, no text, no letters, no watermark.' : '3D animated movie still, no text, no letters, no watermark.')
+    : (comic ? COMIC_LOOK : '3D animated movie still, Pixar-style cartoon characters, soft cinematic lighting, vibrant colors, detailed background, depth of field, no text, no letters, no watermark.');
   return [head,
     ref ? `Art style and look of non-famous characters must follow this reference: ${ref}` : '',
     fam.length ? `Famous people must look like their real selves, drawn in the same art style: ${fam.join('; ')}.` : '',
     `Scene: ${desc}.`,
-    cast ? `Characters (look identical in every shot): ${cast}.` : ''].filter(Boolean).join(' ').slice(0, 1300);
+    cast ? `Characters (look identical in every shot): ${cast}.` : ''].filter(Boolean).join(' ').slice(0, 1500);
 }
 async function loadAiImg(src, ms) {
   return await new Promise((ok, no) => {

@@ -290,3 +290,11 @@ Lý do: tranh quá chung chung, truyện về Trung Quốc mà không có cờ/V
 - AI ghi `<person who="xijinping"/>` (hoặc bảng nhân vật `who=putin`...) với tên chưa có trong `WHO` thì `libLearn` gọi `libLearnPerson(name, ctx)`: Gemini thiết kế tóc, kính, râu, mũ, cổ áo/cà vạt (JSON `label/head/body`), lưu vào `LIB.jobs[name]` với cờ `who:1` và `label`; đăng ký `WHO[name] = {n: label, learned: 1, key: name}` + `JOB_LIST`. Vẽ đi qua đường trang phục nghề (`figureSvg`: `JB = jobSvg(who.key)`), nhãn tên hiện dưới chân như người có sẵn.
 - `parseCast` nhận `who` lạ (≥3 chữ) nên khóa ngoại hình xuyên mọi cảnh. `libClean` cho phép tô đen `#111111` (tóc/mũ). Khung thư viện đếm riêng "nhân vật nổi tiếng"; xóa/nạp/xuất dùng chung `LIB.jobs`.
 - Prompt: schema `characters` và `SVGR_SCENE` cho phép `who` là tên Latin viết liền bất kỳ. Kiểm thử Chrome (Gemini giả): học "xijinping", vẽ có tóc đen + cà vạt đỏ + nhãn "Xi Jinping", Trump có sẵn vẫn đúng. CHƯA thử key Gemini thật (độ giống phụ thuộc kiến thức Gemini).
+
+## Cập nhật: bật lại "Ảnh AI màu" + kiểu hoạt hình 2D người que đầu tròn (theo video mẫu LearnYTA)
+- Yêu cầu người dùng: tranh màu rực, sinh động, nền nhiều chi tiết, nhân vật người que đầu tròn trắng như các video hoạt hình giải thích lịch sử.
+- Ô `#isrc` có lại lựa chọn `ai3d` ("Ảnh AI màu rực rỡ, sinh động"). Hai chỗ ép `isrc` về `svg_ink` (nạp file sao lưu và lúc mở trang) đã cho phép `ai3d`.
+- Ô mới `#aiLook` (trong `#aiRefBox`, có trong `CF`): `comic2d` (mặc định, hằng `COMIC_LOOK` trong `ai3dPrompt`: nét mực dày, màu bão hòa, nền nhiều chi tiết, người que đầu tròn trắng mắt chấm) hoặc `pixar3d` (kiểu cũ). Có ảnh mẫu (`#charStyle` không rỗng) thì nét vẽ lấy theo ảnh mẫu.
+- Quy tắc 13 của đạo diễn (`refineBatch`) đổi theo `aiLook`; `ai3dPrompt` bỏ thêm các nhãn góc máy [WIDE]/[CLOSE]... khỏi mô tả; giới hạn prompt 1500 ký tự.
+- Đường tạo ảnh không đổi: Gemini Image (nếu key dùng được) -> Hugging Face FLUX (nếu có token) -> Pollinations (1 ảnh/45 giây). Ảnh dựng bằng `drawAnim` (hiện dần + zoom/lia), không có bàn tay vẽ.
+- CHƯA thử với key thật: chỉ kiểm tra cú pháp và chạy thử hàm `ai3dPrompt` bằng Node. Nếu nhân vật lệch giữa các cảnh, tải ảnh mẫu nhân vật vào `#charRef`.
