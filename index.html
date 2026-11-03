@@ -227,7 +227,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
     <select id="vmode" onchange="saveSet()"><option value="hand">✍️ Vẽ tay (bàn tay cầm bút vẽ từng nét)</option><option value="anim">🎬 Hoạt hình nhân vật (nhân vật cử động, mấp máy miệng theo giọng đọc)</option></select>
     <p class="hint">Hoạt hình: tranh hiện ngay, nhân vật nhún nhảy, lắc nhẹ, nhân vật chính mở miệng theo giọng đọc; máy quay zoom và lia. Cảnh không có người chỉ zoom và lia.</p></div>
   <div style="margin:10px 0"><label>🎨 Chế độ màu</label>
-    <select id="cmode" onchange="applyPalette();saveSet()"><option value="bw">Đen trắng</option><option value="accent" selected>Màu nhấn (chỉ chi tiết cần nhấn mạnh)</option><option value="color">Ảnh màu (tô màu cả tranh)</option></select></div>
+    <select id="cmode" onchange="applyPalette();saveSet()"><option value="vivid" selected>🌈 Màu rực rỡ như video hoạt hình (miễn phí: có nền trời, đồi, đất + tô màu cả tranh)</option><option value="bw">Đen trắng</option><option value="accent">Màu nhấn (chỉ chi tiết cần nhấn mạnh)</option><option value="color">Ảnh màu (tô màu cả tranh)</option></select></div>
   
   <label class="chk"><input type="checkbox" id="accentOn" checked onchange="saveSet()">🎨 Màu nhấn (đỏ máu/lửa, vàng ánh sáng, xanh tiền...) — bỏ chọn nếu muốn đen trắng hoàn toàn</label>
   <label class="chk"><input type="checkbox" id="libOn" checked onchange="saveSet()">📚 Tự học đồ vật / trang phục mới (gặp thứ chưa có trong thư viện thì nhờ Gemini vẽ thêm và nhớ lại)</label>
@@ -419,7 +419,7 @@ try {
   if (o.keys) $('set').open = false;
 } catch (e) {}
 if (!['svg_ink', 'svg', 'ai3d'].includes($('isrc').value)) $('isrc').value = 'svg_ink'; if (!['comic2d', 'pixar3d'].includes($('aiLook').value)) $('aiLook').value = 'comic2d'; $('style').value = 'ref';
-if (!['bw', 'accent', 'color'].includes($('cmode').value)) $('cmode').value = 'accent'; // chế độ tự động: luôn dùng cách vẽ có nhân vật dựng sẵn + bong bóng + chia khung
+if (!['bw', 'accent', 'color', 'vivid'].includes($('cmode').value)) $('cmode').value = 'vivid'; // chế độ tự động: luôn dùng cách vẽ có nhân vật dựng sẵn + bong bóng + chia khung
 vui();
 $('set').addEventListener('input', saveSet);
 updStat();
@@ -744,21 +744,23 @@ function figureSvg(a, sw) {
   const w = (sw / size).toFixed(1);
   _cw = +w; _dS = (Math.abs(Math.round(x * 7 + y * 13)) % 2000) + 31;
   // Tay chân dạng ống dày (đa giác bao quanh đường cong), có giày và bàn tay; điểm gắn vai/hông giữ nguyên để hoạt ảnh không lệch
+  const VV = cmodeV() === 'vivid', _sh = (shirtFill(role).match(/#[0-9a-fA-F]{6}/) || ['#ffffff'])[0];
+  const PANTS = VV ? ({ MAIN: '#2b3a67', SECOND: '#3d3d4a', THIRD: '#7a4b2a', FOURTH: '#5b3a8a' }[role] || '#4a5568') : '#ffffff', SLV = VV ? _sh : '#ffffff', SHOE = VV ? '#5b3a29' : '#ffffff';
   const qp = (x0, y0, cx, cy, x1, y1, n = 9) => { const r = []; for (let i = 0; i <= n; i++) { const t = i / n, u = 1 - t; r.push([u * u * x0 + 2 * u * t * cx + t * t * x1, u * u * y0 + 2 * u * t * cy + t * t * y1]); } return r; };
   const lp = (x0, y0, x1, y1, n = 4) => { const r = []; for (let i = 1; i <= n; i++) r.push([x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n]); return r; };
-  const tube = (P, w0, w1) => { const A = [], B = [], n = P.length; P.forEach((p, i) => { const a = P[Math.max(0, i - 1)], b = P[Math.min(n - 1, i + 1)]; let dx = b[0] - a[0], dy = b[1] - a[1]; const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l; const hw = (w0 + (w1 - w0) * i / (n - 1)) / 2; A.push([p[0] - dy * hw, p[1] + dx * hw]); B.push([p[0] + dy * hw, p[1] - dx * hw]); }); const q = A.concat(B.reverse()); return `<path d="M${q.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L')}Z" fill="#ffffff"/>`; };
-  const shoe = (ax, ay) => `<path d="M${ax - 15} ${ay - 6}L${ax + 12} ${ay - 6}Q${ax + 40} ${ay} ${ax + 40} ${ay + 12}L${ax - 17} ${ay + 12}Q${ax - 20} ${ay + 3} ${ax - 15} ${ay - 6}Z" fill="#ffffff"/>`;
-  const arm = (p) => { const sg = p[0] > 0 ? 37 : -37, t = p[0] > 0 ? -1 : 1; return tube(qp(sg, -192, p[0], p[1], p[2], p[3]), 26, 19) + `<circle cx="${p[2] + t * 11}" cy="${p[3] - 8}" r="6" fill="#ffffff"/><circle cx="${p[2]}" cy="${p[3]}" r="13" fill="#ffffff"/>`; };
+  const tube = (P, w0, w1, f = '#ffffff') => { const A = [], B = [], n = P.length; P.forEach((p, i) => { const a = P[Math.max(0, i - 1)], b = P[Math.min(n - 1, i + 1)]; let dx = b[0] - a[0], dy = b[1] - a[1]; const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l; const hw = (w0 + (w1 - w0) * i / (n - 1)) / 2; A.push([p[0] - dy * hw, p[1] + dx * hw]); B.push([p[0] + dy * hw, p[1] - dx * hw]); }); const q = A.concat(B.reverse()); return `<path d="M${q.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L')}Z" fill="${f}"/>`; };
+  const shoe = (ax, ay) => `<path d="M${ax - 15} ${ay - 6}L${ax + 12} ${ay - 6}Q${ax + 40} ${ay} ${ax + 40} ${ay + 12}L${ax - 17} ${ay + 12}Q${ax - 20} ${ay + 3} ${ax - 15} ${ay - 6}Z" fill="${SHOE}"/>`;
+  const arm = (p) => { const sg = p[0] > 0 ? 37 : -37, t = p[0] > 0 ? -1 : 1; return tube(qp(sg, -192, p[0], p[1], p[2], p[3]), 26, 19, SLV) + `<circle cx="${p[2] + t * 11}" cy="${p[3] - 8}" r="6" fill="#ffffff"/><circle cx="${p[2]}" cy="${p[3]}" r="13" fill="#ffffff"/>`; };
   const armOld = (p) => `<path d="M${p[0] > 0 ? 37 : -37} -192 Q${p[0]} ${p[1]} ${p[2]} ${p[3]}"/><ellipse cx="${p[2]}" cy="${p[3]}" rx="9" ry="10" fill="#ffffff"/>`;
   let g = '';
   // chân
   const lg = pose.legs || [-26, -6, 26, -6];
   if (pose.sit) {
-    g += '<!--@legL-->' + tube(qp(-22, -104, 30, -102, 78, -96, 6).concat(lp(78, -96, 82, -54)), 30, 22) + shoe(82, -52);
-    g += '<!--@legR-->' + tube(qp(22, -104, 70, -92, 110, -86, 6).concat(lp(110, -86, 116, -46)), 30, 22) + shoe(116, -44);
+    g += '<!--@legL-->' + tube(qp(-22, -104, 30, -102, 78, -96, 6).concat(lp(78, -96, 82, -54)), 30, 22, PANTS) + shoe(82, -52);
+    g += '<!--@legR-->' + tube(qp(22, -104, 70, -92, 110, -86, 6).concat(lp(110, -86, 116, -46)), 30, 22, PANTS) + shoe(116, -44);
   } else {
-    g += '<!--@legL-->' + tube(qp(-22, -108, lg[0] - 6, -56, lg[0], lg[1] - 6), 30, 22) + shoe(lg[0], lg[1] - 6);
-    g += '<!--@legR-->' + tube(qp(22, -108, lg[2] + 6, -56, lg[2], lg[3] - 6), 30, 22) + shoe(lg[2], lg[3] - 6);
+    g += '<!--@legL-->' + tube(qp(-22, -108, lg[0] - 6, -56, lg[0], lg[1] - 6), 30, 22, PANTS) + shoe(lg[0], lg[1] - 6);
+    g += '<!--@legR-->' + tube(qp(22, -108, lg[2] + 6, -56, lg[2], lg[3] - 6), 30, 22, PANTS) + shoe(lg[2], lg[3] - 6);
   }
   // thân hình quả lê
   g += '<!--@body-->';
@@ -808,7 +810,8 @@ function figureSvg(a, sw) {
       const hy = poseName === 'carry' ? (pose.L[3] + pose.R[3]) / 2 : pose.R[3];
       let hs = hd.k * 0.5 * (isFinite(+a.holdsize) && +a.holdsize > 0 ? +a.holdsize : 1);
       hs = Math.max(0.3, Math.min(2.5, hs));
-      _cw = +w / hs; _dS = 11; holdStr = `<g transform="translate(${hx} ${hy + (hd.f ? -4 : 12)}) scale(${hs.toFixed(3)})" stroke-width="${(+w / hs).toFixed(2)}">${_sketch(hd.g())}</g>`;
+      _vpal = cmodeV() === 'vivid' ? vpalFor(ht) : null; _vi = 0; let hg; try { hg = hd.g(); } finally { _vpal = null; }
+      _cw = +w / hs; _dS = 11; holdStr = `<g transform="translate(${hx} ${hy + (hd.f ? -4 : 12)}) scale(${hs.toFixed(3)})" stroke-width="${(+w / hs).toFixed(2)}">${_sketch(hg)}</g>`;
     }
   }
   // phụ kiện
@@ -902,10 +905,35 @@ function expandPeople(raw, sw) {
     return _ppl.length > n0 ? `<g data-pid="${n0}">${g}</g>` : g; } catch (e) { return ''; } });
 }
 // ===== THƯ VIỆN ĐỒ VẬT / CẢNH VẬT VẼ SẴN (đẹp và đồng nhất, AI chỉ đặt chỗ bằng thẻ <prop/> <ground/>) =====
-const _R = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#ffffff"/>`;
-const _P = d => `<path d="${d}" fill="#ffffff"/>`;
+let _vpal = null, _vi = 0; // bảng màu của đồ vật đang vẽ (chỉ có ở chế độ vivid): mỗi hình trắng lấy lần lượt một màu
+const _vf = () => _vpal ? _vpal[_vi++ % _vpal.length] : '#ffffff';
+const _R = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${_vf()}"/>`;
+const _P = d => `<path d="${d}" fill="${_vf()}"/>`;
 const _L = d => `<path d="${d}"/>`;
-const _C = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#ffffff"/>`;
+const _C = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${_vf()}"/>`;
+const VPAL = {
+  house: ['#f8d9a0', '#d9482b', '#8a5a34', '#8fd3f4', '#8fd3f4'], hut: ['#e2b66f', '#b8562f', '#8a5a34'],
+  building: ['#7f9bd1'].concat(Array(12).fill('#ffe27a'), ['#8a5a34']), shop: ['#f6c28b', '#e4572e', '#bfe8ff', '#8a5a34'],
+  tower: ['#c9b79c', '#8a5a34'], pagoda: ['#e8c07a', '#c0392b'], tent: ['#e86a4a', '#f6d365'], ruins: ['#b9a58a'],
+  window: ['#9ad8f5'], door: ['#8a5a34'], tree: ['#43a047'], pine: ['#2e8b57', '#3fa66b', '#58c07f'], bush: ['#58b85a'], rock: ['#9aa4ad'],
+  mountain: ['#8d9db6', '#e9f2ff'], hill: ['#7bc46a'], cloud: ['#ffffff'], fence: ['#c58b52'], sign: ['#d9a566'], streetlight: ['#5c6773'],
+  car: ['#e4572e', '#9ad8f5', '#444b55'], bus: ['#f4c542', '#9ad8f5'], boat: ['#e8d2a6', '#3a86ff', '#ffffff'], bridge: ['#c58b52', '#8a5a34'],
+  tank: ['#6b8e4e', '#5a7a40', '#6b8e4e'], train: ['#c0392b', '#2f5d9e', '#9ad8f5'], plane: ['#dfe7ee', '#3a86ff'], bicycle: ['#ffd166', '#444b55'], motorbike: ['#e4572e', '#444b55'],
+  cannon: ['#6b6f77', '#8a5a34', '#6b6f77'], sword: ['#d9e2ea', '#8a5a34', '#ffd166'], rifle: ['#8a5a34', '#6b6f77'], drum: ['#e4572e'], gate: ['#c0392b', '#c0392b', '#d9a566'], dinh: ['#e8c07a', '#c0392b'],
+  table: ['#c58b52'], chair: ['#c58b52'], bed: ['#9fc5f8', '#f8d9a0'], lamp: ['#ffe27a'], book: ['#c0392b'], bag: ['#8a5a34'], chest: ['#8a5a34', '#ffd166'], box: ['#d9a566'],
+  bowl: ['#f8d9a0'], cup: ['#9ad8f5'], phone: ['#444b55', '#9ad8f5'], computer: ['#9ad8f5', '#cfd8e0'], clock: ['#ffffff'], bucket: ['#6b8fa8'], pot: ['#8a6a4f'],
+  hospital: ['#ffffff', '#e8473f'], school: ['#f6c28b', '#d9482b'], well: ['#b9a58a', '#8a5a34'], buffalo: ['#8c7a6b'], dog: ['#d9a566'], cat: ['#ffb36b'], fish: ['#ff9f6b'], bird: ['#4fb3e8'],
+  eiffel: ['#a58a63'], liberty: ['#7fc8b2'], bigben: ['#d9b77e'], pyramid: ['#e8c36a', '#d4a94a'], colosseum: ['#e0c9a0'], pisa: ['#f0e6d2'], fuji: ['#6f86c6', '#ffffff'],
+  whitehouse: ['#fafafa'], khue: ['#c0392b', '#e8c07a'], motcot: ['#c0392b', '#e8c07a'], greatwall: ['#c9a47a'], gate_: ['#c0392b'],
+  flower: ['#ff8fb1'], apple: ['#e8473f'], bread: ['#e0a458'], cake: ['#ffd1dc', '#8a5a34'], gift: ['#e8473f'], umbrella: ['#e8473f'], podium: ['#8a5a34'], throne: ['#c0392b', '#ffd166'],
+  rocket: ['#ffffff', '#e8473f'], newspaper: ['#f1e8d0'], paper: ['#fffbe6'], letter: ['#fffbe6'], map: ['#f1deb9']
+};
+const _VFALL = [['#ffcf56', '#ff7a59', '#4fb3e8'], ['#7bd389', '#3fa66b', '#ffd166'], ['#ff8fa3', '#ffd6a5', '#a0c4ff'], ['#b9a4f5', '#ffd166', '#7bd389'], ['#f08a5d', '#f9ed69', '#6a8caf']];
+function vpalFor(t) { // bảng màu cho đồ vật loại t (không có trong VPAL thì chọn một bộ màu cố định theo tên)
+  if (VPAL[t]) return VPAL[t];
+  let h = 0; for (const c of String(t)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return _VFALL[h % _VFALL.length];
+}
 const _D = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#111111" stroke="none"/>`;
 // Bảng màu nhấn: chỉ 5 màu này được giữ lại (ngoài đen/trắng), dùng cho máu, lửa, ánh sáng, tiền, nước
 const PAL = {
@@ -914,11 +942,13 @@ const PAL = {
   warm: { red: '#c0392b', orange: '#e67e22', yellow: '#f4c542', green: '#8a6d3b', blue: '#a85a32' },
   cool: { red: '#6b7fb0', orange: '#8aa4c8', yellow: '#c9d6e6', green: '#4f8a8b', blue: '#2f5d9e' },
   comic: { red: '#ff2d3d', orange: '#ff8c00', yellow: '#ffe600', green: '#00c853', blue: '#1e6bff' },
-  color: { red: '#f04452', orange: '#ff9a1f', yellow: '#ffd91a', green: '#2fb457', blue: '#3a8dff' }
+  color: { red: '#f04452', orange: '#ff9a1f', yellow: '#ffd91a', green: '#2fb457', blue: '#3a8dff' },
+  vivid: { red: '#e8473f', orange: '#ff9f1c', yellow: '#ffd23f', green: '#43b84b', blue: '#2f8cff' }
 };
 const accentEnabled = () => (!$('accentOn') || $('accentOn').checked) && ($('cmode') ? $('cmode').value !== 'bw' : true);
 const cmodeV = () => $('cmode') ? $('cmode').value : 'accent';
-const shirtFill = r => { const m = cmodeV(); const c = { MAIN: COL.blue, SECOND: COL.red, THIRD: COL.green, FOURTH: COL.orange }[r]; return (m === 'accent' || m === 'bw' || !c) ? 'fill="#ffffff"' : `fill="${c}" data-keep="1"`; };
+const _CROWD_COL = ['#ff7a59', '#4fb3e8', '#ffd166', '#7bd389', '#b9a4f5', '#f08a5d', '#ff8fb1', '#37c3d8'];
+const shirtFill = r => { const m = cmodeV(); let c = { MAIN: COL.blue, SECOND: COL.red, THIRD: COL.green, FOURTH: COL.orange }[r]; if (!c && m === 'vivid') c = _CROWD_COL[_dS % _CROWD_COL.length]; return (m === 'accent' || m === 'bw' || !c) ? 'fill="#ffffff"' : `fill="${c}" data-keep="1"`; };
 function applyPalette() { Object.assign(COL, PAL[cmodeV()] || PAL.accent); }
 const COL = { red: '#e63946', orange: '#ff8c1a', yellow: '#ffd60a', green: '#2fa84f', blue: '#3a86ff' };
 const _Pc = (d, c) => `<path d="${d}" fill="${c}" data-keep="1"/>`;
@@ -1208,7 +1238,8 @@ function propSvg(a, sw) {
     _tags.push({ x, y, n: d.n });
   }
   const w = (sw / sc).toFixed(2); _cw = +w; _dS = (Math.abs(Math.round(x * 7 + y * 13)) % 2000) + 7;
-  return `<g transform="translate(${x.toFixed(0)} ${y.toFixed(0)}) scale(${(flip * sc).toFixed(3)} ${sc.toFixed(3)})" stroke="#111111" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none">${_sketch(d.g())}</g>`;
+  _vpal = cmodeV() === 'vivid' ? vpalFor(t) : null; _vi = 0; let gs; try { gs = d.g(); } finally { _vpal = null; }
+  return `<g transform="translate(${x.toFixed(0)} ${y.toFixed(0)}) scale(${(flip * sc).toFixed(3)} ${sc.toFixed(3)})" stroke="#111111" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none">${_sketch(gs)}</g>`;
 }
 function groundSvg(a, sw) {
   const y = isFinite(+a.y) ? +a.y : 800, x0 = 30, x1 = fm.vw - 30, kind = String(a.kind || 'grass').toLowerCase();
@@ -1763,6 +1794,18 @@ function dropFrameRects(svg, W, H = 900) {
     });
 }
 
+const _VNAMES = { brown: '#8b5a2b', purple: '#8e5bd6', pink: '#ff8fb1', gray: '#9aa4ad', grey: '#9aa4ad', tan: '#d9b382', beige: '#f1deb9', cyan: '#37c3d8', teal: '#1fa79a', navy: '#2b3a67', skyblue: '#8fd3f4', lightblue: '#8fd3f4', lightgreen: '#9be28a', darkgreen: '#2e8b57', gold: '#ffc83d', silver: '#c9d1d9', crimson: '#d7263d', maroon: '#8a2a2a', olive: '#7b8a3a', lime: '#9be22a', magenta: '#d94fb5', violet: '#9b6bd6', indigo: '#4b4fb0', salmon: '#ff9a8a', coral: '#ff7f6b', khaki: '#d9c98a', ivory: '#fff8e1', lightgray: '#d5dbe1', lightgrey: '#d5dbe1', darkgray: '#6b7480', darkgrey: '#6b7480', orange: '#ff9f1c', yellow: '#ffd23f', red: '#e8473f', green: '#43b84b', blue: '#2f8cff' };
+function vividFill(v) { // chế độ vivid: giữ màu rực của AI/đồ vật (trắng vẫn trắng, gần đen thì đen)
+  if (_VNAMES[v]) return _VNAMES[v];
+  let r, g, b, m;
+  if ((m = v.match(/^#([0-9a-f]{3})$/))) { r = parseInt(m[1][0] + m[1][0], 16); g = parseInt(m[1][1] + m[1][1], 16); b = parseInt(m[1][2] + m[1][2], 16); }
+  else if ((m = v.match(/^#([0-9a-f]{6})$/))) { r = parseInt(m[1].slice(0, 2), 16); g = parseInt(m[1].slice(2, 4), 16); b = parseInt(m[1].slice(4, 6), 16); }
+  else if ((m = v.match(/^rgb\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/))) { r = +m[1]; g = +m[2]; b = +m[3]; }
+  else return null;
+  if ((r + g + b) / 3 > 242) return '#ffffff';
+  if (Math.max(r, g, b) < 55) return '#111111';
+  return '#' + [r, g, b].map(c => Math.max(0, Math.min(255, c)).toString(16).padStart(2, '0')).join('');
+}
 function sanitizeSvg(raw, wob = 5, sw = 7) {
   const a = raw.indexOf('<svg'), b = raw.lastIndexOf('</svg>');
   if (a < 0 || b < 0) throw new Error('Không có thẻ SVG');
@@ -1773,11 +1816,12 @@ function sanitizeSvg(raw, wob = 5, sw = 7) {
     .replace(/<(image|use|text)[^>]*\/?>/gi, '')
     .replace(/&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/g, '&amp;');
   // Ép mọi màu về đen/trắng: màu sáng -> trắng, màu còn lại -> đen
-  const accOn = accentEnabled();
+  const accOn = accentEnabled(), vividOn = cmodeV() === 'vivid';
   const toBW = (v, isFill) => {
     v = (v || '').trim().toLowerCase();
     if (v === 'none' || v === 'transparent') return 'none';
     if (v === 'white' || v === '#fff' || v === '#ffffff') return '#ffffff';
+    if (vividOn && isFill) { const c = vividFill(v); if (c) return c; }
     { const a = accentOf(v); if (a) return accOn ? a : (isFill ? '#ffffff' : '#111111'); }
     let r, g, bl, m;
     if ((m = v.match(/^#([0-9a-f]{3})$/))) { r = parseInt(m[1][0] + m[1][0], 16); g = parseInt(m[1][1] + m[1][1], 16); bl = parseInt(m[1][2] + m[1][2], 16); }
@@ -1918,6 +1962,113 @@ function addDateLabels(svg, labels) {
   return svg.replace(/<\/svg>\s*$/, m + '</svg>');
 }
 
+
+// ===== MÀU RỰC RỠ (miễn phí): nền trời / đồi / đất + chi tiết nhỏ do tool tự vẽ phía sau tranh, không cần AI vẽ ảnh =====
+const _hs = t => { let h = 2166136261; for (const c of String(t)) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
+function _rng(seed) { let a = (seed >>> 0) || 1; return () => { a = (Math.imul(a, 1664525) + 1013904223) >>> 0; return a / 4294967296; }; }
+function vividTheme(t) { // chọn bối cảnh nền theo lời kể + mô tả tranh
+  t = String(t).toLowerCase();
+  if (/\[object\]/.test(t)) return 'studio';
+  if (/\b(night|midnight|moonlight|nighttime)\b|ban đêm|nửa đêm|khuya|trăng/.test(t)) return 'night';
+  if (/\b(war|battle|army|bomb|explosion|burning|flames|soldier|tank|missile)\b|chiến tranh|bom|cháy|lửa|chiến trường|quân đội|nổ/.test(t)) return 'war';
+  if (/\b(sea|ocean|ship|boat|island|harbor|harbour|port|waves|navy|fleet)\b|biển|đại dương|tàu|đảo|cảng|hạm đội/.test(t)) return 'sea';
+  if (/\b(desert|pyramid|egypt|sahara)\b|sa mạc|ai cập/.test(t)) return 'desert';
+  if (/\b(snow|winter|ice|arctic|siberia)\b|tuyết|mùa đông|băng giá/.test(t)) return 'snow';
+  if (/\b(room|indoor|indoors|kitchen|bedroom|desk|classroom|living room)\b|trong phòng|phòng|bếp|bàn làm việc|lớp học/.test(t)) return 'room';
+  if (/\b(city|skyscraper|factory|factories|office|street|downtown|market|bank|wall street|industrial|stock)\b|thành phố|nhà máy|phố|tòa nhà|ngân hàng|chợ|văn phòng|công nghiệp|chứng khoán/.test(t)) return 'city';
+  return 'field';
+}
+function vividBackdropSvg(text, sc, ox, oy, Wc, Hc) {
+  const th = vividTheme(text), R = _rng(_hs(text)), vw = fm.vw, X0 = -1000, X1 = vw + 1000, Y1 = 2200, hz = 650 + Math.round(R() * 50);
+  const K = w => `stroke="#243238" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
+  let defs = '', s = '', gi = 0;
+  const rx = (a, b) => a + R() * (b - a);
+  const grad = (y1, y2, cols) => { const id = 'vg' + (gi++); defs += `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="0" y1="${y1}" x2="0" y2="${y2}">${cols.map((c, i) => `<stop offset="${(i / (cols.length - 1)).toFixed(2)}" stop-color="${c}"/>`).join('')}</linearGradient>`; return `url(#${id})`; };
+  const rc = (x, y, w, h, f, ex = '') => `<rect x="${x.toFixed(0)}" y="${y.toFixed(0)}" width="${w.toFixed(0)}" height="${h.toFixed(0)}" fill="${f}" ${ex}/>`;
+  const circ = (x, y, r, f, ex = '') => `<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${r.toFixed(1)}" fill="${f}" ${ex}/>`;
+  const cloud = (cx, cy, k, f = '#ffffff') => `<g fill="${f}" ${K(3)}><ellipse cx="${cx.toFixed(0)}" cy="${cy.toFixed(0)}" rx="${(70 * k).toFixed(0)}" ry="${(26 * k).toFixed(0)}"/><circle cx="${(cx - 30 * k).toFixed(0)}" cy="${(cy - 18 * k).toFixed(0)}" r="${(28 * k).toFixed(0)}"/><circle cx="${(cx + 14 * k).toFixed(0)}" cy="${(cy - 30 * k).toFixed(0)}" r="${(34 * k).toFixed(0)}"/><circle cx="${(cx + 48 * k).toFixed(0)}" cy="${(cy - 10 * k).toFixed(0)}" r="${(24 * k).toFixed(0)}"/><ellipse cx="${cx.toFixed(0)}" cy="${(cy + 8 * k).toFixed(0)}" rx="${(70 * k).toFixed(0)}" ry="${(18 * k).toFixed(0)}" stroke="none"/></g>`;
+  const hillsP = (y, amp, f) => { let d = `M${X0} ${Y1}L${X0} ${y}`; for (let x = X0; x < X1; x += 260) d += `Q${x + 130} ${(y - amp * (0.3 + R() * 1.1)).toFixed(0)} ${x + 260} ${(y + (R() - 0.5) * amp * 0.5).toFixed(0)}`; return `<path d="${d}L${X1} ${Y1}Z" fill="${f}" ${K(3)}/>`; };
+  const tree = (x, y, k, c) => `<g ${K(2.5)}><rect x="${(x - 3 * k).toFixed(0)}" y="${(y - 20 * k).toFixed(0)}" width="${(6 * k).toFixed(0)}" height="${(20 * k).toFixed(0)}" fill="#8a5a34"/><circle cx="${x.toFixed(0)}" cy="${(y - 30 * k).toFixed(0)}" r="${(17 * k).toFixed(0)}" fill="${c}"/></g>`;
+  const pine = (x, y, k, c) => `<g ${K(2.5)}><path d="M${(x - 16 * k).toFixed(0)} ${y.toFixed(0)} L${x.toFixed(0)} ${(y - 46 * k).toFixed(0)} L${(x + 16 * k).toFixed(0)} ${y.toFixed(0)} Z" fill="${c}"/><rect x="${(x - 2 * k).toFixed(0)}" y="${y.toFixed(0)}" width="${(4 * k).toFixed(0)}" height="${(7 * k).toFixed(0)}" fill="#8a5a34"/></g>`;
+  const hut = (x, y, k, w, r) => `<g ${K(2.5)}><rect x="${(x - 17 * k).toFixed(0)}" y="${(y - 26 * k).toFixed(0)}" width="${(34 * k).toFixed(0)}" height="${(26 * k).toFixed(0)}" fill="${w}"/><path d="M${(x - 22 * k).toFixed(0)} ${(y - 26 * k).toFixed(0)} L${x.toFixed(0)} ${(y - 46 * k).toFixed(0)} L${(x + 22 * k).toFixed(0)} ${(y - 26 * k).toFixed(0)} Z" fill="${r}"/><rect x="${(x - 4 * k).toFixed(0)}" y="${(y - 14 * k).toFixed(0)}" width="${(8 * k).toFixed(0)}" height="${(14 * k).toFixed(0)}" fill="#8a5a34"/></g>`;
+  const dude = (x, y, k, c) => `<g ${K(2)}><rect x="${(x - 4 * k).toFixed(0)}" y="${(y - 14 * k).toFixed(0)}" width="${(8 * k).toFixed(0)}" height="${(14 * k).toFixed(0)}" fill="${c}"/><circle cx="${x.toFixed(0)}" cy="${(y - 19 * k).toFixed(0)}" r="${(5.5 * k).toFixed(1)}" fill="#ffffff"/></g>`;
+  const bird = (x, y) => `<path d="M${x.toFixed(0)} ${y.toFixed(0)} q9 -10 18 0 q9 -10 18 0" fill="none" ${K(3.5)}/>`;
+  const flame = (x, y, k) => `<g ${K(2.5)}><path d="M${(x - 14 * k).toFixed(0)} ${y.toFixed(0)} Q${(x - 18 * k).toFixed(0)} ${(y - 26 * k).toFixed(0)} ${(x - 4 * k).toFixed(0)} ${(y - 48 * k).toFixed(0)} Q${x.toFixed(0)} ${(y - 28 * k).toFixed(0)} ${(x + 8 * k).toFixed(0)} ${(y - 38 * k).toFixed(0)} Q${(x + 22 * k).toFixed(0)} ${(y - 18 * k).toFixed(0)} ${(x + 14 * k).toFixed(0)} ${y.toFixed(0)} Z" fill="#ff8c1a"/><path d="M${(x - 6 * k).toFixed(0)} ${y.toFixed(0)} Q${(x - 8 * k).toFixed(0)} ${(y - 14 * k).toFixed(0)} ${x.toFixed(0)} ${(y - 24 * k).toFixed(0)} Q${(x + 8 * k).toFixed(0)} ${(y - 12 * k).toFixed(0)} ${(x + 6 * k).toFixed(0)} ${y.toFixed(0)} Z" fill="#ffd23f" stroke="none"/></g>`;
+  if (th === 'room') {
+    s += rc(X0, -1000, X1 - X0, hz + 1040, grad(0, hz + 40, ['#fbe5b8', '#f0c58c']));
+    s += rc(X0, hz + 40, X1 - X0, Y1, grad(hz + 40, 900, ['#c28a55', '#8f5d34']));
+    for (let y = hz + 90; y < 900; y += 55) s += `<path d="M${X0} ${y}L${X1} ${y}" stroke="#7a4b28" stroke-width="2" opacity=".5"/>`;
+    s += rc(X0, hz + 28, X1 - X0, 16, '#8a5a34', K(3));
+    const wx = rx(120, Math.max(130, vw - 380));
+    s += `<g ${K(3)}>${rc(wx, 150, 220, 260, '#9ad8f5')}<path d="M${wx + 110} 150V410M${wx} 280H${wx + 220}" fill="none"/>${rc(wx - 12, 410, 244, 18, '#f6e7c1')}</g>`;
+    s += `<g ${K(3)}>${rc(wx + 300, 190, 110, 140, '#ffd166')}${rc(wx + 316, 206, 78, 108, '#ff8fb1')}</g>`;
+  } else if (th === 'studio') {
+    s += rc(X0, -1000, X1 - X0, Y1, grad(0, 900, ['#ffe9a8', '#ffc9a4', '#ff9fb2']));
+    for (let i = 0; i < 16; i++) { const a0 = i * Math.PI / 8, a1 = a0 + Math.PI / 16; s += `<path d="M${vw / 2} 430L${(vw / 2 + Math.cos(a0) * 2400).toFixed(0)} ${(430 + Math.sin(a0) * 2400).toFixed(0)}L${(vw / 2 + Math.cos(a1) * 2400).toFixed(0)} ${(430 + Math.sin(a1) * 2400).toFixed(0)}Z" fill="#ffffff" opacity=".22"/>`; }
+    for (let i = 0; i < 10; i++) s += circ(rx(0, vw), rx(40, 860), rx(18, 60), '#ffffff', 'opacity=".25"');
+  } else {
+    const T = {
+      field: { sky: ['#5db8ff', '#bfe6ff', '#fff0c2'], h1: '#a9dcae', h2: '#72c476', g: ['#9bdc6c', '#4fa84a'], sun: '#ffd23f' },
+      night: { sky: ['#14306e', '#3b3a8c', '#8a5aa8'], h1: '#2f4a8a', h2: '#25607a', g: ['#2f7d6b', '#1d4f4a'] },
+      war: { sky: ['#3e2a45', '#b8412e', '#f7a24f'], h1: '#5a3b3f', h2: '#47302f', g: ['#7a5a40', '#3e2f27'], smoke: 1 },
+      sea: { sky: ['#4aa8ff', '#bfe8ff', '#fff4cf'], h1: '#9ccfa0', h2: '#6fb87c', g: ['#2f98e0', '#0f5fa8'], sun: '#ffd23f', sea: 1 },
+      desert: { sky: ['#70c8ff', '#cfeeff', '#fff0b8'], h1: '#f0c26a', h2: '#e3a84c', g: ['#f3c96d', '#d9983a'], sun: '#ffb703' },
+      snow: { sky: ['#8cc1ee', '#d8ecfb', '#f4faff'], h1: '#cfe2f4', h2: '#e9f3fb', g: ['#ffffff', '#c8dcef'], sun: '#fff3b0' },
+      city: { sky: ['#6fb6f5', '#bfe3fb', '#ffe3b0'], g: ['#6f7783', '#4a505b'], sun: '#ffd23f', city: 1 }
+    }[th];
+    s += rc(X0, -1000, X1 - X0, hz + 1040, grad(-60, hz, T.sky));
+    if (th === 'night') {
+      for (let i = 0; i < 50; i++) s += circ(rx(0, vw), rx(-60, hz - 160), rx(1.4, 3.6), '#fff7c2');
+      s += circ(vw * 0.8, 140, 64, '#fff3b0', 'stroke="#243238" stroke-width="3"') + circ(vw * 0.8 - 20, 124, 12, '#f0dc8a') + circ(vw * 0.8 + 18, 158, 8, '#f0dc8a');
+    } else if (T.sun) { const sx = vw * rx(0.12, 0.85), sy = rx(90, 190); s += circ(sx, sy, 118, T.sun, 'opacity=".28"') + circ(sx, sy, 72, T.sun, 'stroke="#243238" stroke-width="3"'); }
+    if (T.smoke) for (let i = 0; i < 5; i++) s += cloud(rx(0, vw), rx(40, 300), rx(1.4, 2.4), '#6e6470');
+    else if (th !== 'night') for (let i = 0; i < 3; i++) s += cloud(rx(60, vw - 60), rx(60, 330), rx(0.8, 1.5));
+    if (T.city) {
+      for (const [col, hmin, hmax, step] of [['#8aa3cf', 150, 330, 74], ['#5f7cae', 90, 220, 96]]) {
+        for (let x = rx(-30, 10); x < vw + 40; x += step * rx(0.8, 1.2)) {
+          const bw = rx(50, 92), bh = rx(hmin, hmax); s += `<g ${K(2.5)}>${rc(x, hz - bh, bw, bh + 20, col)}`;
+          for (let yy = hz - bh + 16; yy < hz - 14; yy += 30) for (let xx = x + 10; xx < x + bw - 14; xx += 24) s += rc(xx, yy, 12, 16, R() < 0.7 ? '#ffe27a' : '#cfe3ff', 'stroke="none"');
+          s += '</g>';
+        }
+      }
+    } else { s += hillsP(hz - 70, 120, T.h1); s += hillsP(hz - 8, 70, T.h2); }
+    s += rc(X0, hz, X1 - X0, Y1, grad(hz, 900, T.g), K(3));
+    if (T.city) { s += rc(X0, hz, X1 - X0, 34, '#aab1bc', K(3)); for (let x = -40; x < vw + 60; x += 150) s += `<path d="M${x} ${hz + 110}l70 0" stroke="#ffd23f" stroke-width="7" stroke-linecap="round"/>`; }
+    if (T.sea) { for (let r = 0; r < 7; r++) { let d = `M${-80 + (r % 2) * 40} ${hz + 30 + r * 38}`; for (let k = 0; k < Math.ceil(vw / 80) + 2; k++) d += 'q20 -16 40 0t40 0'; s += `<path d="${d}" fill="none" stroke="#e8f6ff" stroke-width="4" stroke-linecap="round" opacity=".8"/>`; } }
+    if (th === 'field') {
+      s += `<path d="M${(vw * 0.1).toFixed(0)} 900C${(vw * 0.3).toFixed(0)} 800 ${(vw * 0.55).toFixed(0)} 780 ${(vw * 0.62).toFixed(0)} ${hz + 8}L${(vw * 0.7).toFixed(0)} ${hz + 8}C${(vw * 0.7).toFixed(0)} 760 ${(vw * 0.6).toFixed(0)} 830 ${(vw * 0.34).toFixed(0)} 900Z" fill="#e9c98f" ${K(2.5)}/>`;
+      for (let i = 0; i < 9; i++) s += tree(rx(0, vw), hz + rx(2, 14), rx(0.8, 1.6), ['#43a047', '#2e8b57', '#7bc46a'][i % 3]);
+      for (let i = 0; i < 3; i++) s += hut(rx(60, vw - 60), hz + rx(8, 22), rx(0.9, 1.4), ['#f8d9a0', '#f6c28b', '#e2b66f'][i % 3], ['#d9482b', '#b8562f', '#c0392b'][i % 3]);
+      for (let i = 0; i < 4; i++) s += dude(rx(40, vw - 40), hz + rx(28, 60), rx(0.9, 1.3), ['#ff7a59', '#4fb3e8', '#ffd166', '#b9a4f5'][i]);
+      for (let i = 0; i < 3; i++) s += bird(rx(40, vw - 80), rx(60, 260));
+      for (let i = 0; i < 40; i++) s += circ(rx(0, vw), rx(hz + 40, 890), rx(3, 6), ['#ff8fb1', '#ffffff', '#ffd23f', '#ff7a59'][i % 4]);
+    } else if (th === 'war') {
+      for (let i = 0; i < 6; i++) s += flame(rx(0, vw), hz + rx(4, 30), rx(0.8, 1.8));
+      for (let i = 0; i < 4; i++) s += `<path d="M${rx(40, vw - 40).toFixed(0)} ${hz} q-30 -90 10 -170 q-20 -60 30 -120" fill="none" stroke="#5c5360" stroke-width="22" stroke-linecap="round" opacity=".7"/>`;
+    } else if (th === 'night') {
+      for (let i = 0; i < 7; i++) s += tree(rx(0, vw), hz + rx(2, 14), rx(0.8, 1.5), ['#1f6f5a', '#2a8a6e'][i % 2]);
+      for (let i = 0; i < 3; i++) s += hut(rx(60, vw - 60), hz + rx(8, 22), rx(0.9, 1.3), '#6d7fb5', '#3a4a8a');
+    } else if (th === 'desert') {
+      for (let i = 0; i < 4; i++) { const cx = rx(40, vw - 40), cy = hz + rx(14, 60), k = rx(0.8, 1.4); s += `<g ${K(2.5)}><rect x="${(cx - 6 * k).toFixed(0)}" y="${(cy - 44 * k).toFixed(0)}" width="${(12 * k).toFixed(0)}" height="${(44 * k).toFixed(0)}" rx="${(6 * k).toFixed(0)}" fill="#58b85a"/><rect x="${(cx + 6 * k).toFixed(0)}" y="${(cy - 30 * k).toFixed(0)}" width="${(14 * k).toFixed(0)}" height="8" rx="4" fill="#58b85a"/><rect x="${(cx - 20 * k).toFixed(0)}" y="${(cy - 24 * k).toFixed(0)}" width="${(14 * k).toFixed(0)}" height="8" rx="4" fill="#58b85a"/></g>`; }
+    } else if (th === 'snow') {
+      for (let i = 0; i < 9; i++) s += pine(rx(0, vw), hz + rx(4, 24), rx(0.8, 1.6), ['#2e7d6b', '#3b9a80'][i % 2]);
+      for (let i = 0; i < 40; i++) s += circ(rx(0, vw), rx(0, 880), rx(2, 4.5), '#ffffff', 'opacity=".9"');
+    } else if (th === 'sea') {
+      for (let i = 0; i < 3; i++) s += bird(rx(40, vw - 80), rx(60, 260));
+    } else if (th === 'city') {
+      for (let i = 0; i < 3; i++) s += tree(rx(20, vw - 20), hz + 30, 1.1, '#43a047');
+      for (let i = 0; i < 4; i++) s += dude(rx(40, vw - 40), hz + 30, rx(1, 1.3), ['#ff7a59', '#4fb3e8', '#ffd166', '#b9a4f5'][i]);
+    }
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${Wc}" height="${Hc}" viewBox="${(-ox / sc).toFixed(2)} ${(-oy / sc).toFixed(2)} ${(Wc / sc).toFixed(2)} ${(Hc / sc).toFixed(2)}"><defs>${defs}</defs>${s}</svg>`;
+}
+async function bdCanvas(text) { // vẽ nền ra canvas W x (vùng tranh), cùng tỉ lệ với tranh chính để các vật đứng đúng mặt đất
+  const h = fm.ah, sc = Math.min((W - 40) / fm.vw, h / 900), w = fm.vw * sc, hh = 900 * sc, ox = (W - w) / 2, oy = 10 + (h - hh) / 2, Hc = Math.min(H, h + 10);
+  const im = await loadImg('data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(vividBackdropSvg(text, sc, ox, oy, W, Hc)))));
+  const c = document.createElement('canvas'); c.width = W; c.height = Hc;
+  c.getContext('2d').drawImage(im, 0, 0, W, Hc);
+  return c;
+}
 async function svgImage(s, blackInkOnly = false) {
   applyPalette();
   const cm = cmodeV();
@@ -1931,7 +2082,8 @@ async function svgImage(s, blackInkOnly = false) {
     rule += '\nSTYLE: the attached reference image shows the look the user wants: simple, clean, round, friendly line art with lots of white space. Draw the props, buildings, ground and background in that same simple line style (the reference is black and white; keep the accent colors only where the story needs them) (same line feel, very simple shapes). People are NOT drawn by you: use only <person .../> tags (the tool draws consistent stick-figure people matching the reference). Do not copy the reference layout, and do not add decoration the narration does not mention (the reference is only for the line feel).' + (desc ? `\nStyle notes for props and background: ${desc}` : '');
     parts.push({ inlineData: { mimeType: refMime(), data: refB64() } });
   }
-  if (cm === 'color') rule += '\nCOLOR MODE (FULL COLOR): this picture must be a COLORFUL illustration. Keep the thick black outlines, but fill the important things with the 5 palette colors (exact hex values only: red ' + COL.red + ', orange ' + COL.orange + ', yellow ' + COL.yellow + ', green ' + COL.green + ', blue ' + COL.blue + '): clothes, the main objects, buildings, ground, grass, sky shapes, the sun, money. Use white for faces, hands and highlights. Color about 8 to 25 shapes, spread over the whole picture, but never fill one single shape larger than a fifth of the frame and never make a dark or black background.';
+  if (cm === 'vivid') rule += '\nCOLOR MODE (VIVID FULL COLOR, like a colorful animated explainer video): the TOOL paints the sky, hills, ground and small background details behind your drawing, so do NOT draw sky, big ground areas, hills or any background. Every <prop> and <person> is colored automatically. For anything you draw yourself (<path>/<rect>/<circle>) fill it with a bright saturated flat color (any hex such as #ff7a59, #ffd166, #4fb3e8, #7bd389, #b9a4f5, #f08a5d) and keep thick black outlines. Never leave a drawn shape white except faces, eyes, clouds and paper, and never fill big areas black. Make the scene rich and alive: use many props that the narration mentions, small crowds of people, and details related to the story, all placed on the ground line near y=700-860.';
+  else if (cm === 'color') rule += '\nCOLOR MODE (FULL COLOR): this picture must be a COLORFUL illustration. Keep the thick black outlines, but fill the important things with the 5 palette colors (exact hex values only: red ' + COL.red + ', orange ' + COL.orange + ', yellow ' + COL.yellow + ', green ' + COL.green + ', blue ' + COL.blue + '): clothes, the main objects, buildings, ground, grass, sky shapes, the sun, money. Use white for faces, hands and highlights. Color about 8 to 25 shapes, spread over the whole picture, but never fill one single shape larger than a fifth of the frame and never make a dark or black background.';
   else if (cm !== 'accent' && cm !== 'bw') rule += '\nCOLOR MODE (' + cm + '): the palette is already set. Use the accent hex values on up to about 5 shapes (clothes, key objects, one emotional element) but keep thick black outlines.';
   const dl = parseDates(s.text);
   if (dl.length) rule += '\nDATE LABEL: the narration of this scene contains a date. The tool will draw a calendar / date label in the TOP-LEFT corner (about 30% of the width and 30% of the height). Keep that corner EMPTY (put nothing there) and do NOT write any date or text yourself.';
@@ -1944,12 +2096,15 @@ async function svgImage(s, blackInkOnly = false) {
   { const d2 = new DOMParser().parseFromString(svg, 'image/svg+xml'); // kiểm tra chất lượng: SVG hợp lệ và không trống (lỗi thì vòng thử lại 3 lần có sẵn sẽ vẽ lại)
     if (d2.querySelector('parsererror')) throw new Error('SVG lỗi cú pháp');
     if (d2.querySelectorAll('path,rect,circle,ellipse,line,polygon,polyline').length < 2) throw new Error('Tranh trống'); }
-  const full = await inkify({ mimeType: 'image/svg+xml', data: btoa(unescape(encodeURIComponent(svg))) });
+  let bdc = null;
+  if (cm === 'vivid') { try { bdc = await bdCanvas(String(s.image || '') + ' ' + String(s.text || '')); } catch (e) { log('  ℹ Chưa vẽ được nền màu cho cảnh này: ' + e.message); } }
+  const full = await inkify({ mimeType: 'image/svg+xml', data: btoa(unescape(encodeURIComponent(svg))), bdc });
   const usedSprite = addSprites(full);
   const wantAnim = $('vmode') && $('vmode').value === 'anim' && !usedSprite;
   if (!wantAnim) return Object.assign(full, { anim: false, bg: null, people: null });
   let layers = { bg: null, people: null };
   try { layers = await animLayers(svg, _ppl.slice()); } catch (e) { log('  ℹ Không tách được lớp nhân vật, cảnh này chỉ zoom/lia: ' + e.message); }
+  if (bdc && layers.bg) { const nb = document.createElement('canvas'); nb.width = W; nb.height = H; const nx = nb.getContext('2d'); nx.drawImage(bdc, 0, 0); nx.drawImage(layers.bg, 0, 0); layers.bg = nb; }
   return Object.assign(full, { anim: true }, layers);
 }
 
@@ -2315,6 +2470,7 @@ async function inkify(b) {
     x.fillRect(0, 0, W, H);
   }
   const sc = Math.min((W - 40) / im.width, h / im.height), w = im.width * sc, hh = im.height * sc;
+  if (b.bdc) x.drawImage(b.bdc, 0, 0);
   x.drawImage(im, (W - w) / 2, 10 + (h - hh) / 2, w, hh);
   const d = x.getImageData(0, 0, W, H), p = d.data;
   if (!svgm) {
@@ -2332,7 +2488,7 @@ async function inkify(b) {
       const q = (yy * W + xx) * 4;
       if (p[q + 3] > 100 && p[q] + p[q + 1] + p[q + 2] < 150) dark++;
     }
-    if (dark / tot > 0.30) throw new Error('Tranh bị đen quá nhiều, tự vẽ lại');
+    if (!b.bdc && dark / tot > 0.30) throw new Error('Tranh bị đen quá nhiều, tự vẽ lại');
   }
   const cells = [];
   for (let cy = 0; cy < H; cy += C) {
