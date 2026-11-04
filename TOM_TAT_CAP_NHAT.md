@@ -309,3 +309,27 @@ Yêu cầu người dùng: dùng cách vẽ miễn phí mà tranh vẫn màu r�
 - Prompt `svgImage` có luật "VIVID FULL COLOR": AI không vẽ trời/đất/nền (tool tự vẽ), tô màu bão hòa cho hình tự vẽ, nhiều đồ vật/người nhỏ.
 - Kiểm thử bằng Playwright + Gemini giả: 6 bối cảnh (field, city, war, night, sea, room), khung dọc, chế độ màu nhấn cũ vẫn đen trắng. CHƯA thử với key Gemini thật (chưa biết AI đặt thẻ có bố cục đẹp không).
 - Giới hạn: vẫn là nét doodle vẽ bằng thư viện đồ vật, không chi tiết như ảnh AI. Muốn đẹp hơn: thêm đồ vật vào `PROPS`+`VPAL`, thêm bối cảnh vào `vividTheme`/`vividBackdropSvg`.
+
+## Cập nhật: vẽ lại đồ vật và nhân vật cho chế độ vivid
+- `VPROPS` (ngay sau `_Cc`): bản vẽ lại, tô màu cố định cho table, chair, bed, car, bus, train, dog, cat, bridge, streetlight, flag, sign, shop, computer, phone, cup, bowl, bicycle. `propSvg` và đồ cầm tay dùng `VPROPS[t]` thay `PROPS[t].g` khi `cmode=vivid`; chế độ khác vẫn dùng bản cũ. Thêm/sửa đồ vật: viết hàm trả chuỗi SVG bằng `_Rc/_Pc/_Cc/_Lc` (có màu), gốc ở giữa-đáy, y âm là hướng lên, cùng kích thước với bản gốc trong `PROPS`.
+- Nhân vật ở vivid (`VV` trong `figureSvg`): đầu tròn, bỏ tai, tay chân mảnh hơn (tay 18/13, chân 22/16), bàn tay một vòng tròn. Chế độ khác không đổi.
+
+## Cập nhật: BỎ "Ảnh AI màu rực rỡ" và "Hoạt hình nhân vật" (người dùng thử thấy không ổn)
+- `#isrc` chỉ còn `svg_ink` và `svg`; đã xóa lựa chọn `ai3d`, ô `#aiLook`, `COMIC_LOOK`; `ai3dPrompt` và luật 13 đạo diễn trả về như bản gốc (mã cũ của `ai3d` vẫn nằm đó nhưng không còn đường vào; `#aiRefBox`, `#hfBox` luôn ẩn, giữ lại vì `charRef/charStyle/hftok` còn được mã khác tham chiếu). Cài đặt đã lưu có `ai3d` tự về `svg_ink`.
+- Ô chọn kiểu video đã gỡ khỏi giao diện; `#vmode` còn lại là ô ẩn chỉ có `hand`, và `wantAnim = false` trong `svgImage`. Mã `animLayers`/`drawAnim` còn nhưng không chạy. Video luôn là vẽ tay.
+- Hướng chính: `cmode=vivid` (màu rực rỡ miễn phí, vẽ SVG) + vẽ tay từng nét.
+
+## Cập nhật: gọn giao diện cài đặt
+- Ô `#isrc` (Cách vẽ tranh) chuyển xuống ngay trên ô `#cmode` (Chế độ màu) ở khung "Nguồn nội dung". `#drawPick` chỉ còn ô ẩn `#style`.
+- Đã xóa 2 ô tích `#accentOn` (màu nhấn: giờ chọn trong `#cmode`) và `#libOn` (tự học đồ vật: luôn bật). Bỏ cả hai khỏi mảng `CF`; `accentEnabled()` giờ chỉ phụ thuộc `cmode !== 'bw'`, và `libLearn` không còn kiểm tra `libOn` (mã vẫn có `$('libOn') &&` nên không lỗi khi thiếu ô).
+
+## Cập nhật: nhân vật thật vẽ theo ảnh trên mạng + tối đa 8 vai có tên
+- **8 vai có tên**: `NAMED_ROLES` = MAIN, SECOND, THIRD, FOURTH, FIFTH, SIXTH, SEVENTH, EIGHTH (+ CROWD). Đã thêm vào `ROLE_DEF`, màu áo `shirtFill`, màu quần `PANTS`, `parseCast`, `lockCast` và mọi prompt (kịch bản, đạo diễn hình ảnh, luật vẽ người). Prompt kịch bản bắt buộc: MỌI người được nhắc tên đều có một mục + một vai, tên đầy đủ chữ Latin ngay sau dấu `=`, người nổi tiếng thật phải có `who=`.
+- **Tìm ảnh trên mạng**: `fetchPortrait(name)` gọi API Wikipedia (en/vi, có CORS nên chạy thẳng từ trình duyệt, không cần máy chủ) lấy ảnh đại diện của bài viết, kiểm tra tiêu đề bài khớp tên, tải ảnh thành base64. `libLearnPerson(name, ctx, disp)` gửi ảnh kèm prompt cho Gemini: nhìn ảnh rút kiểu tóc, lông mày, râu, kính, màu da (`skin` hex), trang phục, rồi thiết kế `head`/`body` như trước. Không tìm được ảnh (hoặc ảnh không phải mặt người: `photo_ok=false`) thì dùng hiểu biết của AI như cũ. `LIB.jobs[name]` lưu thêm `skin`, `pv` (1 = đã xem ảnh), `src` (tên bài Wikipedia).
+- **Học sẵn toàn bộ**: `learnCastPeople()` chạy ngay sau `parseCast(chars)` trong `start()` (trước khi ghép hình/vẽ), học tối đa 3 người song song, để cảnh đầu tiên cũng đã đúng mặt. `personDisplay(n)` lấy tên đầy đủ từ `castLock[...].nm`.
+- **Màu da**: `_SK` trong `figureSvg` (chỉ ở `cmode=vivid`) tô đầu và bàn tay theo `skin`.
+- Nhân vật bịa (có tên nhưng không phải người thật) không có ảnh: vẫn có vai riêng, tóc/mũ/kính/áo theo bảng nhân vật. Nhân vật đã học từ bản cũ (không có `pv`) giữ nguyên; bấm ✕ trong "Thư viện tự học" để học lại theo ảnh.
+- Kiểm thử bằng Playwright với Wikipedia và Gemini giả (ảnh gửi đi đúng, 5 vai vẽ đúng màu da/tóc/nhãn tên). CHƯA thử với Wikipedia và Gemini thật.
+
+## Cập nhật: vẽ lại râu (cmode=vivid)
+- Râu `acc==='beard'` ở vivid không còn là mảng trắng: có màu (đen xám, nâu, xám bạc, nâu nhạt, cố định theo vai: `NAMED_ROLES.indexOf(role) % 4`; CROWD theo `_dS`), ôm quanh hàm, kèm ria mép, nét viền mảnh bằng nửa nét thường, miệng vẫn lộ ra. Chế độ khác vẫn dùng râu trắng cũ. Râu của nhân vật thật do Gemini thiết kế (shape trong `LIB.jobs[..].head`) không đổi.
