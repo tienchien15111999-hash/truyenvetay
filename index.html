@@ -491,7 +491,7 @@ async function makeScriptPart(idea, min, opt) {
   const n = opt.n, total = opt.total;
   const rw = $('rewriteOn') && $('rewriteOn').checked && srcMode !== 'text';
   const REWRITE = 'Nội dung bên dưới có thể là bản chép lời từ một video tham khảo. KHÔNG giữ nguyên câu chữ và không dịch sát từng câu: hãy viết lại hoàn toàn thành một câu chuyện mới của riêng người kể, bằng lời văn khác, cách mở đầu và cách dẫn dắt khác, chỉ giữ lại các sự kiện, thông tin và ý chính (tên người, mốc thời gian, số liệu thật). Bỏ lời chào đầu cuối video, quảng cáo và lời kêu gọi đăng ký kênh. Nếu chỉ là ý tưởng ngắn thì viết thành truyện hay có mở đầu, cao trào, kết. Nếu nội dung dài thì phải kể HẾT toàn bộ từ đầu đến cuối, không bỏ phần nào, không tóm tắt quá ngắn.';
-  const p = `Bạn là biên kịch video kể chuyện vẽ tay. Từ nội dung bên dưới, tạo kịch bản video dài ${min} phút: khoảng ${total} từ lời kể, chia đúng ${n} cảnh, mỗi cảnh khoảng ${Math.round(total / n)} từ. ${opt.note || ''} ${rw ? REWRITE : 'Nếu nội dung đã là truyện hoàn chỉnh thì giữ nguyên lời văn, chỉ chia cảnh. Nếu chỉ là ý tưởng thì viết thành truyện hay có mở đầu, cao trào, kết.'} Ngày, tháng, năm viết bằng CHỮ SỐ (ví dụ \"ngày 15 tháng 3 năm 2020\", \"năm 1945\"), không viết bằng chữ, để tool vẽ lịch lên tranh; giữ nguyên mọi mốc thời gian có trong nội dung.
+  const p = `Bạn là biên kịch video kể chuyện vẽ tay. Từ nội dung bên dưới, tạo kịch bản video dài ${min} phút: khoảng ${total} từ lời kể, chia đúng ${n} cảnh, mỗi cảnh khoảng ${Math.round(total / n)} từ. QUY TẮC NGẮT CẢNH: lời kể của mỗi cảnh phải gồm các câu TRỌN VẸN, bắt đầu từ đầu một câu và kết thúc bằng dấu chấm, chấm than hoặc chấm hỏi. Tuyệt đối không cắt một câu làm đôi giữa hai cảnh; thà cảnh dài hoặc ngắn hơn khoảng 30% còn hơn bị cụt câu. ${opt.note || ''} ${rw ? REWRITE : 'Nếu nội dung đã là truyện hoàn chỉnh thì giữ nguyên lời văn, chỉ chia cảnh. Nếu chỉ là ý tưởng thì viết thành truyện hay có mở đầu, cao trào, kết.'} Ngày, tháng, năm viết bằng CHỮ SỐ (ví dụ \"ngày 15 tháng 3 năm 2020\", \"năm 1945\"), không viết bằng chữ, để tool vẽ lịch lên tranh; giữ nguyên mọi mốc thời gian có trong nội dung.
 Chỉ trả về JSON: {"story":"tóm tắt cốt truyện 1-2 câu, tiếng Anh","setting":"bối cảnh chung (thời gian, địa điểm, không khí), tiếng Anh","identity":"BỘ NHẬN DIỆN bối cảnh, tiếng Anh: quốc gia / tổ chức / thời đại mà truyện nói về và 3-6 dấu hiệu nhìn là nhận ra ngay, viết bằng tên đồ vật cụ thể, ví dụ China: flag_china, greatwall, tiananmen, redstar, officers in red-star caps. Dấu hiệu quốc gia: cờ nước đó (flag_china, flag_vietnam, flag_usa, flag_russia, flag_japan, hoặc flag_<tên nước> cho nước khác), địa danh, biểu tượng, đồng phục đặc trưng. Truyện không gắn với nơi hay tổ chức cụ thể thì để chuỗi rỗng","characters":"BẢNG NHÂN VẬT CỐ ĐỊNH cho cả truyện, tiếng Anh, mỗi người một mục ngăn bằng dấu chấm phẩy, dạng 'MAIN = tên (who=tên viết liền không dấu bằng chữ Latin nếu là người nổi tiếng thật, ví dụ trump, einstein, jobs, bacho, napoleon, lincoln, xijinping, putin, obama (người nào cũng được, tool tự thiết kế nét đặc trưng); job=nghề hoặc chức vụ nếu biết, chọn một trong doctor/nurse/police/soldier/chef/worker/farmer/teacher/judge/king/firefighter/pilot/businessman/president/artist/student/monk/scientist, hoặc MỘT từ tiếng Anh khác nếu nghề/chức vụ không có trong danh sách, ví dụ general, official, spy, reporter): đặc điểm nhận diện (mũ, râu, kính, tóc)'. MỌI người được nhắc TÊN trong truyện (tối đa 8 người, quan trọng nhất xếp trước) đều phải có một mục và MỘT vai riêng (MAIN, SECOND, THIRD, FOURTH, FIFTH, SIXTH, SEVENTH, EIGHTH), giữ vai đó mãi mãi, không ai dùng chung vai; chỉ những người không có tên mới là CROWD. Tên đầy đủ chữ Latin viết ngay sau dấu '=' (ví dụ 'MAIN = Donald Trump (who=trump, job=president): ...'); người nổi tiếng thật BẮT BUỘC có who=. Mỗi nhân vật PHẢI khác tất cả những người còn lại ít nhất một nét nhìn thấy được","scenes":[{"text":"lời kể tiếng Việt của cảnh","image":"mô tả cảnh để vẽ tranh, tiếng Anh, 2 câu. BẮT ĐẦU bằng đúng một nhãn loại cảnh: [OBJECT] nếu lời kể nói về một vật/tiền/giấy tờ/sự việc/con số/ý tưởng (cận cảnh đồ vật, KHÔNG có người), [PERSON] nếu có người đang làm gì đó (nêu rõ họ cầm/đưa/đếm/mang vật gì, ví dụ người đàn ông cầm tiền thì phải ghi cash stack), [PLACE] nếu lời kể tả một nơi chốn/hành trình/thời điểm. Sau nhãn: vẽ đúng khoảnh khắc cụ thể nhìn thấy được, nêu rõ MỌI vật/địa điểm/hành động được nhắc đến trong lời kể của cảnh này, KHÔNG thêm cảnh vật trang trí mà lời kể không nhắc (mặt trời, mây, cây, nhà...). Chỉ ghi vai trò MAIN/SECOND/THIRD/FOURTH/FIFTH/SIXTH/SEVENTH/EIGHTH/CROWD và cảm xúc khi cảnh thật sự có người","mood":"tâm trạng của cảnh để chọn nhạc nền, chỉ chọn MỘT trong: calm, sad, tense, mystery, happy, epic, hopeful"}]}
 Nội dung: ${idea}`;
 
@@ -518,6 +518,41 @@ function sliceText(t, k) {
   out.push(cur);
   while (out.length < k) out.push(out[out.length - 1]);
   return out;
+}
+// Đảm bảo mỗi cảnh kết thúc trọn câu: AI đôi khi cắt một câu làm đôi giữa hai cảnh
+const SENT_END = /[.!?…]["”’')\]»]*$/;
+const ABBR_END = /(?:^|\s)(?:TP|TS|PGS|GS|ThS|Mr|Mrs|Ms|Dr|St|No|vs)\.$/i;
+function splitSentences(t) {
+  const raw = String(t || '').trim().split(/(?<=[.!?…]["”’')\]»]*)\s+/).filter(Boolean), out = [];
+  for (const x of raw) {
+    if (out.length && ABBR_END.test(out[out.length - 1])) out[out.length - 1] += ' ' + x; // "TP. Hồ Chí Minh" không phải hết câu
+    else out.push(x);
+  }
+  return out;
+}
+function fixSceneBreaks(sc) {
+  const out = sc.map(s => ({ ...s, text: String(s.text || '').trim() }));
+  let moved = 0;
+  for (let i = 0; i < out.length; i++) {
+    const cur = out[i];
+    if (!cur.text || SENT_END.test(cur.text)) continue;
+    if (i === out.length - 1) { cur.text += '.'; continue; }
+    const nx = out[i + 1], cs = splitSentences(cur.text), ns = splitSentences(nx.text);
+    if (cs.length >= 2) {            // cảnh này đã có câu trọn vẹn: đẩy mẩu câu dở xuống đầu cảnh sau
+      const tail = cs.pop();
+      cur.text = cs.join(' ');
+      nx.text = (tail + ' ' + nx.text).trim();
+    } else if (ns.length >= 2) {     // cảnh sau còn nhiều câu: kéo phần kết của câu dở lên cảnh này
+      cur.text = (cur.text + ' ' + ns.shift()).trim();
+      nx.text = ns.join(' ');
+    } else {                         // cả hai chỉ là một mẩu: gộp vào cảnh sau
+      nx.text = (cur.text + ' ' + nx.text).trim();
+      cur.text = '';
+    }
+    moved++;
+  }
+  if (moved) log(`  ✂ Đã chỉnh lại ${moved} chỗ ngắt cảnh để không cụt câu.`);
+  return out.filter(s => s.text);
 }
 // Video dài: viết kịch bản theo từng phần ~24 cảnh để không bị cụt và không quá thời gian
 async function makeScript(idea, min) {
@@ -551,7 +586,7 @@ async function makeScript(idea, min) {
 let storyCtx = '', settingCtx = '';
 
 function sceneCtx(s) {
-  return `Story: ${storyCtx}\nSetting: ${settingCtx}\nIDENTITY CUES (what the viewer must recognise at a glance; show at least one in this picture): ${identityCtx || 'none'}\nFIXED CAST for the whole video (the same person ALWAYS uses the same role in EVERY scene; never swap roles, never give one role to two different people; anyone not listed is CROWD): ${chars}\nNarration of this scene (Vietnamese, the picture MUST show what it says): ${s.text}\nPrevious scene picture: ${s.prev || 'none (this is the first scene)'}\nScene to draw: ${s.image}`;
+  return `Story: ${storyCtx}\nSetting: ${settingCtx}\nIDENTITY CUES (signs of the story's country/organisation/era; use them only when this scene's narration is about that place, and NEVER draw a national flag unless the narration of the scene names that country): ${identityCtx || 'none'}\nFIXED CAST for the whole video (the same person ALWAYS uses the same role in EVERY scene; never swap roles, never give one role to two different people; anyone not listed is CROWD): ${chars}\nNarration of this scene (Vietnamese, the picture MUST show what it says): ${s.text}\nPrevious scene picture: ${s.prev || 'none (this is the first scene)'}\nScene to draw: ${s.image}`;
 }
 
 // Bước đạo diễn: đọc cả truyện rồi viết lại mô tả vẽ cho từng cảnh khớp với lời kể
@@ -570,7 +605,7 @@ async function refineBatch(sc, part, from) {
 9) TƯƠNG PHẢN (người thường vs nhân vật chính, trước vs sau, hai quan điểm): ghi \"split frame: left side ..., right side ...\" để chia đôi khung, mỗi bên một kiểu người/vật khác nhau.
 10) Nhân vật chính (nhất là khi truyện về một người thật nổi tiếng, hãy ghi rõ tên người đó) phải có mặt ở ít nhất 2/3 số cảnh và luôn cùng ngoại hình. Mỗi cảnh phải tự kể được ý chính mà người xem không cần đọc lời kể; không bao giờ để khung gần như trống.
 11) VẼ ĐỦ: trước khi viết mỗi mô tả, tự liệt kê MỌI người (cha, mẹ, con, sếp, đối thủ, đám đông...) và MỌI vật/địa điểm (tòa tháp, sân golf, sòng bạc, khách sạn, thành phố...) mà lời kể nhắc đến. Mỗi người được nhắc (ngoài nhân vật chính) phải được vẽ thành một người riêng (vai SECOND/THIRD...); mỗi vật/địa điểm phải có mặt trong tranh. Kết thúc mô tả bằng đúng một cụm: \"MUST SHOW: a, b, c\" liệt kê những thứ đó (tiếng Anh). Ví dụ lời kể \"Cha của ông là nhà kinh doanh bất động sản\" thì MUST SHOW: older man in suit (father), building, house. Lời kể về nhiều thứ (khách sạn, sòng bạc, sân golf) thì phải thấy từng thứ, mỗi thứ một hình rõ ràng.
-12) Khi cảnh có người trong bảng nhân vật, ghi rõ vai và tên trong mô tả, ví dụ 'MAIN (Trump, president)', 'SECOND (his father, businessman)'; nếu nghề/chức vụ của người đó rõ từ lời kể thì ghi nghề đó (doctor, police, soldier, chef, worker, judge, king...) để tranh mặc đúng đồng phục. Người đó luôn dùng đúng vai đó ở mọi cảnh; không bao giờ gán vai khác cho họ hay cho người khác dùng vai đó.\n12b) NHẬN DIỆN BỐI CẢNH: nếu BỘ NHẬN DIỆN không rỗng thì MỌI cảnh phải có ít nhất MỘT dấu hiệu trong đó, vẽ to và rõ: cờ nước (tên như flag_china đặt trên cột sau lưng nhân vật), địa danh, biểu tượng, hoặc người mặc đồng phục đặc trưng của nước đó (ghi nghề cụ thể theo nước, ví dụ Chinese army officer with red-star cap). Cảnh [OBJECT] cận cảnh vật thì thêm một lá cờ nhỏ hoặc con dấu của nước đó ngay cạnh. Luôn ghi dấu hiệu đó vào cụm MUST SHOW. Không bao giờ dùng cờ của nước khác.${$('isrc').value === 'ai3d' ? '\n13) KIỂU ẢNH AI 3D HOẠT HÌNH: mô tả như một cảnh phim hoạt hình 3D bằng tiếng Anh: nhân vật, hành động, biểu cảm, bối cảnh, góc máy, ánh sáng. KHÔNG dùng thẻ [OBJECT]/[PERSON]/[PLACE], KHÔNG nhắc bong bóng, nền trắng hay nét vẽ. Mỗi lần nhắc nhân vật phải kèm lại ngoại hình cố định (tóc, màu da, quần áo, kính, tuổi) giống hệt mọi cảnh.' : ''}
+12) Khi cảnh có người trong bảng nhân vật, ghi rõ vai và tên trong mô tả, ví dụ 'MAIN (Trump, president)', 'SECOND (his father, businessman)'; nếu nghề/chức vụ của người đó rõ từ lời kể thì ghi nghề đó (doctor, police, soldier, chef, worker, judge, king...) để tranh mặc đúng đồng phục. Người đó luôn dùng đúng vai đó ở mọi cảnh; không bao giờ gán vai khác cho họ hay cho người khác dùng vai đó.\n12b) NHẬN DIỆN BỐI CẢNH: CỜ NƯỚC chỉ được đưa vào mô tả khi LỜI KỂ CỦA CHÍNH CẢNH NÀY nhắc tên nước đó (hoặc người/quân đội/chính phủ nước đó); khi đó đặt đúng một lá cờ (tên như flag_china) trên cột cạnh cảnh và ghi vào cụm MUST SHOW. Lời kể không nhắc tên nước thì TUYỆT ĐỐI không có cờ nào (kể cả cờ chung) và không cần dấu hiệu quốc gia. Các dấu hiệu khác (địa danh, biểu tượng, đồng phục đặc trưng) chỉ dùng khi hợp với cảnh, tối đa một cái, không đặt làm trang trí cho mọi cảnh. Không bao giờ dùng cờ của nước khác.${$('isrc').value === 'ai3d' ? '\n13) KIỂU ẢNH AI 3D HOẠT HÌNH: mô tả như một cảnh phim hoạt hình 3D bằng tiếng Anh: nhân vật, hành động, biểu cảm, bối cảnh, góc máy, ánh sáng. KHÔNG dùng thẻ [OBJECT]/[PERSON]/[PLACE], KHÔNG nhắc bong bóng, nền trắng hay nét vẽ. Mỗi lần nhắc nhân vật phải kèm lại ngoại hình cố định (tóc, màu da, quần áo, kính, tuổi) giống hệt mọi cảnh.' : ''}
 \nChỉ trả về JSON: {"images":["mô tả cảnh 1","mô tả cảnh 2"]} với đúng ${part.length} phần tử theo thứ tự (chỉ cho các cảnh trong danh sách).
 Cốt truyện: ${sc.story || ''}
 Bối cảnh: ${sc.setting || ''}
@@ -731,7 +766,9 @@ function figureSvg(a, sw) {
   if (!mark) mark = def.mark;
   const who = WHO[String(a.who || '').toLowerCase().replace(/[^a-z]/g, '')];
   if (!who && (a.hair || a.hat) && !/^(beard|long|glasses)$/.test(acc)) acc = 'x';
-  if (who) { acc = who.acc; mark = who.mark; _tags.push({ x, y, n: who.n }); }
+  if (who) { acc = who.acc; mark = who.mark; }
+  { const _nmShow = who ? who.n : (NAMED_ROLES.includes(role) && castLock && castLock[role] && castLock[role].nm) || ''; // tên hiện dưới chân, chỉ ở cảnh đầu tiên người đó xuất hiện
+    if (_nmShow && nameFirstHere(role, _nmShow)) _tags.push({ x, y, n: String(_nmShow).slice(0, 24) }); }
   const JB = (who && !who.learned) ? null : jobSvg(who ? who.key : a.job); // trang phục theo nghề (người nổi tiếng tự học cũng dùng đường này)
   if (JB) { mark = 'none'; if (JB.acc) acc = JB.acc; else if (!JB.keep) acc = 'none'; }
   const flip = String(a.facing || 'right').toLowerCase() === 'left' ? -1 : 1;
@@ -1543,7 +1580,7 @@ STEP 1 - CHOOSE THE SCENE TYPE FROM THE NARRATION (the "Scene to draw" may start
 - DREAMS / WISHES / THOUGHTS / PLANS / WORDS SPOKEN: never draw the thing alone as if it were real. Draw the person (MAIN, pose think or shout, matching face) and put <prop type="thought" .../> (dream, wish, idea, plan) or <prop type="speech" .../> (something said aloud) beside and above the head, then place the prop that shows the dream or the words (cash, house, tower, bulb, chart_up...) INSIDE the bubble with a smaller size, drawn AFTER the bubble. The bubble prop x,y is its centre.
 - CONTRAST (ordinary people vs the hero, before vs after, two opposite opinions): split the frame into two halves with a clear gap: one side a CROWD person with a small hut/house, the other side MAIN with a big building/tower.
 - MUST SHOW: if the description contains a 'MUST SHOW:' list, EVERY item in it must appear in the picture (people as separate <person> tags with a different role and look, objects as props or your own simple drawing). Do not drop any item to keep the picture simple; shrink and arrange them instead.
-- IDENTITY: the line 'IDENTITY CUES' says which country, organisation or era the story is about. The viewer must know that at a glance, so put at least ONE of those cues in EVERY picture, drawn big and clear: the national flag as a prop on a pole (flag_china, flag_vietnam, flag_usa, flag_russia, flag_japan; for any other country write flag_<country in English>, e.g. flag_france, flag_korea, and the tool draws it), a landmark (greatwall, tiananmen, eiffel, whitehouse, khue...), redstar, a sign or emblem, or a person in that country's typical uniform (give the person a country-specific job word such as plaofficer = Chinese army officer with red-star cap). Place the flag on its pole behind or beside the main person; in close-up object scenes put a small flag or stamp next to the object. Never use another country's flag. Do not skip this to keep the picture simple.
+- IDENTITY: the line 'IDENTITY CUES' lists signs of the country, organisation or era of the story. FLAGS: draw a national flag (flag_china, flag_vietnam, flag_usa, flag_russia, flag_japan; for any other country flag_<country in English>) ONLY when the narration of THIS scene names that country (or its people / army / government) and then show that country's flag ONCE, medium size, on its pole beside the scene. If the narration of this scene does not name a country, draw NO flag and no national flag in any form (also no generic flag prop). Never use another country's flag. Other cues (landmark such as greatwall, tiananmen, eiffel, whitehouse, khue; redstar; an emblem; a typical uniform such as plaofficer) are optional: use at most one, only when it fits this scene, never as decoration in every picture.
 - The frame is never left almost empty: if the narration is about a person, show that person; the picture alone must tell the story.
 - NEWS / NUMBERS / ECONOMY / ABSTRACT IDEAS: use SYMBOLS instead of a literal drawing of the words. Prices, stocks, sales or the economy falling = <prop type="chart_down"/> (rising = chart_up); a drop or rise = arrow_down / arrow_up; a discount or rate = percent; danger, risk or a warning = warning; savings, spending or personal money = wallet + cash; a headline, report or announcement = newspaper; an idea = bulb; a secret = key; success = trophy; debt = paper + cash. Show 1 to 3 symbols BIG (size 2 to 3.5), then at most one or two people reacting (worried, surprised). Never try to draw the abstract word itself with random shapes.
 - Do NOT put a person in the scene just to fill space. Do NOT add decoration the narration does not mention or clearly imply (sun, clouds, trees, houses, birds, fences, grass). EMPTY WHITE SPACE IS GOOD. A ground line is optional: use <ground> only when people or buildings need to stand on something.
@@ -2017,6 +2054,37 @@ function dateLabelSvg(labels) {
   });
   return `<g filter="url(#wob)">${out}</g>`;
 }
+// ===== CỜ QUỐC GIA chỉ hiện khi lời kể của cảnh nhắc tên nước; NHÃN TÊN nhân vật chỉ hiện ở cảnh đầu tiên người đó xuất hiện =====
+let _curScene = -1; // chỉ số cảnh đang vẽ (-1 = không rõ)
+const _CTRY_ANY = ['Việt Nam', 'Trung Quốc', 'Trung Hoa', 'Hoa Kỳ', 'Nhật Bản', 'Hàn Quốc', 'Triều Tiên', 'Tây Ban Nha', 'Bồ Đào Nha', 'Hà Lan', 'Thụy Sĩ', 'Thụy Điển', 'Na Uy', 'Đan Mạch', 'Phần Lan', 'Ba Lan', 'Ukraine', 'Ucraina', 'Canada', 'Brazil', 'Brasil', 'Mexico', 'Argentina', 'Chile', 'Colombia', 'Peru', 'Venezuela', 'Cuba', 'Ấn Độ', 'Pakistan', 'Bangladesh', 'Indonesia', 'Thái Lan', 'Singapore', 'Malaysia', 'Philippines', 'Campuchia', 'Myanmar', 'Mông Cổ', 'Ả Rập', 'Saudi', 'Israel', 'Palestine', 'Iran', 'Iraq', 'Syria', 'Thổ Nhĩ Kỳ', 'Ai Cập', 'Nam Phi', 'Nigeria', 'Liên Xô', 'Đài Loan', 'Hồng Kông', 'New Zealand', 'Hy Lạp', 'Hungary', 'Romania', 'Ireland', 'Iceland', 'Mỹ', 'Nga', 'Pháp', 'Nhật', 'Hàn', 'Úc', 'Đức',
+  'China', 'Chinese', 'Vietnam', 'Vietnamese', 'America', 'American', 'United States', 'USA', 'U.S.', 'Russia', 'Russian', 'Soviet', 'Japan', 'Japanese', 'Korea', 'Korean', 'France', 'French', 'Germany', 'German', 'Italy', 'Italian', 'Britain', 'British', 'England', 'Spain', 'Spanish', 'India', 'Indian', 'Australia', 'Poland', 'Turkey', 'Egypt', 'Thailand', 'Taiwan'];
+const _CTRY_RE = new RegExp('(?<![\\p{L}])(?:' + _CTRY_ANY.map(x => x.replace(/\./g, '\\.')).join('|') + ')(?![\\p{L}])', 'u');
+const _CTRY_CTX = /(?:[Nn]ước|[Nn]gười|[Qq]uân|[Đđ]ế quốc|[Vv]ương quốc|[Ll]iên bang|[Hh]oàng gia|[Ởở]|[Tt]ại|[Ss]ang|[Tt]ới|[Đđ]ến|[Cc]ủa|[Tt]ừ)\s+(?:Anh|Ý|Bỉ|Áo|Lào|Séc|Đức|Nga|Mỹ)(?![\p{L}])/u;
+function flagAllowed(text, generic) { // true nếu lời kể nhắc tên một nước (cờ nước) hoặc nhắc thẳng lá cờ (cờ chung)
+  const t = String(text || '');
+  if (_CTRY_RE.test(t) || _CTRY_CTX.test(t)) return true;
+  return !!generic && /(?:^|[^\p{L}])(?:lá cờ|ngọn cờ|cờ hiệu|quốc kỳ|flag|banner)(?![\p{L}])/iu.test(t);
+}
+function stripFlags(t, narration) { // bỏ thẻ cờ khi cảnh không nhắc tên nước (không phí lượt học cờ lạ)
+  const okCountry = flagAllowed(narration, false), okGeneric = flagAllowed(narration, true);
+  let n = 0;
+  const keep = (type) => /^flag$|^flags?_?$/i.test(type) ? okGeneric : okCountry;
+  t = String(t).replace(/<prop\b[^>]*\btype\s*=\s*["']([^"']*flag[^"']*)["'][^>]*?\/?>(\s*<\/prop>)?/gi, (m, ty) => keep(ty) ? m : (n++, ''));
+  t = t.replace(/\s+hold\s*=\s*["'][^"']*flag[^"']*["']/gi, m => okGeneric ? m : (n++, ''));
+  if (n) try { log('  🚩 Bỏ ' + n + ' lá cờ vì lời kể cảnh này không nhắc tên nước'); } catch (e) { }
+  return t;
+}
+const _nz = t => String(t || '').replace(/đ/g, 'd').replace(/Đ/g, 'D').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+function nameFirstHere(role, name) { // nhãn tên chỉ hiện ở cảnh ĐẦU TIÊN nhân vật xuất hiện (lần đầu để khán giả nhận ra)
+  if (!Array.isArray(scenes) || !scenes.length || _curScene < 0) return true;
+  let idx = -1;
+  if (NAMED_ROLES.includes(role)) { const re = new RegExp('\\b' + role + '\\b'); idx = scenes.findIndex(sc => re.test(String(sc.image || ''))); }
+  if (idx < 0) {
+    const toks = _nz(name).split(/[^a-z0-9]+/).filter(t => t.length >= 3);
+    if (toks.length) idx = scenes.findIndex(sc => { const t = _nz(String(sc.text || '') + ' ' + String(sc.image || '')); return toks.some(k => t.includes(k)); });
+  }
+  return idx >= 0 && idx === _curScene;
+}
 function addTags(svg) {
   if (!_tags.length) return svg;
   const F = `font-family="'Segoe Print','Bradley Hand','Comic Sans MS',cursive,sans-serif" font-weight="700" text-anchor="middle" fill="#111111" stroke="none"`;
@@ -2159,9 +2227,9 @@ async function svgImage(s, blackInkOnly = false) {
   if (dl.length) rule += '\nDATE LABEL: the narration of this scene contains a date. The tool will draw a calendar / date label in the TOP-LEFT corner (about 30% of the width and 30% of the height). Keep that corner EMPTY (put nothing there) and do NOT write any date or text yourself.';
   parts.push({ text: `${rule}\n${sceneCtx(s)}` });
   const d = await gemMulti(TXT_MODELS, { contents: [{ parts }] }, 75000);
-  const t = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('');
+  const t = stripFlags((d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join(''), s.text);
   if (macro) { try { await libLearn(t, s); } catch (e) { log('  ⚠ Thư viện tự học lỗi: ' + e.message); } } // học đồ vật/nghề mới (không có await nào sau dòng này cho tới khi bung xong thẻ)
-  _tags.length = 0; _ppl.length = 0; _spr.length = 0;
+  _tags.length = 0; _ppl.length = 0; _spr.length = 0; _curScene = Array.isArray(scenes) ? scenes.indexOf(s) : -1;
   const svg = addTags(addDateLabels(sanitizeSvg(macro ? expandPeople(expandProps(t, st.sw), st.sw) : t, curStyle().wob, st.sw), dl));
   { const d2 = new DOMParser().parseFromString(svg, 'image/svg+xml'); // kiểm tra chất lượng: SVG hợp lệ và không trống (lỗi thì vòng thử lại 3 lần có sẵn sẽ vẽ lại)
     if (d2.querySelector('parsererror')) throw new Error('SVG lỗi cú pháp');
@@ -3091,6 +3159,7 @@ async function start(isRetry = false) {
       $('log').textContent = '⏳ Đang viết kịch bản...';
       $('bar').style.width = '0%';
       const sc = await makeScript(idea, +$('min').value);
+      sc.scenes = fixSceneBreaks(sc.scenes);
       chars = sc.characters || '';
       parseCast(chars);
       storyCtx = sc.story || '';
@@ -3332,6 +3401,21 @@ function wrap(x, t, w) {
   }
   if (l) L.push(l);
   return L;
+}
+
+// Phụ đề dài hơn số dòng cho phép thì chia thành nhiều trang nối tiếp theo tiến độ lời đọc, không cắt mất phần cuối câu
+const subCache = new WeakMap();
+function subPages(x, s) {
+  const key = s.text + '|' + fm.sw + '|' + fm.fs + '|' + fm.ml, c = subCache.get(s);
+  if (c && c.key === key) return c;
+  const L = wrap(x, s.text, fm.sw), pages = [];
+  for (let i = 0; i < L.length; i += fm.ml) pages.push(L.slice(i, i + fm.ml));
+  if (!pages.length) pages.push(['']);
+  const w = pages.map(p => p.join(' ').length), tot = w.reduce((a, b) => a + b, 0) || 1;
+  let acc = 0; const cut = w.map(v => (acc += v) / tot);
+  const r = { key, pages, cut };
+  subCache.set(s, r);
+  return r;
 }
 
 function cap(x, x1, y1, x2, y2, w, col, ol) {
@@ -3701,7 +3785,9 @@ function makeRenderer(vs, st, x) {
       x.fillStyle = '#111';
       x.font = `600 ${fm.fs}px system-ui,sans-serif`;
       x.textAlign = 'center';
-      wrap(x, s.text, fm.sw).slice(0, fm.ml).forEach((l, j) => x.fillText(l, W / 2, fm.sy + j * fm.lh));
+      const sp = subPages(x, s), pr = Math.min(1, lt / Math.max(0.5, s.dur - 0.9));
+      let pi = sp.cut.findIndex(c => pr <= c); if (pi < 0) pi = sp.pages.length - 1;
+      sp.pages[pi].forEach((l, j) => x.fillText(l, W / 2, fm.sy + j * fm.lh));
       x.globalAlpha = 1;
     }
   };

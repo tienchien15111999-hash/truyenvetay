@@ -333,3 +333,16 @@ Yêu cầu người dùng: dùng cách vẽ miễn phí mà tranh vẫn màu r�
 
 ## Cập nhật: vẽ lại râu (cmode=vivid)
 - Râu `acc==='beard'` ở vivid không còn là mảng trắng: có màu (đen xám, nâu, xám bạc, nâu nhạt, cố định theo vai: `NAMED_ROLES.indexOf(role) % 4`; CROWD theo `_dS`), ôm quanh hàm, kèm ria mép, nét viền mảnh bằng nửa nét thường, miệng vẫn lộ ra. Chế độ khác vẫn dùng râu trắng cũ. Râu của nhân vật thật do Gemini thiết kế (shape trong `LIB.jobs[..].head`) không đổi.
+
+## Cập nhật: cờ chỉ khi nhắc tên nước + nhãn tên nhân vật chỉ ở lần đầu xuất hiện
+- **Cờ**: `flagAllowed(text, generic)` (danh sách `_CTRY_ANY` tên nước tiếng Việt/Anh + `_CTRY_CTX` cho từ ngắn dễ nhầm như Anh, Ý, Bỉ, Áo, Lào, Séc) kiểm tra LỜI KỂ của cảnh (`s.text`). `stripFlags(t, s.text)` chạy ngay sau khi Gemini trả SVG (trước `libLearn`, nên không tốn lượt học cờ lạ) và xóa mọi thẻ `<prop type="…flag…">` và `hold="…flag…"` khi cảnh không nhắc tên nước (cờ chung `flag` còn được giữ nếu lời kể nói "lá cờ / ngọn cờ / quốc kỳ"). Nhật ký ghi "🚩 Bỏ n lá cờ…". Chỉ kiểm tra "có nước nào được nhắc" chứ không kiểm tra đúng nước nào; việc chọn đúng cờ do prompt lo.
+- Prompt đã đổi: luật IDENTITY của `svgImage` (≈dòng 1548), dòng IDENTITY CUES trong `sceneCtx` (≈554) và luật 12b của đạo diễn (≈573): không còn ép "mọi cảnh phải có dấu hiệu quốc gia"; cờ chỉ khi cảnh nhắc tên nước, mỗi cảnh một lá; dấu hiệu khác tối đa một, tùy cảnh.
+- **Nhãn tên**: `nameFirstHere(role, name)` chỉ cho `figureSvg` đẩy nhãn tên (dưới chân) ở cảnh ĐẦU TIÊN người đó xuất hiện: cảnh đầu tiên có mô tả `s.image` nhắc vai (MAIN, SECOND...), nếu không thì cảnh đầu có tên trong lời kể/mô tả. Vì cảnh vẽ song song nên quyết định theo thứ tự cảnh trong kịch bản (`_curScene = scenes.indexOf(s)`), không theo thứ tự vẽ xong. Nhiều nhân vật chính: mỗi người một nhãn ở lần đầu của riêng mình. Nhãn dùng tên người nổi tiếng (`who.n`) hoặc tên trong bảng nhân vật (`castLock[role].nm`) cho mọi vai có tên.
+- Kiểm thử Playwright (Gemini giả luôn trả cờ + 2 nhân vật) trên 4 cảnh: nhãn "Minh" chỉ ở cảnh 1, "Lan" chỉ ở cảnh 2, cờ chỉ ở cảnh nhắc "Mỹ", cảnh còn lại không cờ không nhãn. CHƯA thử với Gemini thật.
+
+
+## Sửa lỗi ngắt câu cuối mỗi ảnh
+
+- Prompt viết kịch bản có thêm quy tắc "ngắt cảnh": lời kể mỗi cảnh phải gồm câu trọn vẹn, không cắt một câu làm đôi giữa hai cảnh.
+- Thêm `fixSceneBreaks()`: sau khi AI trả kịch bản, tool tự kiểm tra từng cảnh có kết thúc bằng dấu câu không. Nếu cảnh bị cụt câu thì đẩy mẩu câu dở xuống đầu cảnh sau (hoặc kéo phần kết từ cảnh sau lên). Cảnh cuối thiếu dấu thì thêm dấu chấm. Có ghi log số chỗ đã chỉnh.
+- Phụ đề không còn bị cắt cứng ở số dòng tối đa (3 dòng ngang, 6 dòng dọc). Lời kể dài hơn sẽ được chia thành nhiều trang, tự chuyển trang theo tiến độ lời đọc của cảnh.
