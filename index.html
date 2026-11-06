@@ -262,6 +262,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   <p class="hint">Nhạc nền do tool tự tạo (không cần file nhạc, không dính bản quyền), tự hạ nhỏ khi có giọng đọc. Bấm "Xem thử" để nghe trước, chỉnh âm lượng rồi hãy xuất video.</p>
   <p class="hint">Xuất video chạy nhanh (video 4 phút xuất xong trong khoảng 1 đến 2 phút), không cần xem hết video. Xuất xong sẽ có nút tải về. Nếu trình duyệt không hỗ trợ xuất nhanh, tool tự chuyển sang xuất theo thời gian thật.</p>
   <div id="out"></div>
+  <div id="thumbBox"></div>
 </div>
 </main>
 
@@ -3190,6 +3191,8 @@ async function start(isRetry = false) {
       ref = null;
       $('pl').hidden = true;
       $('out').innerHTML = '';
+      if ($('thumbBox')) $('thumbBox').innerHTML = '';
+      TH = null;
       renderGallery();
       $('galBox').hidden = false;
     } else {
@@ -3904,7 +3907,7 @@ async function exportFast() {
     muxer.finalize();
     const u = URL.createObjectURL(new Blob([target.buffer], { type: 'video/mp4' }));
     const secs = Math.round((Date.now() - t00) / 1000);
-    out.innerHTML = `<p class="hint">✅ Xuất xong trong ${secs} giây.</p><video class="${fm.v ? 'v' : ''}" controls src="${u}"></video><a download="video-ve-tay.mp4" href="${u}"><button>⬇ Tải video về máy</button></a>`;
+    out.innerHTML = `<p class="hint">✅ Xuất xong trong ${secs} giây.</p><video class="${fm.v ? 'v' : ''}" controls src="${u}"></video><a download="video-ve-tay.mp4" href="${u}"><button>⬇ Tải video về máy</button></a><button type="button" class="w" onclick="openThumb()">🖼 Tạo thumbnail YouTube</button>`;
   } catch (e) {
     try { if (venc && venc.state !== 'closed') venc.close(); } catch (e2) {}
     try { if (aenc && aenc.state !== 'closed') aenc.close(); } catch (e2) {}
@@ -3949,7 +3952,7 @@ function play(rec, forceReal) {
       mr.ondataavailable = e => e.data.size && chunks.push(e.data);
       mr.onstop = () => {
         const u = URL.createObjectURL(new Blob(chunks, { type: mime || 'video/webm' }));
-        $('out').innerHTML = `<video class="${fm.v ? 'v' : ''}" controls src="${u}"></video><a download="video-ve-tay.${ext}" href="${u}"><button>⬇ Tải video về máy</button></a>`;
+        $('out').innerHTML = `<video class="${fm.v ? 'v' : ''}" controls src="${u}"></video><a download="video-ve-tay.${ext}" href="${u}"><button>⬇ Tải video về máy</button></a><button type="button" class="w" onclick="openThumb()">🖼 Tạo thumbnail YouTube</button>`;
       };
       mr.start(1000);
       $('out').textContent = 'Đang xuất video theo thời gian thật, vui lòng đợi...';
@@ -3974,6 +3977,274 @@ function play(rec, forceReal) {
     nextTick(frame);
   });
 }
+// ===== THUMBNAIL YOUTUBE + CÂU HOOK =====
+// Nút "🖼 Tạo thumbnail YouTube" nằm cạnh nút "Tải video về máy" (xem play / exportFast).
+// openThumb() mở khung thumbBox: AI chọn cảnh hợp nhất + viết 5 tiêu đề hook + 5 dòng chữ thumbnail + mô tả + tag,
+// canvas thCv (1280x720, đúng chuẩn YouTube) vẽ lại ngay khi đổi chữ/cảnh/màu. Tải về dạng JPG.
+let TH = null;
+const TH_THEMES = {
+  yellow: { a: '#ffe14d', b: '#ffb703', txt: '#111111', hl: '#e11d48', stroke: '#ffffff' },
+  red: { a: '#ff5a5f', b: '#a80f27', txt: '#ffffff', hl: '#ffe14d', stroke: '#111111' },
+  blue: { a: '#38bdf8', b: '#1d4ed8', txt: '#ffffff', hl: '#ffe14d', stroke: '#111111' }
+};
+const THUMB_HTML = `<div class="box" id="thWrap">
+  <b style="font-size:18px">🖼 Thumbnail YouTube + câu hook</b>
+  <div id="thStat" class="hint"></div>
+  <canvas id="thCv" width="1280" height="720"></canvas>
+  <div class="row">
+    <div>
+      <label>Cảnh làm ảnh thumbnail</label>
+      <select id="thScene" onchange="thDraw()"></select>
+    </div>
+    <div>
+      <label>Màu nền</label>
+      <select id="thTheme" onchange="thDraw()">
+        <option value="yellow">Vàng (chữ đen, nổi nhất)</option>
+        <option value="red">Đỏ</option>
+        <option value="blue">Xanh dương</option>
+      </select>
+    </div>
+  </div>
+  <label class="chk"><input type="checkbox" id="thCrop" checked onchange="thDraw()"> Phóng to tranh (cắt bớt hai bên cho to, dễ nhìn trên điện thoại)</label>
+  <label>Chữ trên thumbnail (2-5 từ là đẹp nhất, dòng cuối tự tô màu nhấn)</label>
+  <input id="thText" oninput="thDraw()" maxlength="40">
+  <div id="thTexts"></div>
+  <label>Tiêu đề video (hook) <span id="thCnt" class="hint"></span></label>
+  <input id="thTitle" oninput="thCount()">
+  <div id="thTitles"></div>
+  <div>
+    <button type="button" onclick="thDownload()">⬇ Tải thumbnail (JPG 1280×720)</button>
+    <button type="button" class="w" onclick="thCopy('thTitle')">📋 Copy tiêu đề</button>
+    <button type="button" class="w" id="thRegen" onclick="thGenCopy()">🔄 Gợi ý hook khác</button>
+  </div>
+  <details style="margin-top:10px">
+    <summary>Mô tả + tag đăng YouTube</summary>
+    <label>Mô tả (dòng đầu là câu hook hiện trước nút "xem thêm")</label>
+    <textarea id="thDesc" style="min-height:150px"></textarea>
+    <button type="button" class="w sm" onclick="thCopy('thDesc')">📋 Copy mô tả</button>
+    <label>Tag (cách nhau bằng dấu phẩy)</label>
+    <textarea id="thTags" style="min-height:60px"></textarea>
+    <button type="button" class="w sm" onclick="thCopy('thTags')">📋 Copy tag</button>
+  </details>
+</div>`;
+
+function thEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function thRR(x, X, Y, w, h, r) {
+  x.beginPath();
+  x.moveTo(X + r, Y);
+  x.arcTo(X + w, Y, X + w, Y + h, r);
+  x.arcTo(X + w, Y + h, X, Y + h, r);
+  x.arcTo(X, Y + h, X, Y, r);
+  x.arcTo(X, Y, X + w, Y, r);
+  x.closePath();
+}
+
+const TH_FONT = s => `900 ${s}px "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
+
+function thWrap(x, text, maxW) {
+  const words = text.split(/\s+/).filter(Boolean), lines = [];
+  let cur = '';
+  for (const w of words) {
+    const t = cur ? cur + ' ' + w : w;
+    if (cur && x.measureText(t).width > maxW) { lines.push(cur); cur = w; } else cur = t;
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+function thFit(x, text, maxW, maxH) {
+  let size = 170, lines = [];
+  for (; size >= 52; size -= 4) {
+    x.font = TH_FONT(size);
+    lines = thWrap(x, text, maxW);
+    const ok = lines.length <= 3 && lines.every(l => x.measureText(l).width <= maxW) && lines.length * size * 1.08 <= maxH;
+    if (ok) break;
+  }
+  return { size, lines };
+}
+
+function thDraw() {
+  const c = $('thCv');
+  if (!c) return;
+  const x = c.getContext('2d'), Wd = 1280, Hd = 720;
+  const th = TH_THEMES[$('thTheme').value] || TH_THEMES.yellow;
+  // nền + tia sáng
+  const g = x.createLinearGradient(0, 0, Wd, Hd);
+  g.addColorStop(0, th.a); g.addColorStop(1, th.b);
+  x.fillStyle = g; x.fillRect(0, 0, Wd, Hd);
+  x.save();
+  x.globalAlpha = 0.14; x.fillStyle = '#ffffff';
+  for (let i = 0; i < 14; i++) {
+    const a0 = i * Math.PI / 7, a1 = a0 + Math.PI / 14;
+    x.beginPath(); x.moveTo(930, 360); x.arc(930, 360, 1500, a0, a1); x.closePath(); x.fill();
+  }
+  x.restore();
+
+  // khung tranh bên phải
+  const s = scenes[+$('thScene').value] || scenes.find(q => q.cv);
+  let cardW = 560, cardH = 520;
+  const cvv = s && s.cv;
+  if (cvv) {
+    const vert = cvv.height > cvv.width;
+    if (vert) { cardW = 420; cardH = 620; }
+    else if (!$('thCrop').checked) { cardW = 560; cardH = Math.round(560 * cvv.height / cvv.width); }
+  }
+  const cx = cvv && cvv.height > cvv.width ? 1030 : 960, cy = 360;
+  if (cvv) {
+    x.save();
+    x.translate(cx, cy); x.rotate(-0.05);
+    thRR(x, -cardW / 2 + 16, -cardH / 2 + 16, cardW, cardH, 26);
+    x.fillStyle = 'rgba(0,0,0,.85)'; x.fill();
+    thRR(x, -cardW / 2, -cardH / 2, cardW, cardH, 26);
+    x.fillStyle = '#ffffff'; x.fill();
+    x.save();
+    thRR(x, -cardW / 2, -cardH / 2, cardW, cardH, 26); x.clip();
+    const sc = Math.max(cardW / cvv.width, cardH / cvv.height);
+    const sw = cardW / sc, sh = cardH / sc, sx = (cvv.width - sw) / 2, sy = (cvv.height - sh) / 2;
+    // vẽ chồng 3 lần lệch rất nhẹ để nét mực dày hơn, dễ nhìn khi thumbnail bị thu nhỏ
+    for (const [ox, oy] of [[0, 0], [1, 0], [0, 1]]) x.drawImage(cvv, sx, sy, sw, sh, -cardW / 2 + ox, -cardH / 2 + oy, cardW, cardH);
+    x.restore();
+    thRR(x, -cardW / 2, -cardH / 2, cardW, cardH, 26);
+    x.lineWidth = 9; x.strokeStyle = '#111111'; x.stroke();
+    x.restore();
+  }
+
+  // chữ bên trái
+  const text = ($('thText').value || '').trim().toUpperCase();
+  if (text) {
+    const left = 54, maxW = (cx - cardW / 2) - left - 36, maxH = 600;
+    const { size, lines } = thFit(x, text, maxW, maxH);
+    x.font = TH_FONT(size);
+    x.textBaseline = 'middle'; x.textAlign = 'left';
+    x.lineJoin = 'round'; x.miterLimit = 2;
+    const lh = size * 1.08, top = (Hd - lines.length * lh) / 2;
+    lines.forEach((ln, i) => {
+      const y = top + i * lh + lh / 2;
+      const hl = lines.length >= 2 && i === lines.length - 1;
+      x.lineWidth = size * 0.17; x.strokeStyle = th.stroke;
+      x.strokeText(ln, left, y);
+      x.fillStyle = hl ? th.hl : th.txt;
+      x.fillText(ln, left, y);
+    });
+  }
+}
+
+function thCount() {
+  const n = ($('thTitle').value || '').length, e = $('thCnt');
+  e.textContent = `(${n} ký tự${n > 70 ? ', hơi dài, YouTube sẽ cắt bớt' : ', vừa đẹp'})`;
+  e.style.color = n > 70 ? '#d97706' : '#15803d';
+}
+
+function thLists() {
+  if (!TH) return;
+  $('thTexts').innerHTML = TH.texts.length ? '<div class="hint">Gợi ý chữ thumbnail (bấm để dùng):</div>' + TH.texts.map((t, i) =>
+    `<button type="button" class="w sm" onclick="thPick('x',${i})">${thEsc(t)}</button>`).join('') : '';
+  $('thTitles').innerHTML = TH.titles.length ? '<div class="hint">Gợi ý tiêu đề (bấm để dùng):</div>' + TH.titles.map((t, i) =>
+    `<button type="button" class="w sm" style="display:block;text-align:left;width:100%" onclick="thPick('t',${i})">${thEsc(t)} <span style="font-weight:400;color:#666">(${t.length})</span></button>`).join('') : '';
+}
+
+function thPick(k, i) {
+  if (!TH) return;
+  if (k === 'x' && TH.texts[i] != null) { $('thText').value = TH.texts[i]; thDraw(); }
+  if (k === 't' && TH.titles[i] != null) { $('thTitle').value = TH.titles[i]; thCount(); }
+}
+
+async function thCopy(id) {
+  const v = $(id).value;
+  try { await navigator.clipboard.writeText(v); }
+  catch (e) { $(id).focus(); $(id).select(); try { document.execCommand('copy'); } catch (e2) { } }
+  const st = $('thStat'); if (st) { st.style.color = '#15803d'; st.textContent = '✅ Đã copy.'; }
+}
+
+function thDownload() {
+  thDraw();
+  $('thCv').toBlob(b => {
+    if (!b) return alert('Không xuất được ảnh, bạn thử lại nhé.');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b);
+    a.download = 'thumbnail-youtube.jpg';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }, 'image/jpeg', 0.92);
+}
+
+async function thGenCopy() {
+  const st = $('thStat'), btn = $('thRegen');
+  keys = $('keys').value.split(/\s+/).filter(k => k.length > 20);
+  if (!keys.length) {
+    $('set').open = true;
+    st.style.color = '#dc2626';
+    st.textContent = '⚠ Dán API key Gemini vào phần Cài đặt rồi bấm "Gợi ý hook khác" nhé. Trong lúc đó bạn vẫn tự gõ chữ và tải thumbnail được.';
+    return;
+  }
+  abortGen = false;
+  if (btn) btn.disabled = true;
+  st.style.color = '#555';
+  st.textContent = '⏳ Đang nghĩ câu hook, tiêu đề và chọn cảnh đẹp nhất...';
+  const story = scenes.map((q, i) => `${i + 1}. ${q.text}`).join('\n').slice(0, 9000);
+  const avoid = TH && TH.titles.length ? `\nĐã gợi ý rồi, hãy viết hướng KHÁC hẳn: ${TH.titles.join(' | ')}\n` : '';
+  const p = `Bạn là chuyên gia YouTube tiếng Việt, chuyên tối ưu tiêu đề và thumbnail cho kênh kể chuyện. Dưới đây là kịch bản video (các cảnh đánh số). Hãy tạo bộ đóng gói video để người xem muốn bấm vào xem.
+
+QUY TẮC TIÊU ĐỀ (titles, đúng 5 phương án, mỗi phương án một kiểu hook khác nhau: câu hỏi gây tò mò / mâu thuẫn bất ngờ / con số cụ thể / cảm xúc mạnh / bí mật hoặc lời thách đố):
+- Tối đa 65 ký tự. Phần gây tò mò hoặc từ khóa chính phải nằm trong 40 ký tự đầu.
+- Gợi tò mò nhưng KHÔNG tiết lộ kết thúc và KHÔNG nói sai sự thật so với câu chuyện (không lừa người xem).
+- Tiếng Việt tự nhiên, không viết HOA cả câu, tối đa 1 dấu ! hoặc ?, không emoji.
+QUY TẮC CHỮ TRÊN THUMBNAIL (texts, đúng 5 phương án): 2 đến 5 từ, tối đa 28 ký tự, viết HOA, đọc được trong 1 giây, bổ sung ý cho tiêu đề chứ không lặp y nguyên, gây tò mò hoặc cảm xúc mạnh.
+scene: số thứ tự cảnh (chỉ một số nguyên từ 1 đến ${scenes.length}) có hình dễ nhìn, kịch tính, đại diện nhất cho câu chuyện; tránh cảnh kết lộ spoiler.
+desc: mô tả YouTube bằng tiếng Việt. Dòng 1 là câu hook (tối đa 120 ký tự, vì chỉ dòng này hiện trước nút xem thêm), rồi 2-3 câu tóm tắt không lộ kết, cuối cùng một câu kêu gọi đăng ký kênh và bình luận. Không dùng hashtag.
+tags: 10 từ khóa tìm kiếm tiếng Việt liên quan câu chuyện (không có dấu #).${avoid}
+Chỉ trả về JSON đúng dạng: {"titles":["..."],"texts":["..."],"scene":1,"desc":"...","tags":["..."]}
+
+Kịch bản:
+${story}`;
+  try {
+    const d = await gemMulti(TXT_MODELS, { contents: [{ parts: [{ text: p }] }], generationConfig: { responseMimeType: 'application/json' } }, 70000);
+    const raw = (d.candidates?.[0]?.content?.parts || []).map(q => q.text || '').join('').replace(/```json|```/g, '').trim();
+    const a = raw.indexOf('{'), b = raw.lastIndexOf('}');
+    const j = JSON.parse(a >= 0 && b > a ? raw.slice(a, b + 1) : raw);
+    const arr = v => (Array.isArray(v) ? v : []).map(z => String(z).trim()).filter(Boolean);
+    TH.titles = arr(j.titles).slice(0, 6);
+    TH.texts = arr(j.texts).map(z => z.toUpperCase()).slice(0, 6);
+    if (!TH.titles.length && !TH.texts.length) throw new Error('AI trả về trống');
+    let si = Math.round(+j.scene) - 1;
+    if (!(si >= 0 && si < scenes.length && scenes[si].cv)) si = scenes.findIndex(q => q.cv);
+    $('thScene').value = String(si);
+    const tags = arr(j.tags).map(z => z.replace(/^#/, ''));
+    const hash = tags.slice(0, 3).map(z => '#' + z.replace(/\s+/g, '')).join(' ');
+    $('thDesc').value = (String(j.desc || '').trim() + (hash ? '\n\n' + hash : '')).trim();
+    $('thTags').value = tags.join(', ');
+    if (TH.texts[0]) $('thText').value = TH.texts[0];
+    if (TH.titles[0]) $('thTitle').value = TH.titles[0];
+    thLists(); thCount(); thDraw();
+    st.style.color = '#15803d';
+    st.textContent = '✅ Xong. Bấm vào gợi ý bên dưới để đổi, hoặc tự sửa chữ trực tiếp, rồi bấm Tải thumbnail.';
+  } catch (e) {
+    st.style.color = '#dc2626';
+    st.textContent = '⚠ Chưa nhờ được AI viết hook (' + String(e.message || e).slice(0, 110) + '). Bạn vẫn tự gõ chữ rồi tải thumbnail được, hoặc bấm "Gợi ý hook khác" để thử lại.';
+  }
+  if (btn) btn.disabled = false;
+}
+
+async function openThumb() {
+  if (!scenes.some(q => q.cv)) return alert('Chưa có tranh nào để làm thumbnail.');
+  const box = $('thumbBox');
+  const sig = scenes.length + '|' + String((scenes[0] && scenes[0].text) || '').slice(0, 40);
+  if (!$('thCv')) box.innerHTML = THUMB_HTML;
+  const sel = $('thScene');
+  sel.innerHTML = scenes.map((q, i) => q.cv ? `<option value="${i}">${i + 1}. ${thEsc(String(q.text || '').slice(0, 46))}</option>` : '').join('');
+  box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (TH && TH.sig === sig) { thDraw(); return; }
+  TH = { sig, titles: [], texts: [] };
+  const first = scenes.findIndex(q => q.cv);
+  sel.value = String(first);
+  $('thText').value = 'CHUYỆN GÌ ĐÃ XẢY RA?';
+  $('thTitle').value = '';
+  $('thDesc').value = ''; $('thTags').value = '';
+  thLists(); thCount(); thDraw();
+  await thGenCopy();
+}
+
 try { libUI(); } catch (e) { }
 </script>
 </body>

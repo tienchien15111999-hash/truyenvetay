@@ -346,3 +346,12 @@ Yêu cầu người dùng: dùng cách vẽ miễn phí mà tranh vẫn màu r�
 - Prompt viết kịch bản có thêm quy tắc "ngắt cảnh": lời kể mỗi cảnh phải gồm câu trọn vẹn, không cắt một câu làm đôi giữa hai cảnh.
 - Thêm `fixSceneBreaks()`: sau khi AI trả kịch bản, tool tự kiểm tra từng cảnh có kết thúc bằng dấu câu không. Nếu cảnh bị cụt câu thì đẩy mẩu câu dở xuống đầu cảnh sau (hoặc kéo phần kết từ cảnh sau lên). Cảnh cuối thiếu dấu thì thêm dấu chấm. Có ghi log số chỗ đã chỉnh.
 - Phụ đề không còn bị cắt cứng ở số dòng tối đa (3 dòng ngang, 6 dòng dọc). Lời kể dài hơn sẽ được chia thành nhiều trang, tự chuyển trang theo tiến độ lời đọc của cảnh.
+
+## 15. Thumbnail YouTube + câu hook (mới)
+- Nút **🖼 Tạo thumbnail YouTube** nằm cạnh nút **⬇ Tải video về máy** (cả đường xuất nhanh `exportFast` lẫn xuất thời gian thật trong `play`). Bấm → `openThumb()` mở khung `#thumbBox` (nằm ngay dưới `#out`).
+- Code nằm cuối `index.html`, ngay trước `try { libUI(); }`: `TH`, `TH_THEMES`, `THUMB_HTML`, `thDraw` (vẽ canvas `#thCv` 1280x720), `thGenCopy` (gọi Gemini qua `gemMulti(TXT_MODELS...)` trả JSON `{titles[5], texts[5], scene, desc, tags[]}`), `thPick`, `thCount`, `thCopy`, `thDownload` (JPG 0.92), `openThumb`.
+- Ảnh thumbnail = nét mực `scenes[i].cv` của cảnh AI chọn (người dùng đổi được bằng ô chọn cảnh), đặt trong khung trắng nghiêng bên phải; chữ hook to bên trái (tự co cỡ chữ, tối đa 3 dòng, dòng cuối tô màu nhấn). 3 màu nền (vàng/đỏ/xanh), có tùy chọn phóng to cắt hai bên.
+- Quy tắc hook trong prompt: tiêu đề <= 65 ký tự, tò mò nằm trong 40 ký tự đầu, không lộ kết/không nói sai truyện; chữ thumbnail 2-5 từ, HOA; mô tả có dòng 1 là hook <= 120 ký tự + 3 hashtag; 10 tag.
+- Nếu AI lỗi/thiếu key: vẫn tự gõ chữ và tải thumbnail được. `start()` tạo kịch bản mới sẽ xóa `#thumbBox` và đặt `TH = null`.
+- Lưu ý: `canvas{width:100%}` trong CSS áp cho `#thCv`; font chữ dùng stack hệ thống weight 900 (có đủ dấu tiếng Việt), không cần tải font ngoài.
+
