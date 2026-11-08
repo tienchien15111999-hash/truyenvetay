@@ -355,3 +355,38 @@ Yêu cầu người dùng: dùng cách vẽ miễn phí mà tranh vẫn màu r�
 - Nếu AI lỗi/thiếu key: vẫn tự gõ chữ và tải thumbnail được. `start()` tạo kịch bản mới sẽ xóa `#thumbBox` và đặt `TH = null`.
 - Lưu ý: `canvas{width:100%}` trong CSS áp cho `#thCv`; font chữ dùng stack hệ thống weight 900 (có đủ dấu tiếng Việt), không cần tải font ngoài.
 
+
+## 26. Chuyển cảnh 5 kiểu (mới)
+- Ô chọn `#trans` (cạnh phần nhạc nền, có trong `CF` nên được lưu): `mix` (xoay vòng cả 5 theo số thứ tự cảnh, mặc định), `flip`, `dark`, `eraser`, `iris`, `tiles`, `fade` (mờ trắng như bản cũ). Đổi lúc đang xem thử có hiệu lực ngay.
+- Code nằm ngay trước `makeRenderer`: `TRANS_LIST`, `TRANS_DUR`, `transKind(i)`, các hàm `trFlip`, `trEraser`, `trIris`, `trTiles`, và `drawTrans(kind, x, sn, q, W, AH)`.
+  1. **Lật giấy** (`trFlip`, 1,0s): mép giấy gập từ phải sang trái theo đường gập hơi nghiêng, mặt sau giấy xám nhạt có nét mực mờ xuyên qua, đổ bóng, lộ trang trắng.
+  2. **Tối dần** (làm trong `makeRenderer`, 0,8s): cả khung kể cả phụ đề tối đen, sang cảnh sau sáng dần lên trong 0,5s.
+  3. **Lau bảng** (`trEraser`, 1,1s): cục lau chạy ziczac 3-6 dải từ trên xuống, quét sạch nét phía sau.
+  4. **Thu vòng tròn** (`trIris`, 0,85s): tranh co dần vào giữa trong vòng tròn có viền mực.
+  5. **Mảnh ghép rơi** (`trTiles`, 0,95s): tranh vỡ thành ô vuông (10 cột ngang, 6 cột dọc), từng ô xoay và nhỏ dần theo đường chéo (độ trễ từng ô dùng `_hash`, không dùng random nên xem thử và xuất video giống hệt nhau).
+- Cách chạy trong `makeRenderer`: trong `tdur` giây cuối của cảnh (tối đa 40% thời lượng cảnh), chụp vùng tranh (0..`fm.ah+10`) vào canvas `sn` rồi `drawTrans` vẽ lại vùng đó từ ảnh chụp; phụ đề vẽ sau nên vẫn tự mờ như cũ. Cảnh sau luôn bắt đầu bằng trang trắng nên tay vẽ vẫn vẽ từ đầu. Cảnh ngắn dưới 1,8s dùng mờ trắng cũ; cảnh cuối cũng mờ trắng cũ, riêng `dark` thì tối hẳn ở cuối video.
+- Dùng chung cho xem thử, xuất nhanh (WebCodecs) và xuất thời gian thật vì cùng đi qua `makeRenderer`. Chưa có tiếng giấy lật hay tiếng lau bảng.
+- Lưu ý: mục 23 ở trên mô tả chuyển cảnh lật giấy bằng 80 dải và công tắc `flipOn`, nhưng bản `index.html` này không còn đoạn code đó. Hệ thống mục 26 thay thế hoàn toàn.
+
+
+## 27. Nâng cấp chất lượng hình: nét mượt + bối cảnh nhiều lớp (đợt gần nhất)
+**Nét vẽ (nguyên nhân + cách sửa)**
+- Lỗi cũ: `_strokes` biến đường cong thành đa giác (đoạn 14 đơn vị), `_wob` rung ngẫu nhiên từng đỉnh rồi `_sketch` vẽ thêm "nét đôi"; bộ lọc `wob` trong `sanitizeSvg` dùng nhiễu tần số cao -> viền gãy khúc, thô, méo.
+- Nay: `_spl(p, closed)` nối điểm bằng đường cong Bézier (Catmull-Rom), chỉ giữ góc nhọn khi góc quay > 40 độ; `_wob` dịch điểm theo trường sóng chậm theo VỊ TRÍ (hai hình sát nhau vẫn khít); bỏ hẳn nét đôi. Hình tròn/elip lấy mẫu 16-40 điểm rồi làm mượt.
+- Bộ lọc `wob`: `baseFrequency=0.006`, 1 octave, `scale = min(2.4, wob*0.55)`.
+- `inkify` (SVG) vẽ ở độ phân giải gấp đôi rồi thu nhỏ (siêu lấy mẫu `SS=2`) nên viền mịn, không răng cưa. Kiểm tra "đen quá nhiều" chỉ tính trên tranh chính (không tính nền).
+- Tư thế `think` sửa lại (tay không còn gập gắt tạo cục ở cằm).
+
+**Bối cảnh nền (ưu tiên)** - khối code `BỐI CẢNH (BACKGROUND)` ngay trước `svgImage` (grep `SET_KEYS`, `bgSvg`, `bdCanvas`):
+- 23 loại: office, home, kitchen, classroom, shop, market, hospital, bank, court, factory, street, village, farm, forest, mountain, beach, desert, war, snow, park, palace, studio (cận cảnh vật), plain (chung). Mỗi loại vẽ 3 lớp xa/giữa/gần, nét mảnh nhạt (`bgPal`: xám nhạt ở bw/accent, pastel ở vivid), mép mờ dần về giấy trắng (mask blur), có bóng dưới chân từng người, bộ lọc rung tần số thấp. Ban đêm (`bgNight`) thêm trăng sao + trời tím nhạt cho cảnh ngoài trời.
+- Chọn bối cảnh `inferSetting(s, aiType)`: `SET: xxx` do đạo diễn ghi trong `s.image` > thẻ `<backdrop type="xxx"/>` do AI vẽ cảnh ghi > đoán theo từ khóa tiếng Việt/Anh (`SET_RULES`, thứ tự quan trọng) trong mô tả rồi lời kể > nơi của 4 cảnh liền trước > `settingCtx` > `studio` (nếu [OBJECT]) hoặc `plain`. Luôn có nền, kể cả khi AI không tuân prompt.
+- `svgImage` bỏ thẻ `<backdrop>` khỏi SVG, đặt `_bgOn` để `expandProps` bỏ `<ground>` (nền đã có mặt đất), dựng nền cho MỌI chế độ màu (trước chỉ vivid), lưu `s.bgKind`. Hàm nền cũ `vividBackdropSvg` còn trong code nhưng không còn được gọi.
+- `inkify` ghép nền phía sau tranh chính; thứ tự tay vẽ: chủ thể (người, đồ vật) trước, rồi tới nền (`inkOrder`).
+- Công tắc `#bgOn` (có trong `CF`): "🏞 Vẽ bối cảnh nền", tắt thì vẽ như cũ.
+- Prompt: `SVGR_SCENE` có khối BACKDROP (liệt kê 23 loại + cách chọn), bỏ câu "Backgrounds stay EMPTY WHITE" và "EMPTY WHITE SPACE IS GOOD"; đạo diễn (`refineBatch`) quy tắc 3 đổi thành BỐI CẢNH bắt buộc `SET: <loại>` ở cuối mô tả.
+- Thêm bối cảnh mới: viết hàm trong object `S` của `bgSvg`, thêm tên vào `SET_KEYS`/`SET_NAME`, từ khóa vào `SET_RULES`, cập nhật danh sách trong `SVGR_SCENE` (khối BACKDROP) và quy tắc 3 của đạo diễn.
+- Kiểm thử (Chromium + Gemini giả): render cả 23 bối cảnh ở vivid, 6 loại ở bw, khung dọc 9:16, chế độ accent/color, công tắc bgOn, bảng 24 tư thế + 14 nét mặt, `makeRenderer`. ~0,3 giây/cảnh. CHƯA thử với key Gemini thật: cần xem AI có chép đúng `SET:` / `<backdrop>` không (nếu không thì từ khóa vẫn đảm bảo có nền).
+
+## 28. Giới hạn kích thước đồ vật + cảnh đêm tối hơn
+- `propSvg`: sau khi dựng hình, `_bboxOf(gs)` đo khung bao thật (getBBox trong DOM ẩn); đồ đặt trên mặt đất (không phải đồ nổi `f`, địa danh `n`, đồ có `data-keep` như lửa/tia sáng, và các loại trong `_BIG_OK`: mountain, hill, waves, cloud, fuji, pyramid, greatwall) bị thu nhỏ nếu cao hơn 76% khung hoặc rộng hơn 62% khung. Cảnh [OBJECT] cận cảnh đồ nhỏ (cash, giấy...) không bị ảnh hưởng. Muốn nới/siết: sửa `0.76` và `0.62` trong `propSvg`.
+- `bgPal(night)`: khi cảnh đêm, vivid đổi bầu trời, cỏ, đồi, cây, nước, nhà xa sang tông tối hơn; bw/accent tô xám nhạt bầu trời và mặt đất (`skyFill` có tô nhẹ khi đêm). Chỉ áp cho cảnh ngoài trời (cảnh trong nhà không bị đêm hóa, xem `bdCanvas`).
