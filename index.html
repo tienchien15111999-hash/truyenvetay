@@ -608,7 +608,8 @@ async function refineBatch(sc, part, from) {
   const p = `Bạn là đạo diễn hình ảnh cho video kể chuyện vẽ nét mực đen trắng. Dưới đây là cốt truyện, nhân vật và lời kể từng cảnh. Với MỖI cảnh, viết mô tả để vẽ tranh bằng tiếng Anh (2-3 câu) theo quy tắc:
 0) BẮT ĐẦU mỗi mô tả bằng đúng một nhãn: [OBJECT] CHỈ khi lời kể thật sự tả một vật cụ thể, giấy tờ, con số hay kết quả mà không ai làm gì với nó (cận cảnh vật đó thật to, KHÔNG vẽ người). Ước mơ, mong muốn, suy nghĩ, lời nói, kế hoạch, ý tưởng KHÔNG được dùng [OBJECT]; [PERSON] khi một người đang làm hoặc cảm thấy điều gì; [PLACE] khi lời kể tả nơi chốn, hành trình hay thời điểm. Đừng cho người vào cảnh chỉ để cho đầy khung; nếu cả truyện toàn cảnh có người thì hãy xen cảnh [OBJECT] vào những chỗ lời kể nhấn vào một vật.
 1) Chọn khoảnh khắc cụ thể nhất NHÌN THẤY ĐƯỢC trong lời kể, không vẽ ý trừu tượng (ý trừu tượng thì đổi thành BIỂU TƯỢNG, không minh họa theo nghĩa đen của chữ: nợ nần = giấy tờ + tiền, thành công = cúp, bí mật = chìa khóa; với tin tức/số liệu/kinh tế dùng chart_down hoặc chart_up (biểu đồ đi xuống/đi lên), arrow_down/arrow_up (mũi tên giảm/tăng), percent (phần trăm, giảm giá), warning (cảnh báo, rủi ro), wallet (ví, tiền tiết kiệm/chi tiêu), newspaper (bản tin), bulb (ý tưởng)).
-2) Liệt kê rõ MỌI vật, địa điểm, hành động được nhắc trong lời kể bằng tiếng Anh đơn giản. Vật mà nhân vật cầm/đưa/nhận/đếm/mang thì phải có mặt trong tranh (ví dụ người đàn ông cầm tiền thì phải thấy cục tiền "cash stack" trong tay và/hoặc to ngay bên cạnh). Có thể dùng tên vật quen thuộc: cash, banknote, coin, bag (túi tiền), chest, key, letter, paper, gift, flower, apple, bread, cake, pot, bowl, clock, phone, computer, book, car, bus, bicycle, boat, plane, house, hospital, school, bridge, well, tree, buffalo, dog, cat...
+2) Liệt kê rõ MỌI vật, địa điểm, hành động được nhắc trong lời kể bằng tiếng Anh đơn giản. Vật mà nhân vật cầm/đưa/nhận/đếm/mang thì phải có mặt trong tranh (ví dụ người đàn ông cầm tiền thì phải thấy cục tiền "cash stack" trong tay và/hoặc to ngay bên cạnh). Có thể dùng tên vật quen thuộc: cash, banknote, coin, bag (túi tiền), chest, key, letter, paper, gift, flower, apple, bread, cake, pot, bowl, clock, phone, computer, book, car, bus, bicycle, boat, plane, house, hospital, school, bridge, well, tree, palm, bamboo, pine, buffalo, dog, cat, horse, elephant, pig, chicken, rabbit, bird, sparrow, fish, motorbike, plane...
+2b) CON VẬT VÀ PHƯƠNG TIỆN: khi lời kể có con vật hay xe cộ thì ghi đúng TÊN LOÀI/LOẠI bằng một danh từ tiếng Anh cụ thể (horse, elephant, buffalo, tiger, duck... chứ không ghi chung chung là "animal" hay "vehicle"), số lượng, đang làm gì (running, grazing, flying, parked...), nhìn về phía nào, đứng gần hay xa. Con vật phải là chủ thể rõ ràng của tranh khi lời kể nói về nó (to, đủ cả thân, không bị che hay cắt mất đầu/chân/đuôi); nhiều con cùng loài thì ghi 2-3 con ở khoảng cách khác nhau.
 3) BỐI CẢNH (BẮT BUỘC, mọi cảnh): tranh không bao giờ để người/vật đứng trên nền trắng trống. Cuối mỗi mô tả ghi đúng một cụm \"SET: <loại>\" cho NƠI mà cảnh diễn ra, chọn trong: office (văn phòng, công ty, họp), home (trong nhà, gia đình), kitchen, classroom (trường học), shop (cửa hàng), market (chợ), hospital, bank (ngân hàng, tiền bạc, vay nợ, chứng khoán), court (tòa án, chính phủ), factory (nhà máy, công nhân), street (thành phố, phố, đám đông ngoài đường), village (làng quê), farm (ruộng, nông dân), forest, mountain, beach (biển, tàu thuyền, bến cảng), desert, war (chiến tranh, bom, lính), snow, park, palace (cung điện, đền chùa, thời cổ đại), studio (CHỈ cho cảnh [OBJECT] cận cảnh một vật/con số/giấy tờ), plain (không rõ nơi nào). Chọn đúng nơi lời kể diễn ra; lời kể không nói rõ thì suy ra từ cốt truyện và giữ nơi của cảnh trước nếu chưa đổi địa điểm; không chọn nơi không liên quan tới truyện. Tool tự vẽ tường, sàn, cửa sổ, nhà cửa, cây cối, bầu trời của nơi đó, nên mô tả chỉ cần nêu người và vật chính (không tả lại nền). Ban đêm thì ghi thêm chữ night trong mô tả.
 4) Với cảnh [PERSON]/[PLACE] có người: dùng đúng vai trò MAIN/SECOND/THIRD/FOURTH/FIFTH/SIXTH/SEVENTH/EIGHTH/CROWD và ngoại hình nhân vật trong danh sách, giống nhau ở mọi cảnh; nêu nét mặt cảm xúc và tư thế. Mọi người trong cùng một cảnh phải khác nhau ít nhất một nét (nón, râu, kính, tóc, họa tiết áo hoặc tư thế); cảnh có đám đông thì ghi rõ từng người CROWD một nét riêng, không cho cả đám giống hệt nhau. Cảnh [OBJECT] thì không nhắc tới nhân vật.
 5) Bối cảnh liền mạch với cảnh trước; nếu đổi địa điểm thì nói rõ.
@@ -958,11 +959,11 @@ function expandPeople(raw, sw) {
 }
 // ===== THƯ VIỆN ĐỒ VẬT / CẢNH VẬT VẼ SẴN (đẹp và đồng nhất, AI chỉ đặt chỗ bằng thẻ <prop/> <ground/>) =====
 let _vpal = null, _vi = 0; // bảng màu của đồ vật đang vẽ (chỉ có ở chế độ vivid): mỗi hình trắng lấy lần lượt một màu
-const _vf = () => _vpal ? _vpal[_vi++ % _vpal.length] : '#ffffff';
-const _R = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${_vf()}"/>`;
-const _P = d => `<path d="${d}" fill="${_vf()}"/>`;
+const _vf = i => _vpal ? (i == null ? _vpal[_vi++ % _vpal.length] : _vpal[i % _vpal.length]) : '#ffffff'; // i (tùy chọn): chọn thẳng màu số i của bảng màu, để từng bộ phận (thân, tai, bánh xe...) luôn đúng màu
+const _R = (x, y, w, h, i) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${_vf(i)}"/>`;
+const _P = (d, i) => `<path d="${d}" fill="${_vf(i)}"/>`;
 const _L = d => `<path d="${d}"/>`;
-const _C = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${_vf()}"/>`;
+const _C = (x, y, r, i) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${_vf(i)}"/>`;
 const VPAL = {
   house: ['#f8d9a0', '#d9482b', '#8a5a34', '#8fd3f4', '#8fd3f4'], hut: ['#e2b66f', '#b8562f', '#8a5a34'],
   building: ['#7f9bd1'].concat(Array(12).fill('#ffe27a'), ['#8a5a34']), shop: ['#f6c28b', '#e4572e', '#bfe8ff', '#8a5a34'],
@@ -1011,17 +1012,13 @@ const VPROPS = {
   table: () => _Rc(-96, -84, 192, 18, '#c58b52') + _Rc(-84, -66, 168, 10, '#a8703a') + _Rc(-84, -56, 14, 56, '#8a5a34') + _Rc(70, -56, 14, 56, '#8a5a34'),
   chair: () => _Rc(-36, -128, 10, 78, '#8a5a34') + _Rc(-36, -128, 56, 12, '#8a5a34') + _Rc(-40, -56, 80, 14, '#c58b52') + _Rc(-36, -42, 10, 42, '#8a5a34') + _Rc(26, -42, 10, 42, '#8a5a34') + _Rc(-26, -110, 8, 54, '#a8703a') + _Rc(-8, -110, 8, 54, '#a8703a'),
   bed: () => _Rc(-108, -104, 14, 104, '#8a5a34') + _Rc(94, -58, 14, 58, '#8a5a34') + _Rc(-96, -46, 190, 20, '#a8703a') + _Rc(-94, -74, 188, 30, '#f6f1e7') + _Pc('M-90 -92 Q-90 -100 -80 -100 L-44 -100 Q-34 -100 -34 -92 L-34 -74 L-90 -74 Z', '#ffffff') + _Rc(-30, -80, 124, 38, '#6fa8dc') + _Rc(-96, -26, 12, 26, '#8a5a34') + _Rc(82, -26, 12, 26, '#8a5a34'),
-  car: () => _Pc('M-104 -26 L-104 -52 Q-104 -62 -92 -64 L-62 -68 L-40 -98 Q-36 -102 -30 -102 L44 -102 Q50 -102 54 -98 L76 -68 L96 -62 Q108 -58 108 -46 L108 -26 Z', '#e4572e') + _Pc('M-34 -70 L-20 -94 L-4 -94 L-4 -70 Z', '#bfe8ff') + _Pc('M6 -70 L6 -94 L40 -94 L58 -70 Z', '#bfe8ff') + _Rc(-104, -40, 212, 8, '#c0392b') + _Cc(100, -48, 7, '#ffd23f') + _Cc(-98, -48, 6, '#ff9f1c') + _Cc(-60, -24, 23, '#2b2f36') + _Cc(60, -24, 23, '#2b2f36') + _Cc(-60, -24, 9, '#cfd8e0') + _Cc(60, -24, 9, '#cfd8e0'),
   bus: () => _Pc('M-122 -20 L-122 -100 Q-122 -114 -108 -114 L108 -114 Q122 -114 122 -100 L122 -20 Z', '#f4c542') + _Rc(-122, -50, 244, 10, '#e4572e') + _Rc(-102, -100, 34, 30, '#bfe8ff') + _Rc(-56, -100, 34, 30, '#bfe8ff') + _Rc(-10, -100, 34, 30, '#bfe8ff') + _Rc(36, -100, 34, 30, '#bfe8ff') + _Rc(82, -100, 28, 44, '#9ad8f5') + _Cc(-72, -18, 21, '#2b2f36') + _Cc(72, -18, 21, '#2b2f36') + _Cc(-72, -18, 8, '#cfd8e0') + _Cc(72, -18, 8, '#cfd8e0'),
   train: () => _Rc(-112, -74, 154, 58, '#c0392b') + _Rc(-100, -112, 26, 40, '#3a3f47') + _Pc('M-108 -112 L-66 -112 L-72 -124 L-102 -124 Z', '#3a3f47') + _Rc(40, -122, 72, 106, '#2f5d9e') + _Rc(52, -106, 48, 36, '#bfe8ff') + _Rc(34, -128, 84, 10, '#3a3f47') + _Pc('M-112 -16 L-132 0 L-112 0 Z', '#8a8f98') + _Cc(-76, -14, 18, '#2b2f36') + _Cc(-30, -14, 18, '#2b2f36') + _Cc(76, -14, 18, '#2b2f36') + _Cc(-76, -14, 7, '#cfd8e0') + _Cc(-30, -14, 7, '#cfd8e0') + _Cc(76, -14, 7, '#cfd8e0') + _Rc(-140, 2, 280, 6, '#6b7480'),
-  dog: () => _Lc('M-46 -54 Q-74 -72 -70 -94', '#8a5a34', 12) + _Rc(-38, -36, 13, 36, '#c58b52') + _Rc(-14, -32, 13, 32, '#c58b52') + _Rc(14, -32, 13, 32, '#c58b52') + _Rc(34, -36, 13, 36, '#c58b52') + _Pc('M-52 -48 Q-52 -78 0 -78 Q52 -78 52 -48 Q52 -24 0 -24 Q-52 -24 -52 -48 Z', '#d9a566') + _Pc('M30 -78 Q28 -120 62 -116 Q88 -112 90 -92 L102 -86 L98 -70 Q72 -62 52 -66 Z', '#d9a566') + _Pc('M40 -110 L30 -78 L56 -94 Z', '#8a5a34') + _D(70, -96, 4) + _Cc(100, -82, 5, '#111111') + _Pc('M-20 -70 Q0 -78 18 -68 Q10 -50 -12 -52 Z', '#c58b52'),
-  cat: () => _Lc('M-44 -40 Q-84 -34 -76 -80 Q-74 -94 -62 -92', '#e08a3a', 12) + _Rc(-30, -26, 12, 26, '#ffb36b') + _Rc(-10, -22, 12, 22, '#ffb36b') + _Rc(14, -22, 12, 22, '#ffb36b') + _Rc(30, -26, 12, 26, '#ffb36b') + _Pc('M-46 -42 Q-46 -70 0 -70 Q46 -70 46 -42 Q46 -16 0 -16 Q-46 -16 -46 -42 Z', '#ffb36b') + _L('M-24 -66 L-14 -48 M0 -68 L6 -50 M22 -64 L24 -46') + _Pc('M26 -68 Q22 -116 56 -116 Q90 -116 86 -68 Z', '#ffb36b') + _Pc('M30 -104 L28 -134 L48 -114 Z', '#ffb36b') + _Pc('M68 -114 L86 -134 L86 -102 Z', '#ffb36b') + _D(46, -92, 4) + _D(68, -92, 4) + _Cc(57, -80, 3.5, '#ff8fb1'),
   bridge: () => _Pc('M-170 -50 L170 -50 L170 0 L150 0 Q100 -46 50 0 Q0 -46 -50 0 Q-100 -46 -150 0 L-170 0 Z', '#b9a58a') + _Rc(-176, -68, 352, 20, '#c58b52') + _Rc(-176, -104, 352, 8, '#8a5a34') + [-150, -100, -50, 0, 50, 100, 150].map(x => _Rc(x - 4, -104, 8, 38, '#8a5a34')).join(''),
   streetlight: () => _Rc(-14, -14, 28, 14, '#4a5568') + _Rc(-5, -214, 10, 204, '#4a5568') + _Pc('M-5 -214 Q-5 -242 24 -242 L24 -232 Q6 -232 5 -206 Z', '#4a5568') + _Pc('M12 -236 L48 -236 L42 -218 L18 -218 Z', '#4a5568') + _Cc(30, -212, 10, '#ffd23f'),
   flag: () => _Rc(-24, -196, 8, 196, '#c9d1d9') + _Cc(-20, -202, 8, '#ffd23f') + _Pc('M-16 -190 Q20 -206 62 -186 L62 -128 Q20 -148 -16 -132 Z', COL.red),
   sign: () => _Rc(-5, -112, 10, 112, '#8a5a34') + _Pc('M-50 -150 L50 -150 L62 -128 L50 -106 L-50 -106 Z', '#d9a566') + _Rc(-36, -138, 60, 6, '#8a5a34') + _Rc(-36, -124, 44, 6, '#8a5a34'),
   shop: () => _Rc(-90, -120, 180, 120, '#f6c28b') + _Pc('M-106 -120 L106 -120 L94 -84 Q70 -66 47 -84 Q23 -66 0 -84 Q-24 -66 -47 -84 Q-70 -66 -94 -84 Z', '#e4572e') + _Rc(-76, -66, 74, 48, '#bfe8ff') + _Rc(24, -62, 46, 62, '#8a5a34') + _Cc(60, -30, 3.5, '#ffd23f'),
-  bicycle: () => _Cc(-52, -30, 30, 'none') + _Cc(52, -30, 30, 'none') + _Cc(-52, -30, 5, '#4a5568') + _Cc(52, -30, 5, '#4a5568') + _Lc('M-52 -30 L-12 -30 L18 -72 L40 -72 M-12 -30 L-24 -72 M18 -72 L52 -30', '#e4572e', 8) + _L('M-34 -76 L-12 -76 M32 -82 L44 -82 L40 -72'),
   computer: () => _Rc(-64, -108, 128, 82, '#444b55') + _Rc(-54, -98, 108, 62, '#9ad8f5') + _Rc(-6, -26, 12, 16, '#444b55') + _Rc(-36, -10, 72, 10, '#444b55'),
   phone: () => _Rc(-26, -90, 52, 90, '#2b2f36') + _Rc(-19, -78, 38, 58, '#9ad8f5') + _Cc(0, -10, 4, '#cfd8e0'),
   cup: () => _Pc('M-20 0 L-24 -44 L24 -44 L20 0 Z', '#ffffff') + _Rc(-23, -44, 46, 8, '#e4572e') + _Lc('M24 -34 Q44 -32 40 -16 Q36 -8 21 -10', '#e4572e', 8),
@@ -1041,7 +1038,6 @@ const PROPS = {
   cannon: { k: 1.6, g: () => _C(-30, -30, 30) + _L('M-30 -30 L-30 -60 M-60 -30 L0 -30 M-51 -51 L-9 -9 M-51 -9 L-9 -51') + _P('M-10 -52 L92 -86 L102 -62 L0 -20 Z') },
   tank: { k: 1.8, g: () => _P('M-110 0 L110 0 Q126 -20 110 -40 L-110 -40 Q-126 -20 -110 0 Z') + _P('M-50 -40 L-38 -74 L50 -74 L62 -40 Z') + _R(50, -66, 92, 12) + _C(-80, -20, 10) + _C(-40, -20, 10) + _C(0, -20, 10) + _C(40, -20, 10) + _C(80, -20, 10) },
   train: { k: 2, g: () => _R(-110, -80, 160, 80) + _R(50, -120, 60, 120) + _R(-84, -112, 26, 32) + _R(60, -104, 40, 34) + _C(-70, 0, 16) + _C(-20, 0, 16) + _C(80, 0, 16) + _L('M-130 8 L130 8') },
-  motorbike: { k: 1.6, g: () => _C(-60, -34, 34) + _C(60, -34, 34) + _L('M-60 -34 L-10 -90 L40 -90 L60 -34 M-10 -90 L-20 -34 L20 -34 L40 -90 M40 -90 L50 -122 L74 -122') + _R(-30, -100, 54, 10) },
   drum: { k: 1.3, g: () => _P('M-50 -90 Q0 -110 50 -90 L50 -10 Q0 10 -50 -10 Z') + _L('M-50 -90 Q0 -70 50 -90 M-30 -80 L-10 -2 M10 -80 L30 -2 M-10 -76 L-30 -4 M30 -76 L10 -4') },
   gate: { k: 2, g: () => _R(-80, -170, 26, 170) + _R(54, -170, 26, 170) + _R(-80, -150, 160, 18) + _P('M-112 -170 L0 -232 L112 -170 Z') + _L('M-112 -170 Q0 -190 112 -170') },
   dinh: { k: 2.2, g: () => _R(-90, -80, 180, 80) + _P('M-124 -80 Q-60 -90 0 -156 Q60 -90 124 -80 L102 -58 L-102 -58 Z') + _L('M-60 -58 L-60 0 M-20 -58 L-20 0 M20 -58 L20 0 M60 -58 L60 0') + _P('M-14 0 L-14 -40 Q0 -54 14 -40 L14 0 Z') },
@@ -1082,7 +1078,6 @@ const PROPS = {
   star: { k: 1.2, f: 1, g: () => _Pc('M0 -26 Q4 -5 26 0 Q4 5 0 26 Q-4 5 -26 0 Q-4 -5 0 -26 Z', COL.yellow) },
   cloud: { k: 2.2, f: 1, g: () => _P('M-72 22 C-104 22 -104 -20 -66 -24 C-66 -64 -10 -66 2 -36 C22 -60 74 -46 64 -14 C98 -12 98 22 62 22 Z') },
   rain: { k: 2.0, f: 1, g: () => { let s = ''; for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) s += _L(`M${-100 + c * 40 + r * 14} ${-50 + r * 38} l-8 22`); return `<g stroke="${COL.blue}">` + s + '</g>'; } },
-  bird: { k: 1.8, f: 1, g: () => _L('M-26 4 Q-13 -16 0 2 Q13 -16 26 4') },
   waves: { k: 2.0, g: () => `<g stroke="${COL.blue}">` + _L('M-160 -10 q20 -16 40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0') + _L('M-140 14 q20 -16 40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0') + '</g>' },
   fire: { k: 2.0, g: () => _L('M-48 0 L48 -10 M-48 -10 L48 0') + _Pc('M-30 -8 Q-48 -44 -16 -74 Q-14 -50 2 -44 Q6 -80 28 -102 Q56 -54 32 -8 Z', COL.orange) + _Pc('M-8 -10 Q-18 -30 0 -46 Q16 -28 8 -10 Z', COL.yellow) },
   // --- đồ đạc ---
@@ -1103,12 +1098,8 @@ const PROPS = {
   sign: { k: 2.0, g: () => _L('M0 0 L0 -104') + _P('M-48 -146 L48 -146 L58 -126 L48 -106 L-48 -106 Z') },
   streetlight: { k: 2.2, g: () => _L('M0 0 L0 -204 Q0 -226 26 -226') + _Cc(34, -214, 11, COL.yellow) + _L('M-12 0 L12 0') },
   // --- phương tiện ---
-  car: { k: 3.0, g: () => _P('M-102 -30 L-102 -56 L-66 -62 L-42 -96 L42 -96 L72 -62 L102 -56 L102 -30 Z') + _P('M-36 -64 L-30 -88 L-2 -88 L-2 -64 Z') + _P('M8 -64 L8 -88 L34 -88 L54 -64 Z') + _C(-60, -22, 22) + _C(60, -22, 22) + _D(-60, -22, 6) + _D(60, -22, 6) },
   boat: { k: 2.5, g: () => _L('M0 -40 L0 -176') + _P('M8 -170 L8 -58 L82 -58 Z') + _P('M-92 -40 L92 -40 L66 0 L-66 0 Z') + _L('M-120 8 q15 -10 30 0 t30 0 M60 8 q15 -10 30 0 t30 0') },
   // --- con vật ---
-  dog: { k: 2.2, g: () => _L('M-44 -54 Q-72 -72 -68 -92') + _P('M-46 -46 Q-46 -72 0 -72 Q46 -72 46 -46 Q46 -22 0 -22 Q-46 -22 -46 -46 Z') + _L('M-30 -26 L-30 0 M-12 -22 L-12 0 M18 -22 L18 0 M36 -26 L36 0') + _P('M32 -72 Q30 -112 62 -108 Q86 -104 88 -84 L96 -78 L92 -64 Q70 -56 52 -60 Z') + _P('M40 -100 L34 -76 L52 -90 Z') + _D(70, -92, 3.5) + _D(94, -78, 3.5) },
-  cat: { k: 2.0, g: () => _L('M-42 -40 Q-80 -34 -74 -78 Q-72 -92 -62 -90') + _P('M-44 -40 Q-44 -66 0 -66 Q44 -66 44 -40 Q44 -18 0 -18 Q-44 -18 -44 -40 Z') + _L('M-26 -22 L-26 0 M-8 -18 L-8 0 M16 -18 L16 0 M32 -24 L32 0') + _P('M26 -66 Q22 -112 56 -112 Q90 -112 86 -66 Z') + _P('M30 -102 L28 -128 L46 -112 Z') + _P('M70 -112 L86 -128 L84 -100 Z') + _D(46, -92, 3.5) + _D(68, -92, 3.5) + _L('M52 -80 L56 -76 L60 -80') },
-  fish: { k: 2.0, f: 1, g: () => _P('M-36 0 Q0 -32 38 0 Q0 32 -36 0 Z') + _P('M36 0 L62 -20 L62 20 Z') + _D(-16, -5, 3.5) + _L('M-4 -12 Q4 0 -4 12') },
   // --- tiền bạc, giấy tờ, đồ vật hay gặp trong truyện ---
   cash: { k: 1.7, g: () => _R(-32, -70, 92, 38) + _R(-39, -54, 92, 38) + _Rc(-46, -38, 92, 38, COL.green) + _C(-14, -19, 11) + _L('M-14 -26 L-14 -12') + _D(-38, -19, 3.5) + _D(10, -19, 3.5) + _R(22, -38, 16, 38) + _L('M-39 -54 L-46 -38 M53 -54 L46 -38 M-32 -70 L-39 -54 M60 -70 L53 -54') },
   banknote: { k: 1.7, g: () => _Rc(-52, -56, 104, 56, COL.green) + _R(-42, -47, 84, 38) + _C(0, -28, 13) + _D(-31, -28, 3.5) + _D(31, -28, 3.5) },
@@ -1131,14 +1122,11 @@ const PROPS = {
   ring: { k: 2.0, g: () => _C(0, -22, 21) + _C(0, -22, 12) + _P('M-8 -48 L8 -48 L15 -58 L0 -74 L-15 -58 Z') },
   flag: { k: 2.0, g: () => _L('M-20 0 L-20 -190') + _Pc('M-20 -190 Q20 -206 62 -186 L62 -130 Q20 -150 -20 -134 Z', COL.red) },
   computer: { k: 2.0, g: () => _R(-60, -104, 120, 76) + _R(-50, -94, 100, 56) + _L('M0 -28 L0 -10 M-30 -10 L30 -10') },
-  bicycle: { k: 2.4, g: () => _C(-52, -30, 30) + _C(52, -30, 30) + _L('M-52 -30 L-12 -30 L18 -72 L40 -72 M-12 -30 L-24 -72 M18 -72 L52 -30 M-32 -74 L-12 -74 M32 -80 L42 -80 L40 -72') },
   bus: { k: 3.0, g: () => _P('M-120 -20 L-120 -100 Q-120 -112 -108 -112 L108 -112 Q120 -112 120 -100 L120 -20 Z') + _R(-100, -98, 34, 30) + _R(-54, -98, 34, 30) + _R(-8, -98, 34, 30) + _R(38, -98, 34, 30) + _L('M-120 -52 L120 -52') + _C(-70, -18, 20) + _C(70, -18, 20) + _D(-70, -18, 6) + _D(70, -18, 6) },
-  plane: { k: 2.4, f: 1, g: () => _P('M-70 0 Q-70 -14 -50 -14 L60 -14 Q88 -14 88 0 Q88 10 60 12 L-50 12 Q-70 12 -70 0 Z') + _P('M-10 -14 L20 -54 L38 -54 L24 -14 Z') + _P('M-10 12 L20 52 L38 52 L24 12 Z') + _P('M-70 -12 L-86 -38 L-62 -38 L-50 -14 Z') + _D(20, -2, 4) + _D(40, -2, 4) + _D(60, -2, 4) },
   bridge: { k: 2.6, g: () => _R(-170, -62, 340, 16) + _L('M-150 0 Q-100 -46 -50 0 M-50 0 Q0 -46 50 0 M50 0 Q100 -46 150 0 M-150 -46 L-150 0 M-50 -46 L-50 0 M50 -46 L50 0 M150 -46 L150 0 M-170 -92 L170 -92 M-150 -92 L-150 -62 M-50 -92 L-50 -62 M50 -92 L50 -62 M150 -92 L150 -62') },
   hospital: { k: 2.3, g: () => _R(-92, -150, 184, 150) + _P('M-8 -132 L8 -132 L8 -114 L26 -114 L26 -98 L8 -98 L8 -80 L-8 -80 L-8 -98 L-26 -98 L-26 -114 L-8 -114 Z') + _R(-18, -44, 36, 44) + _R(-74, -60, 34, 30) + _R(40, -60, 34, 30) },
   school: { k: 2.3, g: () => _R(-100, -110, 200, 110) + _P('M-112 -110 L0 -156 L112 -110 Z') + _L('M0 -156 L0 -202') + _P('M0 -202 L38 -192 L0 -180 Z') + _R(-80, -84, 34, 30) + _R(46, -84, 34, 30) + _R(-18, -50, 36, 50) },
   well: { k: 2.0, g: () => _R(-42, -40, 84, 40) + _L('M-42 -40 L-42 -112 M42 -40 L42 -112 M0 -100 L0 -64') + _P('M-58 -112 L0 -148 L58 -112 Z') + _C(0, -58, 8) },
-  buffalo: { k: 2.6, g: () => _L('M-80 -70 Q-108 -60 -98 -28') + _P('M-82 -50 Q-82 -98 -10 -100 Q50 -102 66 -80 L66 -40 Q40 -30 -10 -34 Q-60 -30 -82 -50 Z') + _L('M-60 -36 L-60 0 M-34 -32 L-34 0 M30 -34 L30 0 M54 -38 L54 0') + _P('M60 -86 Q88 -92 106 -64 Q110 -40 98 -34 Q80 -32 66 -46 Z') + _L('M72 -88 Q58 -116 36 -112 M96 -84 Q110 -112 132 -110') + _D(92, -64, 3.5) },
   // --- hiệu ứng có màu: máu, lửa, ánh sáng, nổ, sét, khói, giọt nước ---
   blood: { k: 1.8, g: () => _Pc('M-70 0 Q-62 -26 -30 -22 Q-20 -46 4 -30 Q30 -48 44 -20 Q76 -22 70 0 Q40 12 0 8 Q-40 14 -70 0 Z', COL.red) + _Cc(-92, -30, 7, COL.red) + _Cc(-84, -52, 5, COL.red) + _Cc(96, -26, 6, COL.red) + _Cc(84, -46, 4, COL.red) + _Pc('M-8 -14 Q-6 -30 -4 -14 Z', COL.red) },
   flames: { k: 2.6, g: () => _flame(-90, 34, 96, COL.orange) + _flame(-40, 42, 150, COL.red) + _flame(16, 44, 190, COL.orange) + _flame(66, 40, 130, COL.red) + _flame(106, 30, 90, COL.orange) + _flame(-40, 20, 70, COL.yellow) + _flame(16, 22, 100, COL.yellow) + _flame(66, 18, 62, COL.yellow) },
@@ -1304,12 +1292,247 @@ Object.assign(PROPS, {
   torn_paper: { k: 1.8, f: 1, g: () => _P('M-112 -80 L-62 -86 L-14 -78 L40 -88 L104 -82 L108 -40 L98 -2 L110 42 L102 86 L40 78 L-18 88 L-72 80 L-114 86 L-104 30 L-114 -20 Z') + _L('M-90 -50 L-30 -56 M-88 -20 L40 -26') }
 });
 
+// ===== THÚ VẬT, PHƯƠNG TIỆN VÀ CÂY CỐI VẼ LẠI (v4): hình khối rõ, đủ đầu / thân / chân / đuôi / tai / mắt, nhìn nhỏ vẫn nhận ra =====
+// Quy ước: gốc tọa độ (0,0) là điểm chạm đất giữa vật, y âm là hướng lên, vật quay mặt sang phải (facing="left" thì lật).
+// Mỗi hình = nhiều khối (khối sau vẽ trước: chân xa -> đuôi -> thân -> chân gần -> đầu -> chi tiết), mắt/mũi là chấm đen _D.
+// Số thứ tự cuối _P(d, i) / _C(x, y, r, i) là màu thứ i trong VPAL (chỉ dùng ở chế độ tô màu); ở chế độ đen trắng mọi khối đều trắng.
+const _paw = (x, w, top, ft = 12) => `M${x - w / 2} ${top} L${x - w / 2} -12 Q${x - w / 2 - 3} 0 ${x - w / 2 + 6} 0 L${x + w / 2 + ft} 0 Q${x + w / 2 + ft + 5} -10 ${x + w / 2} -14 L${x + w / 2} ${top} Z`; // chân có bàn chân (chó, mèo, lợn)
+const _hl = (x, w, top) => `M${x - w / 2} ${top} L${x - w / 2 + 1} -18 L${x - w / 2 - 4} 0 L${x + w / 2 + 4} 0 L${x + w / 2 - 1} -18 L${x + w / 2} ${top} Z`; // chân có móng guốc (trâu)
+Object.assign(PROPS, {
+  horse: { k: 1.6, g: () => {
+    let s = '';
+    s += _P('M-80 -130 L-54 -130 L-58 -70 Q-52 -60 -58 -50 L-58 -14 L-54 0 L-84 0 L-80 -14 L-80 -50 Q-86 -60 -80 -70 Z', 0);
+    s += _P('M2 -130 L28 -130 L26 -70 Q32 -60 26 -50 L26 -14 L30 0 L-2 0 L2 -14 L2 -50 Q-4 -60 2 -70 Z', 0);
+    s += _P('M-112 -140 Q-126 -100 -104 -70 L-100 -20 L-104 0 L-72 0 L-76 -20 L-72 -70 Q-64 -96 -60 -130 Z', 0);
+    s += _P('M40 -130 L70 -130 Q68 -96 62 -70 Q68 -60 62 -50 L62 -14 L68 0 L36 0 L42 -14 L42 -50 Q36 -60 42 -70 Z', 0);
+    s += _P('M-104 -12 L-72 -12 L-68 0 L-108 0 Z', 1) + _P('M36 -12 L66 -12 L70 0 L32 0 Z', 1) + _P('M-84 -12 L-54 -12 L-52 0 L-88 0 Z', 1) + _P('M-2 -12 L28 -12 L30 0 L-4 0 Z', 1); // móng guốc
+    s += _P('M-116 -176 Q-158 -168 -158 -120 Q-158 -84 -172 -56 Q-138 -64 -128 -98 Q-120 -126 -106 -148 Z', 1); // đuôi
+    s += _P('M-118 -172 Q-104 -194 -62 -192 Q-18 -186 16 -192 Q42 -196 56 -222 L70 -258 L104 -238 Q104 -206 96 -184 Q90 -160 84 -140 Q78 -112 62 -100 Q22 -84 -20 -90 Q-66 -88 -100 -96 Q-130 -108 -130 -142 Q-130 -160 -118 -172 Z', 0); // thân + cổ liền một nét
+    s += _P('M64 -260 Q80 -282 104 -270 L162 -212 Q176 -196 168 -180 Q156 -168 140 -178 L120 -198 Q100 -206 90 -222 Q70 -230 62 -244 Q58 -254 64 -260 Z', 0); // đầu dài
+    s += _P('M68 -266 Q60 -302 80 -312 Q98 -296 98 -268 Z', 0); // tai
+    s += _P('M72 -262 Q44 -262 46 -240 Q26 -232 38 -214 Q18 -204 34 -190 Q24 -176 46 -172 L62 -196 Q70 -222 84 -250 Z', 1); // bờm
+    s += _D(102, -242, 5.5) + _D(160, -190, 4) + _L('M152 -176 Q138 -184 130 -196 M-98 -150 Q-86 -120 -100 -102 M18 -160 Q34 -138 28 -112');
+    return s;
+  } },
+  elephant: { k: 2.0, g: () => {
+    let s = '';
+    const leg = (x0, x1) => `M${x0} -120 L${x1} -120 L${x1 - 2} -14 Q${x1 - 2} 0 ${x1 - 14} 0 L${x0 + 14} 0 Q${x0 + 2} 0 ${x0 + 2} -14 Z`;
+    const nails = (x0, x1) => _L(`M${x0 + 10} -8 L${x0 + 10} -2 M${(x0 + x1) / 2} -8 L${(x0 + x1) / 2} -2 M${x1 - 10} -8 L${x1 - 10} -2`);
+    s += _P(leg(-96, -54), 2) + _P(leg(4, 46), 2);
+    s += _P(leg(-134, -88), 0) + nails(-134, -88) + _P(leg(30, 76), 0) + nails(30, 76);
+    s += _L('M-136 -170 Q-156 -140 -150 -100') + _P('M-150 -100 L-158 -80 L-146 -86 L-140 -76 L-140 -100 Z', 1); // đuôi + chùm lông
+    s += _P('M-138 -150 Q-142 -220 -64 -224 Q4 -228 50 -204 L84 -150 Q86 -104 62 -94 Q0 -86 -64 -90 Q-136 -92 -138 -150 Z', 0);
+    s += _P('M52 -214 Q14 -238 4 -190 Q-2 -140 40 -118 Q72 -116 80 -148 Q88 -190 52 -214 Z', 2); // tai to
+    s += _L('M38 -190 Q22 -168 40 -140');
+    s += _P('M52 -214 Q86 -250 128 -232 Q158 -216 156 -176 L150 -150 Q118 -136 80 -146 Q60 -176 52 -214 Z', 0); // đầu
+    s += _P('M128 -150 Q166 -138 178 -104 Q186 -74 166 -62 Q150 -58 150 -76 Q158 -96 140 -112 Q126 -124 128 -150 Z', 3); // ngà
+    s += _P('M114 -170 Q152 -170 156 -128 Q158 -88 140 -66 Q132 -40 154 -34 Q172 -32 172 -54 Q182 -34 164 -20 Q130 -14 120 -50 Q112 -84 122 -116 Q108 -136 114 -170 Z', 0); // vòi cong
+    s += _L('M132 -128 L146 -130 M130 -104 L146 -106 M130 -80 L144 -82');
+    s += _D(112, -200, 5.5) + _L('M100 -214 Q112 -222 124 -214');
+    return s;
+  } },
+  dog: { k: 1.6, g: () => {
+    let s = '';
+    s += _P('M-72 -104 Q-104 -112 -106 -154 Q-96 -140 -88 -132 Q-76 -122 -60 -116 Z', 1); // đuôi vểnh
+    s += _P(_paw(28, 20, -70), 0) + _P(_paw(-42, 20, -70), 0);
+    s += _P(_paw(-72, 24, -92), 0) + _P(_paw(44, 22, -78), 0);
+    s += _P('M-84 -98 Q-84 -132 -46 -132 L30 -132 Q66 -132 68 -100 Q68 -54 38 -52 L-42 -52 Q-84 -52 -84 -98 Z', 0);
+    s += _hat([[-58, -120], [-26, -124], [-30, -70], [-60, -74]], 13);
+    s += _L('M-76 -78 Q-70 -62 -52 -62');
+    s += _P('M52 -176 Q52 -204 84 -202 Q112 -200 118 -176 L146 -166 Q160 -160 154 -146 Q148 -134 130 -136 L114 -132 Q98 -116 78 -122 Q50 -128 52 -150 Z', 0); // đầu + mõm dài
+    s += _P('M132 -138 Q132 -110 147 -118 Q151 -130 145 -139 Z', 2); // lưỡi
+    s += _P('M78 -198 Q44 -204 44 -164 Q46 -138 62 -146 Q76 -156 80 -180 Z', 1); // tai cụp
+    s += _D(154, -156, 6.5) + _D(106, -176, 4.5) + _L('M150 -144 Q134 -136 124 -150');
+    s += _P('M52 -138 Q64 -118 86 -124 L86 -116 Q62 -108 50 -128 Z', 3); // vòng cổ
+    return s;
+  } },
+  cat: { k: 1.5, g: () => {
+    let s = '';
+    s += _P('M-64 -80 Q-112 -88 -108 -132 Q-106 -162 -86 -160 Q-100 -134 -92 -118 Q-84 -102 -60 -98 Z', 1); // đuôi dài cong
+    s += _P(_paw(28, 18, -64, 10), 0) + _P(_paw(-38, 18, -64, 10), 0);
+    s += _P(_paw(-62, 22, -80, 10), 0) + _P(_paw(36, 20, -70, 10), 0);
+    s += _P('M-74 -72 Q-74 -108 -32 -108 L28 -108 Q62 -108 64 -78 Q64 -42 30 -42 L-32 -42 Q-74 -40 -74 -72 Z', 0);
+    s += _L('M-48 -102 Q-44 -90 -50 -80 M-26 -106 Q-22 -92 -28 -80 M-4 -106 Q0 -92 -6 -80'); // vằn lưng
+    s += _P('M46 -134 Q44 -172 82 -172 Q122 -172 120 -134 Q118 -102 82 -100 Q48 -100 46 -134 Z', 0); // đầu tròn
+    s += _P('M50 -152 L50 -196 L78 -170 Z', 0) + _P('M90 -170 L116 -196 L118 -152 Z', 0); // hai tai nhọn
+    s += _P('M56 -168 L58 -184 L70 -172 Z', 2) + _P('M96 -172 L108 -184 L110 -166 Z', 2);
+    s += _D(70, -140, 4.5) + _D(98, -140, 4.5) + _P('M80 -128 L88 -128 L84 -122 Z', 2);
+    s += _L('M84 -122 L84 -114 M84 -114 Q76 -108 70 -112 M84 -114 Q92 -108 98 -112 M64 -126 L40 -130 M64 -120 L40 -118 M104 -126 L128 -130 M104 -120 L128 -118'); // miệng + râu
+    return s;
+  } },
+  buffalo: { k: 2.0, g: () => {
+    let s = '';
+    s += _P(_hl(-84, 30, -100), 1) + _P(_hl(14, 28, -100), 1);
+    s += _P(_hl(-112, 34, -110), 0) + _P(_hl(52, 32, -110), 0);
+    s += _L('M-138 -150 Q-160 -126 -152 -82') + _P('M-152 -82 Q-164 -68 -156 -54 Q-142 -50 -140 -70 Z', 1); // đuôi + chùm lông
+    s += _P('M-140 -146 Q-138 -196 -84 -198 Q-20 -204 30 -192 Q70 -182 92 -156 L100 -128 Q92 -106 64 -100 Q10 -88 -50 -92 Q-138 -94 -140 -146 Z', 0); // thân nặng, bướu vai
+    s += _P('M72 -176 Q102 -184 128 -168 L170 -138 Q182 -126 176 -110 Q166 -98 150 -102 L132 -104 Q112 -92 92 -100 Q64 -112 62 -144 Q60 -164 72 -176 Z', 0); // đầu nằm ngang, mõm rộng
+    s += _P('M80 -174 Q58 -212 14 -198 Q4 -196 8 -188 Q42 -186 64 -160 Z', 2); // sừng cong ra sau
+    s += _P('M68 -146 Q42 -140 30 -154 Q46 -168 72 -162 Z', 0); // tai
+    s += _D(102, -150, 5) + _D(162, -120, 4.5) + _L('M140 -110 Q152 -108 164 -112 M96 -128 Q110 -118 122 -124');
+    return s;
+  } },
+  pig: { k: 1.6, g: () => {
+    let s = '';
+    s += _P(_paw(-56, 24, -50, 8), 0) + _P(_paw(40, 24, -50, 8), 0);
+    s += _P(_paw(-34, 22, -50, 8), 0) + _P(_paw(64, 22, -50, 8), 0);
+    s += _L('M-88 -84 Q-110 -84 -104 -100 Q-96 -112 -90 -100'); // đuôi xoắn
+    s += _P('M-90 -64 Q-90 -112 -38 -114 L38 -114 Q86 -112 88 -66 Q86 -34 40 -34 L-40 -34 Q-90 -32 -90 -64 Z', 0);
+    s += _P('M62 -104 Q62 -142 100 -142 Q136 -140 136 -104 Q134 -66 100 -62 Q62 -64 62 -104 Z', 0);
+    s += _P('M72 -136 L82 -166 L106 -142 Z', 1); // tai
+    s += _P('M120 -96 Q120 -122 142 -122 Q164 -122 164 -96 Q164 -76 142 -76 Q120 -76 120 -96 Z', 1); // mõm đĩa
+    s += _D(136, -104, 4) + _D(150, -104, 4) + _D(110, -116, 5) + _L('M-40 -58 Q-30 -70 -18 -58');
+    return s;
+  } },
+  chicken: { k: 1.4, g: () => {
+    let s = '';
+    s += _L('M-6 -40 L-6 -4 M-6 -4 L-22 0 M-6 -4 L10 0 M20 -42 L20 -4 M20 -4 L4 0 M20 -4 L36 0'); // chân ba ngón
+    s += _P('M-48 -74 Q-100 -78 -96 -150 Q-66 -132 -46 -100 Z', 1);
+    s += _P('M-46 -86 Q-88 -112 -66 -172 Q-42 -146 -38 -104 Z', 1); // đuôi xòe
+    s += _P('M26 -110 Q32 -138 40 -156 Q46 -178 66 -178 Q88 -176 88 -156 Q86 -142 76 -136 Q70 -118 74 -104 Z', 0); // cổ + đầu
+    s += _P('M-58 -80 Q-60 -38 -10 -34 Q40 -30 58 -66 Q66 -92 60 -112 Q40 -126 14 -122 Q-30 -118 -58 -80 Z', 0);
+    s += _P('M-34 -84 Q-12 -110 28 -90 Q14 -56 -14 -58 Q-34 -62 -34 -84 Z', 0) + _L('M-22 -80 Q-4 -84 10 -78'); // cánh
+    s += _P('M52 -176 Q46 -198 62 -194 Q66 -210 80 -198 Q96 -202 90 -176 Z', 2); // mào
+    s += _P('M90 -164 L114 -156 L92 -150 Z', 3); // mỏ
+    s += _P('M84 -150 Q96 -130 82 -128 Q74 -136 78 -148 Z', 2); // yếm
+    s += _D(76, -164, 4.5);
+    return s;
+  } },
+  rabbit: { k: 1.4, g: () => {
+    let s = '';
+    s += _P('M-58 -44 Q-64 -66 -44 -68 Q-24 -66 -26 -46 Q-30 -28 -48 -30 Q-60 -32 -58 -44 Z', 1); // đuôi bông
+    s += _P('M-60 -10 Q-76 -66 -26 -100 Q30 -124 58 -84 Q70 -52 58 -10 Q52 0 38 0 L-46 0 Q-60 0 -60 -10 Z', 0);
+    s += _P('M-54 0 Q-56 -26 -20 -28 Q20 -28 34 -18 Q50 -10 48 0 Z', 0); // chân sau
+    s += _L('M-40 -62 Q-22 -88 8 -60');
+    s += _P('M36 -126 Q26 -192 44 -206 Q62 -208 62 -176 Q62 -146 58 -126 Z', 0); // tai dài
+    s += _P('M62 -122 Q74 -176 96 -186 Q114 -182 98 -150 Q88 -126 80 -118 Z', 0);
+    s += _P('M42 -118 Q36 -176 46 -190 Q54 -188 54 -168 Q54 -146 52 -120 Z', 2);
+    s += _P('M20 -112 Q24 -150 62 -148 Q102 -148 102 -114 Q100 -84 60 -82 Q22 -82 20 -112 Z', 0); // đầu
+    s += _P('M38 -38 L56 -38 L56 -12 Q56 0 46 0 L40 0 Q32 -8 38 -38 Z', 0); // chân trước
+    s += _D(80, -122, 4.5) + _D(102, -108, 4) + _L('M102 -102 L124 -108 M102 -98 L122 -92');
+    return s;
+  } },
+  bird: { k: 1.3, f: 1, g: () => {
+    let s = '';
+    s += _P('M12 -14 Q30 -56 78 -62 L74 -52 L82 -46 Q60 -34 52 -12 Z', 1); // cánh xa
+    s += _P('M-38 2 L-82 -10 L-74 8 L-84 22 L-40 14 Z', 1); // đuôi xòe
+    s += _P('M-42 4 Q-38 -20 -2 -22 Q26 -24 40 -14 Q44 6 18 14 Q-14 22 -42 4 Z', 0); // thân
+    s += _P('M30 -18 Q30 -36 46 -34 Q62 -32 62 -18 Q60 -6 44 -6 Q30 -6 30 -18 Z', 0); // đầu
+    s += _P('M60 -22 L82 -14 L60 -10 Z', 2); // mỏ
+    s += _P('M-4 -14 Q-6 -62 -50 -94 L-56 -84 L-64 -92 L-68 -78 L-80 -80 Q-58 -44 -48 -8 Z', 0); // cánh gần giơ lên
+    s += _L('M-30 -62 Q-18 -46 -18 -22') + _D(50, -24, 4);
+    return s;
+  } },
+  sparrow: { k: 1.2, g: () => {
+    let s = '';
+    s += _L('M-6 -22 L-6 -2 M-6 -2 L-20 0 M-6 -2 L8 0 M14 -22 L14 -2 M14 -2 L0 0 M14 -2 L28 0');
+    s += _P('M-36 -42 L-80 -26 L-70 -48 L-38 -58 Z', 1); // đuôi
+    s += _P('M-38 -48 Q-38 -92 8 -94 Q38 -96 50 -76 Q58 -58 52 -46 Q40 -22 6 -22 Q-30 -22 -38 -48 Z', 0);
+    s += _P('M26 -86 Q28 -112 52 -110 Q74 -106 72 -86 Q68 -70 48 -70 Q28 -70 26 -86 Z', 0); // đầu
+    s += _P('M70 -92 L90 -84 L70 -78 Z', 2); // mỏ
+    s += _P('M-22 -62 Q-4 -84 22 -66 Q8 -42 -14 -44 Z', 1); // cánh
+    s += _D(54, -94, 4.5);
+    return s;
+  } },
+  fish: { k: 1.5, f: 1, g: () => {
+    let s = '';
+    s += _P('M-10 -38 Q8 -74 40 -40 Z', 1); // vây lưng
+    s += _P('M-54 0 L-96 -36 Q-82 0 -96 36 Z', 1); // đuôi
+    s += _P('M-58 0 Q-32 -44 20 -42 Q60 -38 80 -2 Q62 30 20 36 Q-32 42 -58 0 Z', 0); // thân
+    s += _P('M14 8 Q-10 24 -20 44 Q10 40 30 14 Z', 1); // vây ngực
+    s += _L('M44 -28 Q58 0 44 26 M-30 -12 Q-20 -4 -30 4 M-12 -16 Q-2 -8 -12 0 M-28 12 Q-18 20 -28 28'); // mang + vảy
+    s += _C(58, -10, 9, 2) + _D(60, -10, 4.5) + _L('M80 -2 L70 4');
+    return s;
+  } },
+  car: { k: 2.75, g: () => {
+    let s = '';
+    s += _P('M-112 -30 L-112 -54 Q-112 -62 -102 -64 L-72 -68 L-52 -100 Q-48 -104 -42 -104 L48 -104 Q58 -104 64 -96 L84 -68 L106 -62 Q118 -58 118 -48 L118 -30 Z', 0); // thân xe
+    s += _P('M-44 -72 L-32 -96 L-6 -96 L-6 -72 Z', 1) + _P('M6 -72 L6 -96 L44 -96 L66 -72 Z', 1); // kính
+    s += _L('M-6 -96 L-6 -34 M-20 -62 L-10 -62 M18 -62 L28 -62 M-112 -44 L118 -44'); // khe cửa, tay nắm
+    s += _P('M106 -62 L118 -58 L118 -48 L106 -48 Z', 4) + _P('M-112 -60 L-106 -64 L-106 -50 L-112 -50 Z', 4); // đèn
+    s += _P('M-92 -30 Q-92 -58 -62 -58 Q-32 -58 -32 -30 Z', 5) + _P('M30 -30 Q30 -58 60 -58 Q90 -58 90 -30 Z', 5); // hốc bánh
+    s += _C(-62, -24, 24, 2) + _C(60, -24, 24, 2) + _C(-62, -24, 10, 3) + _C(60, -24, 10, 3);
+    s += _D(-62, -24, 3) + _D(60, -24, 3);
+    return s;
+  } },
+  motorbike: { k: 2.3, g: () => {
+    let s = '';
+    s += _C(-62, -34, 34, 1) + _C(62, -34, 34, 1) + _C(-62, -34, 20, 2) + _C(62, -34, 20, 2) + _D(-62, -34, 4) + _D(62, -34, 4);
+    s += _L('M62 -34 L40 -112 M-62 -34 L-30 -64'); // phuộc, càng sau
+    s += _P('M-100 -62 Q-70 -92 -34 -74 L-38 -66 Q-70 -78 -92 -58 Z', 0); // chắn bùn sau
+    s += _P('M44 -58 Q66 -78 92 -56 L84 -52 Q66 -66 50 -50 Z', 0); // chắn bùn trước
+    s += _P('M-14 -72 L34 -72 L38 -34 L-10 -34 L-18 -50 Z', 3) + _L('M-8 -60 L28 -60 M-8 -50 L30 -50'); // máy có cánh tản nhiệt
+    s += _P('M-2 -100 Q20 -118 52 -104 L46 -78 Q14 -70 -6 -80 Z', 0); // bình xăng
+    s += _P('M-66 -90 Q-30 -102 -4 -92 L-4 -80 L-66 -80 Z', 1); // yên
+    s += _P('M-34 -42 Q-80 -38 -102 -50 L-102 -40 Q-80 -30 -30 -34 Z', 3); // ống pô
+    s += _L('M28 -114 L56 -120 L64 -112'); // tay lái
+    s += _P('M52 -108 Q74 -112 74 -96 Q74 -84 56 -86 Z', 4); // đèn pha
+    return s;
+  } },
+  bicycle: { k: 2.3, g: () => {
+    let s = '';
+    s += _C(-58, -34, 34, 1) + _C(58, -34, 34, 1) + _C(-58, -34, 30, 3) + _C(58, -34, 30, 3); // vành + lốp
+    s += _L('M-58 -34 L-58 -62 M-58 -34 L-58 -6 M-58 -34 L-30 -34 M-58 -34 L-86 -34 M58 -34 L58 -62 M58 -34 L58 -6 M58 -34 L30 -34 M58 -34 L86 -34'); // căm
+    s += _D(-58, -34, 5) + _D(58, -34, 5);
+    s += _L('M-58 -34 L-10 -34 L-22 -90 M-58 -34 L-22 -90 M-22 -90 L32 -90 M-10 -34 L32 -90 M32 -90 L58 -34 M26 -102 L32 -90'); // khung
+    s += _L('M26 -104 Q34 -112 50 -108 M-10 -34 L6 -20 M-10 -34 L-26 -48'); // ghi đông, bàn đạp
+    s += _P('M-42 -98 Q-24 -106 -6 -98 L-8 -92 L-40 -92 Z', 0); // yên
+    s += _P('M4 -26 L18 -26 L18 -18 L4 -18 Z', 1);
+    return s;
+  } },
+  plane: { k: 2.0, f: 1, g: () => {
+    let s = '';
+    s += _P('M-4 -26 L-46 -66 L-26 -68 L28 -26 Z', 1); // cánh xa
+    s += _P('M-104 -22 L-124 -80 L-98 -80 L-62 -24 Z', 1); // đuôi đứng
+    s += _P('M-108 -2 L-136 -22 L-116 -26 L-82 -6 Z', 1); // cánh đuôi
+    s += _P('M-116 -6 Q-116 -26 -90 -28 L72 -28 Q112 -26 130 -4 Q112 16 72 18 L-90 18 Q-116 14 -116 -6 Z', 0); // thân bay
+    s += _P('M92 -24 L112 -24 Q122 -14 124 -6 L92 -6 Z', 2); // kính lái
+    s += _P('M-8 14 L-80 70 L-48 74 L40 18 Z', 0); // cánh gần
+    s += _P('M-34 36 L-4 36 Q8 42 -4 50 L-34 54 Z', 1); // động cơ
+    s += _C(-60, -6, 5, 2) + _C(-36, -6, 5, 2) + _C(-12, -6, 5, 2) + _C(12, -6, 5, 2) + _C(36, -6, 5, 2) + _C(60, -6, 5, 2); // cửa sổ
+    s += _L('M-116 6 L120 6');
+    return s;
+  } },
+  palm: { k: 2.1, g: () => {
+    let s = '';
+    s += _P('M-18 0 Q-24 -90 -6 -190 L16 -186 Q2 -92 24 0 Z', 1) + _L('M-16 -34 Q2 -28 20 -34 M-18 -68 Q0 -62 20 -68 M-14 -102 Q4 -96 16 -102 M-10 -136 Q4 -130 14 -136'); // thân có vằn
+    s += _P('M4 -188 Q-30 -250 -114 -226 Q-66 -214 4 -188 Z', 0) + _P('M4 -188 Q40 -254 118 -228 Q70 -214 4 -188 Z', 0);
+    s += _P('M4 -188 Q-40 -214 -112 -172 Q-60 -176 4 -188 Z', 0) + _P('M4 -188 Q44 -214 116 -174 Q64 -176 4 -188 Z', 0);
+    s += _P('M4 -188 Q-8 -250 6 -274 Q22 -246 4 -188 Z', 0);
+    s += _C(-6, -180, 9, 2) + _C(14, -176, 9, 2) + _C(4, -166, 9, 2); // dừa
+    return s;
+  } },
+  bamboo: { k: 2.0, g: () => {
+    let s = '';
+    [[-34, 250], [0, 310], [36, 270]].forEach(([x, h]) => {
+      s += _P(`M${x - 8} 0 L${x - 8} ${-h} L${x + 8} ${-h} L${x + 8} 0 Z`, 0);
+      for (let y = 56; y < h - 10; y += 62) s += _L(`M${x - 9} ${-y} L${x + 9} ${-y}`);
+      s += _P(`M${x + 8} ${-h + 40} Q${x + 36} ${-h + 24} ${x + 60} ${-h + 40} Q${x + 34} ${-h + 50} ${x + 8} ${-h + 40} Z`, 1);
+      s += _P(`M${x - 8} ${-h + 100} Q${x - 36} ${-h + 84} ${x - 60} ${-h + 100} Q${x - 34} ${-h + 110} ${x - 8} ${-h + 100} Z`, 1);
+    });
+    return s;
+  } },
+  pine: { k: 2.2, g: () => {
+    const tier = (yb, w, h) => _P(`M${-w} ${yb} Q${-w / 2} ${yb + 16} 0 ${yb} Q${w / 2} ${yb + 16} ${w} ${yb} L0 ${yb - h} Z`);
+    return _P('M-12 0 L-10 -44 L10 -44 L12 0 Z') + _L('M-2 -8 L-2 -34') + tier(-30, 78, 86) + tier(-78, 60, 84) + tier(-124, 42, 84) + _L('M-26 -58 L-14 -72 M30 -64 L16 -78 M-12 -108 L-4 -118');
+  } },
+});
+
+Object.assign(VPAL, {
+  horse: ['#b9794a', '#4a2f1d'], elephant: ['#aab6c4', '#7d8896', '#9aa6b5', '#f7f1e3'], dog: ['#e0a96d', '#8a5a34', '#ff8fa3', '#e4572e'], cat: ['#ffb36b', '#e08a3a', '#ff8fb1'],
+  buffalo: ['#8a8680', '#5e5b57', '#e8e1cf'], pig: ['#ffb3c1', '#ff94a8'], chicken: ['#f3e3c3', '#d9642b', '#e63946', '#f4b942'], rabbit: ['#f4eee6', '#ffffff', '#ffb3c1'],
+  bird: ['#4fb3e8', '#2f7fb8', '#f4b942'], sparrow: ['#c99a6b', '#8a5a34', '#f4b942'], fish: ['#ff9f6b', '#ffcf56', '#ffffff'],
+  car: ['#e4572e', '#bfe8ff', '#2b2f36', '#cfd8e0', '#ffd23f', '#4a4f58'], motorbike: ['#e4572e', '#2b2f36', '#cfd8e0', '#8a8f98', '#ffd23f'], bicycle: ['#e4572e', '#2b2f36', '#cfd8e0', '#ffffff'],
+  plane: ['#e8eef4', '#3a86ff', '#9ad8f5'], palm: ['#43a047', '#a8794a', '#8a5a34'], bamboo: ['#8bc34a', '#43a047'], pine: ['#6b4a2f', '#2e8b57', '#3fa66b', '#58c07f']
+});
+
 const propAliases = { cottage: 'hut', skyscraper: 'building', market: 'shop', store: 'shop', castle: 'tower', temple: 'pagoda', stone: 'rock', boulder: 'rock', trees: 'tree', sea: 'waves', river: 'waves', water: 'waves', wave: 'waves', flame: 'fire', bonfire: 'fire', desk: 'table', sack: 'bag', moneybag: 'bag', money_bag: 'bag', lantern: 'lamp', sofa: 'bed', puppy: 'dog', kitten: 'cat', lamppost: 'streetlight', streetlamp: 'streetlight', signpost: 'sign', broken_house: 'ruins', rubble: 'ruins', camp: 'tent', clouds: 'cloud', stars: 'star', birds: 'bird', phone_: 'phone', smartphone: 'phone', gold: 'coin', coins: 'coin', money: 'cash', cash_stack: 'cash', money_stack: 'cash', stack: 'cash', bundle: 'cash', banknotes: 'cash', bills: 'cash', bill: 'banknote', dollar: 'banknote', note: 'banknote', treasure: 'chest', envelope: 'letter', mail: 'letter', document: 'paper', contract: 'paper', form: 'paper', present: 'gift', fruit: 'apple', loaf: 'bread', food: 'bread', watch: 'clock', pail: 'bucket', laptop: 'computer', pc: 'computer', tv: 'computer', screen: 'computer', monitor: 'computer', bike: 'bicycle', airplane: 'plane', aeroplane: 'plane', jet: 'plane', gem: 'diamond', jewel: 'diamond', clinic: 'hospital', ox: 'buffalo', cow: 'buffalo', cattle: 'buffalo', cooking_pot: 'pot', cauldron: 'pot', rose: 'flower', award: 'trophy', trophies: 'trophy', coins_stack: 'coin', cup_search: 'magnifier', glass: 'magnifier', schoolhouse: 'school', van: 'bus', truck: 'bus', ship: 'boat', sailboat: 'boat', lock: 'key', bloodstain: 'blood', blood_pool: 'blood', blood_stain: 'blood', wound: 'blood', injury: 'blood', burning: 'flames', blaze: 'flames', inferno: 'flames', big_fire: 'fire_big', house_fire: 'fire_big', light_beam: 'beam', spotlight: 'beam', sunbeam: 'beam', light: 'beam', ray: 'beam', idea: 'bulb', lightbulb: 'bulb', sparkle: 'spark', sparkles: 'spark', twinkle: 'spark', shine: 'spark', glitter: 'spark', glow: 'spark', bolt: 'lightning', thunder: 'lightning', blast: 'explosion', boom: 'explosion', bomb_blast: 'explosion', tear: 'drop', teardrop: 'drop', waterdrop: 'drop', sweat: 'drop' };
 Object.assign(propAliases, { bubble: 'speech', chat: 'speech', talk: 'speech', say: 'speech', think: 'thought', idea_cloud: 'thought', bang: 'burst', shout: 'burst', pow: 'burst', crash: 'burst', exclamation: 'exclaim', shock: 'exclaim', surprise: 'exclaim', confused: 'question', doubt: 'question', mess: 'scribble', chaos: 'scribble', whirlwind: 'tornado', stars4: 'twinkle', shiny: 'twinkle', angry: 'anger', rage: 'anger', time: 'hourglass', waiting: 'hourglass', deadline: 'hourglass', explosive: 'bomb', speedlines: 'speed', fast: 'speed', rush: 'speed', emphasis: 'emph', wow: 'emph', arrow_right: 'arrow', next: 'arrow', tuft: 'grass', note: 'torn_paper', scroll: 'torn_paper', frame: 'board', billboard: 'board' });
 Object.assign(propAliases, { lectern: 'podium', stage: 'podium', rostrum: 'podium', pulpit: 'podium', video_camera: 'camera', movie_camera: 'camera', film_camera: 'camera', tripod: 'camera', filming: 'camera', microphone: 'mic', loudspeaker: 'megaphone', speaker: 'megaphone', hammer: 'gavel', judge_hammer: 'gavel', court: 'scales', law: 'scales', justice: 'scales', golf_club: 'golf', golf_course: 'golf', golf_ball: 'golf', hotel: 'building', casino: 'building', resort: 'building', office: 'building', apartment: 'building', condo: 'building', tower_building: 'building', suitcase: 'briefcase', case: 'briefcase', business: 'briefcase', ballot_box: 'ballot', vote: 'ballot', voting: 'ballot', election: 'ballot', missile: 'rocket', spaceship: 'rocket', launch: 'rocket', chair_royal: 'throne', seat_of_power: 'throne', president_chair: 'throne' });
 Object.entries({ eiffel: [374, 160], liberty: [330, 100], bigben: [410, 80], pyramid: [130, 320], colosseum: [120, 240], pisa: [226, 90], fuji: [150, 300], whitehouse: [196, 220], khue: [222, 152], motcot: [176, 152], greatwall: [170, 320] }).forEach(([k, v]) => { if (PROPS[k]) { PROPS[k].h = v[0]; PROPS[k].w = v[1]; } });
 Object.assign(propAliases, { crash: 'chart_down', decline: 'chart_down', loss: 'chart_down', recession: 'chart_down', stock_down: 'chart_down', falling_chart: 'chart_down', down_chart: 'chart_down', growth: 'chart_up', profit: 'chart_up', rise: 'chart_up', stock_up: 'chart_up', up_chart: 'chart_up', graph: 'chart_up', chart: 'chart_up', down: 'arrow_down', decrease: 'arrow_down', up: 'arrow_up', increase: 'arrow_up', discount: 'percent', percentage: 'percent', sale: 'percent', alert: 'warning', danger: 'warning', caution: 'warning', risk: 'warning', purse: 'wallet', news: 'newspaper', headline: 'newspaper', press: 'newspaper', magazine: 'newspaper' });
 Object.assign(propAliases, { gun: 'rifle', musket: 'rifle', weapon: 'sword', blade: 'sword', kiem: 'sword', canon: 'cannon', artillery: 'cannon', armored_vehicle: 'tank', locomotive: 'train', railway: 'train', motorcycle: 'motorbike', scooter: 'motorbike', moto: 'motorbike', village_gate: 'gate', cong_lang: 'gate', communal_house: 'dinh', shoes: 'boots', shoe: 'boots', conical_hat: 'nonla', non_la: 'nonla', hat_leaf: 'nonla', old_map: 'map', treasure_map: 'map', paris: 'eiffel', eiffel_tower: 'eiffel', statue_of_liberty: 'liberty', newyork: 'liberty', london: 'bigben', big_ben: 'bigben', egypt: 'pyramid', pyramids: 'pyramid', rome: 'colosseum', japan: 'fuji', mount_fuji: 'fuji', white_house: 'whitehouse', temple_of_literature: 'khue', one_pillar_pagoda: 'motcot', great_wall: 'greatwall', china_wall: 'greatwall', leaning_tower: 'pisa' });
+Object.assign(propAliases, { pony: 'horse', stallion: 'horse', mare: 'horse', foal: 'horse', racehorse: 'horse', elephants: 'elephant', hog: 'pig', piglet: 'pig', sow: 'pig', pigs: 'pig', hen: 'chicken', rooster: 'chicken', cock: 'chicken', chick: 'chicken', poultry: 'chicken', bunny: 'rabbit', hare: 'rabbit', pigeon: 'sparrow', dove: 'sparrow', songbird: 'sparrow', perched_bird: 'sparrow', small_bird: 'sparrow', sparrows: 'sparrow', flying_bird: 'bird', seagull: 'bird', eagle: 'bird', goldfish: 'fish', fishes: 'fish', automobile: 'car', sedan: 'car', taxi: 'car', vehicle: 'car', coconut_tree: 'palm', palm_tree: 'palm', coconut: 'palm', bamboos: 'bamboo', bamboo_tree: 'bamboo', trau: 'buffalo', water_buffalo: 'buffalo', cyclist: 'bicycle', jetliner: 'plane', aircraft: 'plane', airliner: 'plane', fir: 'pine', pine_tree: 'pine' });
 // Đo khung bao thật của hình đồ vật (đơn vị nội bộ) để không cho nó to quá khung tranh
 function _bboxOf(g) {
   let host = null;
@@ -1412,33 +1635,87 @@ function libJob(job, torso) { const L = LIB.jobs[job]; if (!L) return null; retu
 Object.keys(LIB.props).forEach(n => { try { libRegProp(n, LIB.props[n]); } catch (e) { } });
 Object.keys(LIB.jobs).forEach(k => libRegJob(k, LIB.jobs[k]));
 
-function libClean(code) { // chỉ giữ hình đơn giản an toàn (path M L H V Q C Z, rect, circle, ellipse), bỏ mọi thứ khác
+// Đổi path bất kỳ của AI (chữ hoa/thường, H V S T A) về M L Q C Z tuyệt đối để vẽ nét mượt được; sai cú pháp thì trả ''
+function libArc(x1, y1, rx, ry, phi, fa, fs, x2, y2) { // cung tròn SVG -> các đoạn Bézier bậc 3
+  if (!rx || !ry || (x1 === x2 && y1 === y2)) return [[x2, y2, x2, y2, x2, y2]];
+  rx = Math.abs(rx); ry = Math.abs(ry);
+  const cp = Math.cos(phi), sp = Math.sin(phi), dx = (x1 - x2) / 2, dy = (y1 - y2) / 2;
+  const xp = cp * dx + sp * dy, yp = -sp * dx + cp * dy, lam = xp * xp / (rx * rx) + yp * yp / (ry * ry);
+  if (lam > 1) { const q = Math.sqrt(lam); rx *= q; ry *= q; }
+  const den = rx * rx * yp * yp + ry * ry * xp * xp;
+  let co = Math.sqrt(Math.max(0, (rx * rx * ry * ry - den) / (den || 1))); if (fa === fs) co = -co;
+  const cxp = co * rx * yp / ry, cyp = -co * ry * xp / rx, cx = cp * cxp - sp * cyp + (x1 + x2) / 2, cy = sp * cxp + cp * cyp + (y1 + y2) / 2;
+  const ang = (ux, uy, vx, vy) => Math.atan2(ux * vy - uy * vx, ux * vx + uy * vy);
+  const t1 = ang(1, 0, (xp - cxp) / rx, (yp - cyp) / ry);
+  let dt = ang((xp - cxp) / rx, (yp - cyp) / ry, (-xp - cxp) / rx, (-yp - cyp) / ry);
+  if (!fs && dt > 0) dt -= 2 * Math.PI; else if (fs && dt < 0) dt += 2 * Math.PI;
+  const n = Math.max(1, Math.ceil(Math.abs(dt) / (Math.PI / 2) - 1e-9)), d = dt / n, k = 4 / 3 * Math.tan(d / 4), out = [];
+  const E = a => [cx + rx * Math.cos(a) * cp - ry * Math.sin(a) * sp, cy + rx * Math.cos(a) * sp + ry * Math.sin(a) * cp];
+  const D = a => [-rx * Math.sin(a) * cp - ry * Math.cos(a) * sp, -rx * Math.sin(a) * sp + ry * Math.cos(a) * cp];
+  for (let i = 0; i < n; i++) { const a1 = t1 + i * d, a2 = a1 + d, p1 = E(a1), p2 = E(a2), d1 = D(a1), d2 = D(a2); out.push([p1[0] + k * d1[0], p1[1] + k * d1[1], p2[0] - k * d2[0], p2[1] - k * d2[1], p2[0], p2[1]]); }
+  return out;
+}
+function libNormPath(d) {
+  const t = String(d || '').match(/[a-zA-Z]|[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?/g); if (!t) return '';
+  let i = 0, cmd = '', x = 0, y = 0, sx = 0, sy = 0, cx2 = 0, cy2 = 0, pc = '', out = '';
+  const num = () => { const v = parseFloat(t[i++]); if (!isFinite(v)) throw new Error('num'); return v; };
+  const f = v => +v.toFixed(1);
+  try {
+    while (i < t.length) {
+      if (/[a-zA-Z]/.test(t[i])) { cmd = t[i++]; if (!/^[MLHVQCSTAZmlhvqcstaz]$/.test(cmd)) return ''; }
+      else if (!cmd) return '';
+      const U = cmd.toUpperCase(), rel = cmd !== U, ox = rel ? x : 0, oy = rel ? y : 0;
+      if (U === 'Z') { out += 'Z'; x = sx; y = sy; pc = 'Z'; cmd = ''; continue; }
+      if (U === 'M') { x = ox + num(); y = oy + num(); sx = x; sy = y; out += `M${f(x)} ${f(y)}`; cmd = rel ? 'l' : 'L'; pc = 'M'; }
+      else if (U === 'L') { x = ox + num(); y = oy + num(); out += `L${f(x)} ${f(y)}`; pc = 'L'; }
+      else if (U === 'H') { x = (rel ? x : 0) + num(); out += `L${f(x)} ${f(y)}`; pc = 'L'; }
+      else if (U === 'V') { y = (rel ? y : 0) + num(); out += `L${f(x)} ${f(y)}`; pc = 'L'; }
+      else if (U === 'Q') { const a = ox + num(), b = oy + num(); x = ox + num(); y = oy + num(); out += `Q${f(a)} ${f(b)} ${f(x)} ${f(y)}`; cx2 = a; cy2 = b; pc = 'Q'; }
+      else if (U === 'T') { const a = pc === 'Q' ? 2 * x - cx2 : x, b = pc === 'Q' ? 2 * y - cy2 : y; x = ox + num(); y = oy + num(); out += `Q${f(a)} ${f(b)} ${f(x)} ${f(y)}`; cx2 = a; cy2 = b; pc = 'Q'; }
+      else if (U === 'C') { const a = ox + num(), b = oy + num(), c = ox + num(), e = oy + num(); x = ox + num(); y = oy + num(); out += `C${f(a)} ${f(b)} ${f(c)} ${f(e)} ${f(x)} ${f(y)}`; cx2 = c; cy2 = e; pc = 'C'; }
+      else if (U === 'S') { const a = pc === 'C' ? 2 * x - cx2 : x, b = pc === 'C' ? 2 * y - cy2 : y, c = ox + num(), e = oy + num(); x = ox + num(); y = oy + num(); out += `C${f(a)} ${f(b)} ${f(c)} ${f(e)} ${f(x)} ${f(y)}`; cx2 = c; cy2 = e; pc = 'C'; }
+      else if (U === 'A') { const rx = num(), ry = num(), ph = num() * Math.PI / 180, fa = num() ? 1 : 0, fs = num() ? 1 : 0, nx = ox + num(), ny = oy + num(); libArc(x, y, rx, ry, ph, fa, fs, nx, ny).forEach(c => { out += `C${f(c[0])} ${f(c[1])} ${f(c[2])} ${f(c[3])} ${f(c[4])} ${f(c[5])}`; }); x = nx; y = ny; pc = 'A'; }
+    }
+  } catch (e) { return ''; }
+  if (!/^M/.test(out) || (out.match(/-?\d+\.?\d*/g) || []).some(v => Math.abs(+v) > 900) || !_strokes(out)) return '';
+  return out;
+}
+function libClean(code) { // chỉ giữ hình đơn giản an toàn (path, polygon, polyline, line, rect, circle, ellipse), dựng lại từ đầu; phần tử lạ hoặc hỏng thì bỏ qua (hỏng quá nhiều thì bỏ cả hình)
   const doc = new DOMParser().parseFromString('<svg xmlns="http://www.w3.org/2000/svg">' + String(code || '') + '</svg>', 'image/svg+xml');
   if (doc.querySelector('parsererror')) return '';
   const els = [...doc.documentElement.querySelectorAll('*')].filter(e => e.localName !== 'g');
-  if (!els.length || els.length > 18) return '';
-  let out = '';
+  if (!els.length || els.length > 40) return '';
+  let out = '', ok = 0, bad = 0;
   for (const e of els) {
     const t = e.localName, g = k => e.getAttribute(k);
     const n = k => { const v = parseFloat(g(k)); return isFinite(v) && Math.abs(v) <= 700 ? +v.toFixed(1) : null; };
     const fl = String(g('fill') || '').trim().toLowerCase();
-    const fa = fl === 'none' ? 'fill="none"' : /^(#111|#111111|#000|#000000|black)$/.test(fl) ? 'fill="#111111"' : new RegExp('^@(' + LIB_COLORS + ')$').test(fl) ? `fill="${fl}"` : 'fill="#ffffff"';
+    let fa = fl === 'none' ? 'fill="none"' : /^(#111|#111111|#000|#000000|black)$/.test(fl) ? 'fill="#111111"' : new RegExp('^@(' + LIB_COLORS + ')$').test(fl) ? `fill="${fl}"` : 'fill="#ffffff"';
     if (t === 'path') {
-      const d = String(g('d') || '').replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
-      if (!d || d.length > 700 || !/^[MLHVQCZ0-9\s.\-]+$/.test(d) || !_strokes(d)) return '';
-      out += `<path d="${d}" ${fa}/>`;
+      const d = libNormPath(g('d'));
+      if (!d || d.length > 1600) { bad++; continue; }
+      out += `<path d="${d}" ${fa}/>`; ok++;
+    } else if (t === 'polygon' || t === 'polyline') {
+      const v = String(g('points') || '').match(/-?\d*\.?\d+/g) || [];
+      if (v.length < 6 || v.length % 2 || v.length > 120 || v.some(q => Math.abs(+q) > 700)) { bad++; continue; }
+      let d = ''; for (let q = 0; q < v.length; q += 2) d += (q ? 'L' : 'M') + (+v[q]).toFixed(1) + ' ' + (+v[q + 1]).toFixed(1);
+      if (t === 'polygon') d += 'Z'; else fa = 'fill="none"';
+      out += `<path d="${d}" ${fa}/>`; ok++;
+    } else if (t === 'line') {
+      const a = n('x1'), b = n('y1'), c = n('x2'), f2 = n('y2'); if ([a, b, c, f2].some(q => q === null)) { bad++; continue; }
+      out += `<path d="M${a} ${b}L${c} ${f2}" fill="none"/>`; ok++;
     } else if (t === 'rect') {
-      const x = n('x'), y = n('y'), w = n('width'), h = n('height'); if ([x, y, w, h].some(v => v === null) || w <= 0 || h <= 0) return '';
-      out += `<rect x="${x}" y="${y}" width="${w}" height="${h}" ${fa}/>`;
+      const x = n('x') ?? 0, y = n('y') ?? 0, w = n('width'), h = n('height'); if (w === null || h === null || w <= 0 || h <= 0) { bad++; continue; }
+      out += `<rect x="${x}" y="${y}" width="${w}" height="${h}" ${fa}/>`; ok++;
     } else if (t === 'circle') {
-      const x = n('cx'), y = n('cy'), r = n('r'); if ([x, y, r].some(v => v === null) || r <= 0) return '';
-      out += `<circle cx="${x}" cy="${y}" r="${r}" ${fa}/>`;
+      const x = n('cx') ?? 0, y = n('cy') ?? 0, r = n('r'); if (r === null || r <= 0) { bad++; continue; }
+      out += `<circle cx="${x}" cy="${y}" r="${r}" ${fa}/>`; ok++;
     } else if (t === 'ellipse') {
-      const x = n('cx'), y = n('cy'), rx = n('rx'), ry = n('ry'); if ([x, y, rx, ry].some(v => v === null) || rx <= 0 || ry <= 0) return '';
-      out += `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" ${fa}/>`;
-    } else return '';
+      const x = n('cx') ?? 0, y = n('cy') ?? 0, rx = n('rx'), ry = n('ry'); if (rx === null || ry === null || rx <= 0 || ry <= 0) { bad++; continue; }
+      out += `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" ${fa}/>`; ok++;
+    } else bad++;
   }
-  return out;
+  return ok >= 1 && bad <= Math.max(2, ok * 0.2) ? out : '';
 }
 function libBox(inner) { // đo khung bao của hình bằng DOM ẩn
   const sv = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -1453,19 +1730,66 @@ async function libAsk(prompt, extra = []) {
   const a = t.indexOf('{'), b = t.lastIndexOf('}');
   return JSON.parse(a >= 0 && b > a ? t.slice(a, b + 1) : t);
 }
-const LIB_SHAPE_RULES = 'SVG rules: output only shape elements (path, rect, circle, ellipse). No g, text, transform, style, stroke attributes. Path commands ONLY absolute M L H V Q C Z with numbers separated by spaces. Each shape has fill="#ffffff" (closed shape that hides what is behind it) or fill="none" (a line detail). Accent colours are allowed only as fill="@red" (blood, heart, danger), "@yellow" (gold, light), "@green" (money), "@blue" (water), "@orange" (fire), on at most 2 shapes and only when the colour is essential to recognise the thing. Black parts (dark hair, black hat) use fill="#111111". Style: simple, rounded, friendly hand-drawn doodle, thick-line friendly, no tiny details.';
+const LIB_SHAPE_RULES = 'SVG rules: output only shape elements (path, rect, circle, ellipse, polygon). No g, text, transform, style, stroke attributes. Paths use the commands M L H V Q C Z (absolute capital letters) with numbers separated by spaces; curves (Q, C) make bodies, heads, tails and leaves look natural. Each shape has fill="#ffffff" (closed shape that hides what is behind it) or fill="none" (an open line detail). Accent colours are allowed only as fill="@red" (blood, heart, danger), "@yellow" (gold, light), "@green" (money), "@blue" (water), "@orange" (fire), on at most 2 shapes and only when the colour is essential to recognise the thing. Black parts (dark hair, black hat, eyes, nose) use fill="#111111". Style: clean hand-drawn doodle, rounded, uniform thick outline, friendly; keep every part big enough to survive shrinking (no hatching, no texture, no tiny specks).';
+const LIB_EX_ANIMAL = `<path d="M44 98 Q7 92 10 59 Q12 36 27 37 Q16 57 22 69 Q29 82 47 85 Z" fill="#ffffff"/><path d="M107 111 L107 150 Q105 159 112 159 L128 159 Q132 152 121 149 L121 111 Z" fill="#ffffff"/><path d="M57 111 L57 150 Q54 159 61 159 L78 159 Q82 152 70 149 L70 111 Z" fill="#ffffff"/><path d="M37 98 L37 150 Q35 159 41 159 L61 159 Q65 152 54 149 L54 98 Z" fill="#ffffff"/><path d="M112 106 L112 150 Q110 159 117 159 L135 159 Q139 152 128 149 L128 106 Z" fill="#ffffff"/><path d="M36 104 Q36 77 68 77 L114 77 Q140 77 141 100 Q141 127 115 127 L68 127 Q36 129 36 104 Z" fill="#ffffff"/><path d="M56 82 Q59 91 54 98 M73 79 Q76 89 71 98 M89 79 Q93 89 88 98" fill="none"/><path d="M128 57 Q126 28 155 28 Q185 28 184 57 Q182 82 155 83 Q129 83 128 57 Z" fill="#ffffff"/><path d="M131 44 L131 10 L152 30 Z" fill="#ffffff"/><path d="M161 30 L181 10 L182 44 Z" fill="#ffffff"/><path d="M135 31 L137 19 L146 28 Z" fill="#ffffff"/><path d="M166 28 L175 19 L176 33 Z" fill="#ffffff"/><circle cx="146" cy="53" r="3" fill="#111111"/><circle cx="167" cy="53" r="3" fill="#111111"/><path d="M153 62 L160 62 L156 66 Z" fill="#ffffff"/><path d="M156 66 L156 72 M156 72 Q150 77 146 74 M156 72 Q163 77 167 74 M141 63 L123 60 M141 68 L123 69 M172 63 L190 60 M172 68 L190 69" fill="none"/>`; // hình mẫu: con mèo nhìn nghiêng (đủ đầu, tai, mắt, mũi, râu, thân, bốn chân, đuôi)
+const LIB_EX_VEHICLE = `<path d="M10 68 L10 49 Q10 43 18 41 L41 38 L57 13 Q60 10 65 10 L135 10 Q143 10 148 16 L163 38 L181 43 Q190 46 190 54 L190 68 Z" fill="#ffffff"/><path d="M63 35 L73 16 L93 16 L93 35 Z" fill="#ffffff"/><path d="M102 35 L102 16 L132 16 L149 35 Z" fill="#ffffff"/><path d="M93 16 L93 65 M82 43 L90 43 M112 43 L120 43 M10 57 L190 57" fill="none"/><path d="M181 43 L190 46 L190 54 L181 54 Z" fill="#ffffff"/><path d="M10 44 L15 41 L15 52 L10 52 Z" fill="#ffffff"/><path d="M26 68 Q26 46 49 46 Q73 46 73 68 Z" fill="#ffffff"/><path d="M121 68 Q121 46 145 46 Q168 46 168 68 Z" fill="#ffffff"/><circle cx="49" cy="73" r="19" fill="#ffffff"/><circle cx="145" cy="73" r="19" fill="#ffffff"/><circle cx="49" cy="73" r="8" fill="#ffffff"/><circle cx="145" cy="73" r="8" fill="#ffffff"/><circle cx="49" cy="73" r="2" fill="#111111"/><circle cx="145" cy="73" r="2" fill="#111111"/>`; // hình mẫu: ô tô nhìn nghiêng (thân đúng dáng, kính, bánh có trục, đèn)
+const LIB_DRAW_GUIDE = `GOAL: anyone must recognise the object at a glance, even when shrunk to a small thumbnail in a video. A correct silhouette, correct proportions and the 2 or 3 features that make this object unmistakable matter MORE than keeping it simple. Do not turn it into a generic circle, square or blob.
+METHOD
+1. Decide the type: ANIMAL, BIRD, FISH, INSECT, VEHICLE, BUILDING, PLANT, FURNITURE, TOOL/DEVICE, FOOD, CLOTHING or SYMBOL.
+2. View: animals, birds, fish and vehicles in clean SIDE PROFILE facing RIGHT (head or front on the right, tail or back on the left). Buildings, furniture, plants, devices, clothes and symbols from the FRONT.
+3. Build it from 8 to 26 shapes painted BACK TO FRONT (a later shape hides an earlier one): far legs or far wing first, then tail, then the main body, then near legs, then head, then small details on top. Joints must overlap so nothing floats or leaves gaps.
+4. Use curves (Q, C) for bodies, heads, necks, tails, leaves and wheels arches; straight lines only where the real thing is straight. Legs, necks, trunks and limbs are thick tapered closed shapes (at least 14 units thick), never single lines. Standing things end on one flat ground line at the bottom.
+5. Keep real proportions (for example a horse has a long head and neck and long thin legs; an elephant has pillar legs, huge ears and a trunk; a car is about 2.5 times longer than tall). Keep a natural, relaxed pose.
+6. Details that stay readable when small: eyes are circles fill="#111111" with r 4 to 7; add 2 to 5 short detail lines only where they explain the object (mouth, gill, door line, window frame, panel, hinge).
+CHECKLISTS (every item present)
+- Mammal: head with snout/muzzle and eye, the right ears, neck, body, FOUR legs with feet or hooves (the two far legs drawn first, partly hidden), tail; plus its signature (trunk and tusks, mane, stripes or spots, horns or antlers, hump, long neck, pouch, quills, fluffy tail...).
+- Bird: round head, beak, eye, body, wing, tail feathers, two thin legs with toes; plus crest, long neck or long legs, webbed feet, hooked beak where the species has them.
+- Fish and sea animals: streamlined body, tail fin, dorsal and side fins, eye, gill line (shark: pointed fin; crab: claws and 6 legs; octopus: 8 curved arms; turtle: dome shell with legs).
+- Reptile, amphibian, insect: snake = long S-curve with head, eye and forked tongue; frog = squat body, big back legs, bulging eyes; insect = 3 body parts, 6 legs, wings, antennae; spider = 8 legs.
+- Vehicle: outline that follows the real shape (hood, cabin, roof, trunk or cargo box), window shapes with pillars, wheels as a circle plus a smaller hub circle sitting under an arch, lights, bumper. Boat = hull, mast, sail or cabin; train = engine plus carriage with windows; plane = fuselage, nose, tail fin, wings, windows; helicopter = cabin, tail boom, rotor.
+- Building or place: walls, roof (right type), door, windows; plus its signature (chimney, tower, flag, steps, sign, columns, dome).
+- Plant: trunk or stem, branches, crown or leaves, flowers or fruit if typical.
+- Furniture, tool, device: the real outline plus its 2 or 3 functional parts (handle, hinge, screen, button, blade, spout, legs).
+EXAMPLES: this is the level of detail and the clean style to copy. Draw the NEW object, not these.
+Example "cat" (animal, side view): ${LIB_EX_ANIMAL}
+Example "car" (vehicle, side view): ${LIB_EX_VEHICLE}`;
+async function libSnap(svg) { // chụp hình vừa vẽ thành ảnh PNG (base64) để AI tự nhìn lại
+  const b = libBox(svg); if (!b || b.w < 1 || b.h < 1) return null;
+  const pad = 14, w = b.w + pad * 2, h = b.h + pad * 2, W2 = 420, H2 = Math.max(120, Math.min(560, Math.round(W2 * h / w)));
+  const mk = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${b.x - pad} ${b.y - pad} ${w} ${h}" width="${W2}" height="${H2}"><rect x="${b.x - pad}" y="${b.y - pad}" width="${w}" height="${h}" fill="#fff"/><g stroke="#111111" stroke-width="${Math.max(2.5, Math.max(b.w, b.h) / 55).toFixed(1)}" stroke-linecap="round" stroke-linejoin="round">${libTok(svg)}</g></svg>`;
+  const img = await loadImg('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(mk));
+  const c = document.createElement('canvas'); c.width = W2; c.height = H2; c.getContext('2d').drawImage(img, 0, 0, W2, H2);
+  return c.toDataURL('image/png').split(',')[1];
+}
+async function libReview(name, svg) { // AI nhìn lại hình đã vẽ: nếu chưa nhận ra ngay thì vẽ lại cho đúng; lỗi gì cũng giữ bản đầu
+  try {
+    const png = await libSnap(svg); if (!png) return svg;
+    const j = await libAsk(`This doodle was meant to be: "${name.replace(/_/g, ' ')}". Look at the image and judge honestly, as a stranger seeing it for the first time and also when it is shrunk very small: is it instantly recognisable as that object? Check the silhouette, the proportions, the main parts (animals: head, eyes, ears, snout or beak, body, four legs or two legs, tail and the species' signature feature; vehicles: body shape, windows, wheels with hubs; buildings: roof, door, windows), parts that float or are not connected, shapes that are too tiny or too crude, and anything that looks like a generic blob.
+Return JSON only: {"recognisable":true or false,"problems":"short list","svg":"<shape elements>"}
+- If recognisable is true: put "" in svg.
+- If false: redraw the WHOLE object better in svg (8 to 26 shapes, back to front, same 200 x 200 box and same side-view rule, fixing every problem, real proportions, thick tapered legs and necks, eyes as small black circles).
+${LIB_SHAPE_RULES}`, [{ inlineData: { mimeType: 'image/png', data: png } }]);
+    if (j.recognisable === true || !j.svg) return svg;
+    const s2 = libClean(j.svg); if (!s2) return svg;
+    const b2 = libBox(s2); if (!b2 || b2.w < 15 || b2.h < 15 || b2.w > 600 || b2.h > 600 || (s2.match(/<(path|rect|circle|ellipse)\b/g) || []).length < 5) return svg;
+    return s2;
+  } catch (e) { return svg; }
+}
 async function libLearnProp(name, ctx) {
   const j = await libAsk(`You design ONE doodle icon for a whiteboard story-video tool. Object: "${name.replace(/_/g, ' ')}". Story moment (context only): "${String(ctx || '').slice(0, 200)}".
 If the object name starts with flag_, draw that country's national flag on a pole: pole as a line from (0,200) to (0,20), a rectangular banner from the pole outwards, its real colours and symbols as accurate as possible (use fill="@red", "@blue", "@yellow", "@green" for the main colours, white otherwise), k=1.1.
+${LIB_DRAW_GUIDE}
 Return JSON only: {"svg":"<shape elements>","k":1.3,"floating":false}
-- svg: 4 to 12 shapes. Draw it in a 200 x 200 box (the tool recentres it). Recognisable silhouette first, then 2 to 4 detail lines.
-- k: relative size next to a person: 0.8 small hand-held item, 1.3 medium (desk, chair, board), 2 big (car, house, machine).
-- floating: true only for things that hang in the air (cloud, sun, bubble, light).
+- svg: 8 to 26 shapes. Draw it in a 200 x 200 box (the tool recentres it and scales it to fit).
+- k: relative size next to a person: 0.8 small hand-held item, 1.3 medium (desk, chair, dog, board), 1.8 big (horse, car, bus), 2.4 very big (house, elephant, truck).
+- floating: true only for things that hang or fly in the air (cloud, sun, bubble, light, balloon, kite).
 ${LIB_SHAPE_RULES}`);
-  const svg = libClean(j.svg); if (!svg) throw new Error('hình không hợp lệ');
+  let svg = libClean(j.svg); if (!svg) throw new Error('hình không hợp lệ');
+  if (!/^flag_/.test(name)) svg = await libReview(name, svg); // AI tự nhìn lại và sửa nếu hình chưa rõ
+  const n = (svg.match(/<(path|rect|circle|ellipse)\b/g) || []).length; if (n < 3) throw new Error('hình quá sơ sài');
   const b = libBox(svg); if (!b || b.w < 15 || b.h < 15 || b.w > 600 || b.h > 600) throw new Error('hình quá nhỏ/lớn');
   const fl = !!j.floating, s = Math.max(0.3, Math.min(3, 150 / Math.max(b.w, b.h)));
-  const d = { svg, k: Math.max(0.7, Math.min(2.4, +j.k || 1.3)), f: fl ? 1 : 0, s: +s.toFixed(3), ox: +(-(b.x + b.w / 2)).toFixed(1), oy: +(fl ? -(b.y + b.h / 2) : -(b.y + b.h)).toFixed(1) };
+  const d = { svg, k: Math.max(0.7, Math.min(2.6, +j.k || 1.3)), f: fl ? 1 : 0, s: +s.toFixed(3), ox: +(-(b.x + b.w / 2)).toFixed(1), oy: +(fl ? -(b.y + b.h / 2) : -(b.y + b.h)).toFixed(1) };
   LIB.props[name] = d; libRegProp(name, d);
 }
 async function libLearnJob(name, ctx) {
@@ -1630,7 +1954,9 @@ STEP 1 - CHOOSE THE SCENE TYPE FROM THE NARRATION (the "Scene to draw" may start
   A) OBJECT scene: the narration is about a thing, money, a document, an event, a result or an idea, and nobody needs to be seen. Show the key object(s) BIG and centered, with NO people at all. Small items (cash, banknote, coin, key, letter, paper, gift, ring, diamond, phone, book, apple, flower, clock, cup) use size 2.2 to 3.6 (put 1 to 4 of them, e.g. 3 cash stacks side by side or a pile of coins); large items (house, car, bus, boat, tree, hospital, school, bridge) use size 1.2 to 2. 1 to 5 tags in total, usually 1 to 3.
   B) PERSON scene: someone does or feels something. 1 to 3 people. If a person holds, carries, receives, gives, counts or shows an object, that object MUST be visible: put it in their hand with the hold attribute (see below) and, when the object is the point of the sentence, also place a bigger copy of the prop next to them. The picture must still read correctly if the narration were hidden.
   C) PLACE scene: the narration describes a place, a journey or a time of day. Draw that place with 2 to 6 props that the narration names or clearly implies. People only if the narration mentions them.
-- MISSING OBJECTS: if an object the narration names is NOT in the PROPS lists, STILL use a <prop> tag and give it a NEW short English noun as the type (lowercase, 1 to 2 words joined with _, for example type="handcuffs", type="stamp", type="microscope"). The tool designs and draws that new object automatically and remembers it, so never replace it with a different object from the list and always use the same noun for the same thing. Only things that are not a single object (a landscape, a whole crowd scene) are drawn by you, with at most 6 simple shapes.
+- MISSING OBJECTS: if an object the narration names is NOT in the PROPS lists, STILL use a <prop> tag and give it a NEW short English noun as the type (lowercase, 1 to 2 words joined with _, for example type="handcuffs", type="stamp", type="microscope"). The tool designs and draws that new object automatically and remembers it, so never replace it with a different object from the list and always use the same noun for the same thing (be specific: "tiger", "duck", "helicopter", "microscope" instead of "animal", "bird", "aircraft", "device"). Only things that are not a single object (a landscape, a whole crowd scene) are drawn by you, with at most 6 simple shapes.
+- ANIMALS, VEHICLES AND PLANTS (the picture must make them recognisable at a glance): ALWAYS use a <prop> tag for them, NEVER draw an animal or vehicle yourself with your own shapes. Pick the prop whose name is the exact species or kind in the narration (horse, elephant, buffalo or cow, dog, cat, pig, chicken for hen/rooster, rabbit, sparrow for a bird standing, bird for a bird flying, fish, car, motorbike, bicycle, bus, train, plane, boat, house, tree, palm, bamboo, pine...). If the exact species is not in the lists (tiger, lion, monkey, duck, goat, deer, bear, snake, frog, turtle, butterfly, crab, helicopter, truck, tractor...) write it as a NEW English noun in type="...": the tool then designs a complete, correct drawing of that exact thing. Never replace a missing species with a different animal (a tiger is not a cat, a duck is not a bird).
+  Placement and size: animals and vehicles stand on the ground with their feet or wheels at y 700 to 860; birds and planes float in the sky area (y 120 to 380) because they are floating props; fish swim in water (put <prop type="waves"/> in front of them or place the fish lower). Show the WHOLE animal: its head, legs and tail must be inside the frame and not hidden behind people or other props. Size guide next to a person of size 1.3: dog, cat, pig, chicken, rabbit 1.0 to 1.4; horse, buffalo, elephant, car, bus 0.9 to 1.3 (a big animal or vehicle is the hero of its scene: use 1.2 to 1.8 when no person is shown); sparrow, bird, fish 1.2 to 2.2. facing="right" is the default; use facing="left" so that the animal or vehicle looks TOWARD the person or the main subject, or in the direction it moves. A herd, flock or traffic jam = 2 to 4 props of the same type at different x, slightly different sizes (the lower and bigger one is nearer), overlapping a little. A person who rides, leads, feeds or pets an animal stands right next to it, overlapping its side. Trees: a forest or orchard = 3 to 5 trees of different sizes and types.
 - DREAMS / WISHES / THOUGHTS / PLANS / WORDS SPOKEN: never draw the thing alone as if it were real. Draw the person (MAIN, pose think or shout, matching face) and put <prop type="thought" .../> (dream, wish, idea, plan) or <prop type="speech" .../> (something said aloud) beside and above the head, then place the prop that shows the dream or the words (cash, house, tower, bulb, chart_up...) INSIDE the bubble with a smaller size, drawn AFTER the bubble. The bubble prop x,y is its centre.
 - CONTRAST (ordinary people vs the hero, before vs after, two opposite opinions): split the frame into two halves with a clear gap: one side a CROWD person with a small hut/house, the other side MAIN with a big building/tower.
 - MUST SHOW: if the description contains a 'MUST SHOW:' list, EVERY item in it must appear in the picture (people as separate <person> tags with a different role and look, objects as props or your own simple drawing). Do not drop any item to keep the picture simple; shrink and arrange them instead.
