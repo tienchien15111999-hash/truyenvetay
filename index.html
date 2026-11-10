@@ -217,7 +217,9 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   <select id="isrc" onchange="vui()">
     <option value="svg_ink">✒️ Vẽ tranh nét mực đen trắng bằng AI (Miễn phí 100%, nhanh & ổn định nhất)</option>
     <option value="svg">🏃 Người que đen trắng nét bút lông (Miễn phí - đã nâng cấp)</option>
-  </select></div>
+  </select>
+  <label class="chk" style="margin-top:8px"><input type="checkbox" id="motionVid" onchange="mvUI();saveSet()">🎬 Video kể chuyện chuyển động (camera điện ảnh, ánh sáng, khói/bụi/mưa/tuyết, chuyển cảnh mượt)</label>
+  <p class="hint" id="mvHint" hidden>🎬 Đang bật: tranh hiện ngay (không có bàn tay vẽ), camera zoom/lia tự chọn khác nhau mỗi cảnh, thêm ánh sáng ngày/đêm, hiệu ứng khói bụi mưa tuyết lửa theo nội dung cảnh và chuyển cảnh mượt. Không đổi cách vẽ tranh, giọng đọc, nhạc nền, phụ đề. Muốn có hiệu ứng chiều sâu (parallax nền/người) thì bật ô này TRƯỚC khi bấm "Bắt đầu tạo video" hoặc bấm 🔄 Vẽ lại cảnh; tranh vẽ trước đó vẫn có camera, ánh sáng, hạt, chuyển cảnh. Tắt ô này là về lại video vẽ tay như cũ.</p></div>
   <div style="margin:10px 0"><label>🎨 Chế độ màu</label>
   <label class="chk"><input type="checkbox" id="bgOn" checked>🏞 Vẽ bối cảnh nền (văn phòng, phố, nhà, ruộng, nhà máy... tự chọn theo lời kể)</label>
     <select id="cmode" onchange="applyPalette();saveSet()"><option value="vivid" selected>🌈 Màu rực rỡ như video hoạt hình (miễn phí: có nền trời, đồi, đất + tô màu cả tranh)</option><option value="bw">Đen trắng</option><option value="accent">Màu nhấn (chỉ chi tiết cần nhấn mạnh)</option><option value="color">Ảnh màu (tô màu cả tranh)</option></select></div>
@@ -268,6 +270,17 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
         <option value="iris">4. Thu vòng tròn</option>
         <option value="tiles">5. Mảnh ghép rơi</option>
         <option value="fade">Mờ trắng (kiểu cũ)</option>
+      </select>
+    </label>
+    <label>🎬 Chuyển cảnh (video chuyển động)
+      <select id="mvTrans" onchange="saveSet()">
+        <option value="auto">Tự động theo cảnh</option>
+        <option value="crossfade">Hòa dần (crossfade)</option>
+        <option value="fade">Mờ về giấy rồi hiện</option>
+        <option value="zoom">Zoom xuyên cảnh</option>
+        <option value="light">Chuyển bằng ánh sáng</option>
+        <option value="dip">Tối dần rồi sáng lên</option>
+        <option value="slide">Trượt nhẹ</option>
       </select>
     </label>
   </div>
@@ -321,7 +334,7 @@ const log = m => {
 };
 const A = () => ctxA || (ctxA = new (window.AudioContext || window.webkitAudioContext)());
 
-const CF = ['fmt', 'nimg', 'keys', 'isrc', 'style', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'musicOn', 'musicVol', 'musicMood', 'cmode', 'vmode', 'charStyle', 'trans', 'bgOn'];
+const CF = ['fmt', 'nimg', 'keys', 'isrc', 'style', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'musicOn', 'musicVol', 'musicMood', 'cmode', 'vmode', 'charStyle', 'trans', 'bgOn', 'motionVid', 'mvTrans'];
 function setFmt() {
   const v = $('fmt').value === 'v';
   W = v ? 720 : 1280; H = v ? 1280 : 720;
@@ -409,6 +422,7 @@ function vui() {
   $('aiRefBox').hidden = mode !== 'ai3d';
   if ($('styleHint')) $('styleHint').hidden = mode === 'ai3d';
   try { refUI(); } catch (e) { /* chưa khởi tạo xong, lát nữa styleUI sẽ gọi */ }
+  try { mvUI(); } catch (e) { /* ô motionVid chưa có */ }
 }
 try {
   const o = JSON.parse(localStorage.getItem('cfg_v3') || localStorage.getItem('cfg') || '{}');
@@ -2922,8 +2936,9 @@ async function svgImage(s, blackInkOnly = false) {
     if (d2.querySelectorAll('path,rect,circle,ellipse,line,polygon,polyline').length < 2) throw new Error('Tranh trống'); }
   let bdc = null;
   if (wantBg) { try { bdc = await bdCanvas(s, aiBd, _ppl.map(q => ({ x: q.x, y: q.y, size: q.size }))); s.bgKind = bdc.settingKind; } catch (e) { log('  ℹ Chưa vẽ được bối cảnh cho cảnh này: ' + e.message); } }
-  const full = await inkify({ mimeType: 'image/svg+xml', data: btoa(unescape(encodeURIComponent(svg))), bdc });
+  const full = await inkify({ mimeType: 'image/svg+xml', data: btoa(unescape(encodeURIComponent(svg))), bdc, keepLayers: motionOn() && Array.isArray(scenes) && scenes.length <= 48 });
   const usedSprite = addSprites(full);
+  if (usedSprite) { full.bgL = null; full.fgL = null; }   // sprite được vẽ đè lên ảnh gộp nên không tách lớp được
   const wantAnim = false; // đã bỏ chế độ hoạt hình nhân vật
   if (!wantAnim) return Object.assign(full, { anim: false, bg: null, people: null });
   let layers = { bg: null, people: null };
@@ -3340,7 +3355,7 @@ async function inkify(b) {
       p[i + 3] = Math.max(0, Math.min(255, (215 - l) * 3.2));
     }
     x.putImageData(d, 0, 0);
-    return { cv: c, ord: inkOrder(inkCells(p, false), null) };
+    return { cv: c, ord: inkOrder(inkCells(p, false), null), bgL: null, fgL: null };
   }
   // SVG: vẽ ở độ phân giải gấp đôi rồi thu nhỏ để viền mịn (không răng cưa), sau đó mới ghép nền phía sau
   const SS = 2, big = document.createElement('canvas');
@@ -3363,12 +3378,13 @@ async function inkify(b) {
   const mainCells = inkCells(md, true);
   if (b.bdc) x.drawImage(b.bdc, 0, 0);
   x.drawImage(mainC, 0, 0);
-  if (!b.bdc) return { cv: c, ord: inkOrder(mainCells, null) };
+  const lay = (b.keepLayers && b.bdc) ? { bgL: b.bdc, fgL: mainC } : { bgL: null, fgL: null };   // motionVid: giữ nền và chủ thể riêng để làm parallax
+  if (!b.bdc) return Object.assign({ cv: c, ord: inkOrder(mainCells, null) }, lay);
   // có nền: vẽ chủ thể (người, đồ vật) trước, rồi tới bối cảnh phía sau
   const allCells = inkCells(x.getImageData(0, 0, W, H).data, true), have = new Set(mainCells.map(a => a[0] + ',' + a[1]));
   const bgCells = allCells.filter(a => !have.has(a[0] + ',' + a[1]));
   const o1 = inkOrder(mainCells, null), o2 = inkOrder(bgCells, o1.length ? o1[o1.length - 1] : null);
-  return { cv: c, ord: o1.concat(o2) };
+  return Object.assign({ cv: c, ord: o1.concat(o2) }, lay);
 }
 
 // Giải mã âm thanh thông minh: Hỗ trợ cả WAV (Gemini 3.8 TTS) và PCM 24kHz (Gemini 2.5 TTS)
@@ -4561,6 +4577,440 @@ function drawTrans(kind, x, sn, q, W, AH) {
   x.restore();
 }
 
+// ===== 🎬 VIDEO KỂ CHUYỆN CHUYỂN ĐỘNG (chỉ chạy khi bật ô motionVid) =====
+// Camera điện ảnh + ánh sáng + hạt môi trường + parallax + chuyển cảnh nhiều kiểu.
+// Mọi thứ là HÀM CỦA THỜI GIAN t (không cộng dồn theo số khung, hạt dùng bộ ngẫu nhiên có seed cố định)
+// nên xem thử, xuất nhanh (WebCodecs) và xuất thời gian thật (MediaRecorder) cho ra cùng một hình.
+// Khi tắt motionVid, makeRenderer không gọi tới bất kỳ hàm nào ở đây.
+function motionOn() { return !!($('motionVid') && $('motionVid').checked); }
+function mvUI() { const h = $('mvHint'); if (h) h.hidden = !($('motionVid') && $('motionVid').checked); }
+
+const _mvSeed = str => { let h = 2166136261; str = String(str); for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+const _mvRng = seed => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+const _mvCl = (v, a, b) => v < a ? a : v > b ? b : v;
+const _mvMod = (v, m) => ((v % m) + m) % m;
+const _mvLerp = (a, b, e) => a + (b - a) * e;
+const _mvPulse = (d, dur) => (d < 0 || d > dur) ? 0 : Math.pow(Math.sin(Math.PI * d / dur), 2);
+
+// Từ khóa quyết định hiệu ứng/ánh sáng (tiếng Việt có dấu + tiếng Anh). Chỉ đưa hiệu ứng vào cảnh khi lời kể/mô tả có nhắc tới.
+const _mvB = w => new RegExp('(^|[^\\p{L}])(' + w + ')(?![\\p{L}])', 'u');
+const MV_KW = {
+  rain: _mvB('mưa|bão|giông|rain|rainy|storm|thunderstorm|drizzle|downpour|monsoon'),
+  snow: _mvB('tuyết|băng giá|snow|snowy|snowing|snowfall|blizzard'),
+  fire: _mvB('cháy|lửa|hỏa hoạn|đám cháy|ngọn lửa|đuốc|đốt|vụ nổ|nổ tung|fire|flame|flames|burn|burning|burned|blaze|bonfire|campfire|torch|explosion|explode|exploding'),
+  smoke: _mvB('khói|sương mù|sương|smoke|smoky|fog|foggy|mist|haze|pollution|ô nhiễm|khí thải'),
+  lightning: _mvB('sấm|sét|chớp|lightning|thunder|thunderbolt'),
+  dust: _mvB('bụi|sa mạc|gió cát|dust|dusty|sand|sandstorm|desert'),
+  sparkle: _mvB('lấp lánh|kỳ diệu|phép màu|phép thuật|ước mơ|hy vọng|ngôi sao|kim cương|kho báu|bình minh|ánh sáng|ý tưởng|magic|magical|sparkle|sparkling|miracle|dream|hope|treasure|diamond|glitter|shine|shining|idea|bulb|star|stars')
+};
+const MV_INDOOR = ['studio', 'office', 'home', 'kitchen', 'classroom', 'shop', 'hospital', 'bank', 'court', 'factory'];
+const MV_WIDE = ['village', 'farm', 'forest', 'mountain', 'beach', 'desert', 'war', 'street', 'park', 'snow', 'palace'];
+const MV_TR = ['crossfade', 'zoom', 'slide', 'light', 'fade', 'dip'];
+
+// Phân tích một cảnh: ban ngày/đêm, mưa/tuyết/lửa/khói/bụi/hạt sáng
+function mvAnalyze(s) {
+  const t = (String(s.text || '') + ' ' + String(s.image || '')).normalize('NFC').toLowerCase();
+  const bk = s.bgKind || '', has = k => MV_KW[k].test(t);
+  const lightning = has('lightning'), rain = has('rain') || lightning;
+  const snow = !rain && (has('snow') || bk === 'snow'), fire = has('fire');
+  const eff = [];
+  if (rain) eff.push('rain'); else if (snow) eff.push('snow');
+  if (fire) eff.push('embers');
+  if (has('smoke') || fire || bk === 'war' || bk === 'factory') eff.push('smoke');
+  if (has('dust') || bk === 'desert' || bk === 'war') eff.push('dust');
+  if (has('sparkle') && !fire && !rain) eff.push('sparkle');
+  const use = eff.slice(0, 3);
+  let amb = false;
+  if (!use.length) { use.push('dust'); amb = true; }   // cảnh bình thường: chỉ vài hạt bụi trong nắng cho đỡ chết khung hình
+  return { snow, night: bgNight(t), indoor: MV_INDOOR.includes(bk), storm: rain, lightning, fire, desert: bk === 'desert' || has('dust') && /sa mạc|desert|sand/.test(t), eff: use, amb, heavySmoke: bk === 'war' || fire };
+}
+
+// Tìm chủ thể: trọng tâm + khung bao của các nét mực ĐẬM (nền vẽ nét nhạt nên không bị tính)
+function mvFocus(s, AHt) {
+  const out = { fx: W / 2, fy: AHt / 2, x0: 0, y0: 0, x1: W, y1: AHt };
+  try {
+    const d = s.cv.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, W, AHt).data;
+    const GX = 32, GY = Math.max(6, Math.round(GX * AHt / W)), cw = W / GX, ch = AHt / GY, cnt = new Float32Array(GX * GY);
+    for (let y = 2; y < AHt; y += 4) {
+      const gy = Math.min(GY - 1, (y / ch) | 0);
+      for (let xx = 2; xx < W; xx += 4) {
+        const q = (y * W + xx) * 4;
+        if (d[q + 3] > 140 && d[q] + d[q + 1] + d[q + 2] < 330) cnt[gy * GX + Math.min(GX - 1, (xx / cw) | 0)]++;
+      }
+    }
+    let sw = 0, sx = 0, sy = 0, tot = 0, x0 = GX, x1 = -1, y0 = GY, y1 = -1;
+    for (let gy = 0; gy < GY; gy++) for (let gx = 0; gx < GX; gx++) {
+      const c = cnt[gy * GX + gx]; tot += c;
+      if (c >= 3) { const w = Math.pow(c, 1.5); sw += w; sx += w * (gx + 0.5) * cw; sy += w * (gy + 0.5) * ch; x0 = Math.min(x0, gx); x1 = Math.max(x1, gx); y0 = Math.min(y0, gy); y1 = Math.max(y1, gy); }
+    }
+    if (sw > 0 && tot > 40) { out.fx = sx / sw; out.fy = sy / sw; out.x0 = x0 * cw; out.x1 = (x1 + 1) * cw; out.y0 = y0 * ch; out.y1 = (y1 + 1) * ch; }
+  } catch (e) { /* không đọc được điểm ảnh: dùng giữa khung */ }
+  return out;
+}
+
+// Kế hoạch camera: mỗi cảnh một kiểu, không lặp liền nhau
+function mvPlanCams(vs) {
+  const K = ['push', 'pull', 'panLR', 'panRL', 'diag'], out = [], R = _mvRng(_mvSeed('cam|' + vs.length + '|' + String((vs[0] && vs[0].text) || '')));
+  for (let i = 0; i < vs.length; i++) {
+    const s = vs[i], im = String(s.image || '');
+    const wide = /\[PLACE\]|\[WIDE\]/i.test(im) || MV_WIDE.includes(s.bgKind || ''), per = /\[PERSON\]|\[MEDIUM\]|\[CLOSE\]|\[XCLOSE\]/i.test(im);
+    const w = { push: 3 + (per ? 2 : 0) - (wide ? 1 : 0), pull: 2 + (wide ? 2 : 0), panLR: 2 + (wide ? 1 : 0), panRL: 2 + (wide ? 1 : 0), diag: 2 + (per ? 1 : 0) };
+    if (i > 0) w[out[i - 1]] = 0;
+    if (i > 1) w[out[i - 2]] *= 0.4;
+    let tot = 0; K.forEach(k => { tot += w[k]; });
+    let r = R() * tot, pick = K.find(k => w[k] > 0) || 'push';
+    for (const k of K) { if (w[k] <= 0) continue; r -= w[k]; if (r <= 0) { pick = k; break; } }
+    out.push(pick);
+  }
+  return out;
+}
+
+// Kế hoạch chuyển cảnh: out[j] = kiểu chuyển từ cảnh j-1 sang cảnh j
+function mvPlanTrans(vs) {
+  const sel = ($('mvTrans') && $('mvTrans').value) || 'auto', out = [''];
+  const seq = ['crossfade', 'zoom', 'slide', 'light', 'crossfade', 'fade'], R = _mvRng(_mvSeed('tr|' + vs.length));
+  let off = Math.floor(R() * seq.length), cnt = 0;
+  for (let j = 1; j < vs.length; j++) {
+    const o = vs[j - 1], s = vs[j];
+    let k;
+    if (MV_TR.includes(sel)) k = sel;
+    else if (o.dur < 2.4 || s.dur < 2.0) k = 'crossfade';
+    else if (/(năm sau|hôm sau|nhiều năm|năm tháng trôi|years later|next day|next morning|later that)/i.test(String(s.text || '')) || (['sad', 'tense', 'mystery'].includes(o.mood) && R() < 0.5)) k = out[j - 1] === 'dip' ? 'fade' : 'dip';
+    else { k = seq[(off + cnt++) % seq.length]; if (k === out[j - 1]) k = seq[(off + cnt++) % seq.length]; if (k === out[j - 1]) k = 'crossfade'; }
+    out.push(k);
+  }
+  return out;
+}
+
+function mvCreate(vs, st, x) {
+  const n = vs.length, AHt = Math.min(H, Math.round(fm.ah + 10)), TAU = Math.PI * 2;
+  const weak = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4;   // máy yếu: giảm số hạt (cố định cả lúc xem thử lẫn xuất)
+  const tier = (weak ? 0.55 : 1) * (fm.v ? 0.85 : 1);
+  const tot = st[n - 1] + vs[n - 1].dur;
+  const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+  const prevQ = x.imageSmoothingQuality, prevS = x.imageSmoothingEnabled;
+  x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'low';
+  const ov = mk(W, AHt), og = ov.getContext('2d');
+  og.imageSmoothingEnabled = true; og.imageSmoothingQuality = 'low';
+  const camK = mvPlanCams(vs), trK = mvPlanTrans(vs), infos = [];
+  const winA = vs.map((s, j) => j ? Math.min(0.55, 0.3 * vs[j - 1].dur) : 0), winB = vs.map((s, j) => j ? Math.min(0.3, 0.2 * s.dur) : 0);
+
+  // ---- Lớp ánh sáng dựng sẵn: mỗi loại chỉ tạo MỘT lần rồi dùng lại mọi khung (không tạo gradient ở từng khung) ----
+  const LAY = {};
+  function layer(key) {
+    if (LAY[key]) return LAY[key];
+    const c = mk(W, AHt), g = c.getContext('2d');
+    if (key === 'dayL' || key === 'dayR') {   // vàng ấm, sáng nhất ở góc nguồn sáng
+      const left = key === 'dayL', sx = left ? 0 : W;
+      const lg = g.createLinearGradient(sx, 0, left ? W * 0.85 : W * 0.15, AHt);
+      lg.addColorStop(0, 'rgba(255,214,140,0.38)'); lg.addColorStop(0.5, 'rgba(255,228,178,0.15)'); lg.addColorStop(1, 'rgba(255,238,205,0.04)');
+      g.fillStyle = lg; g.fillRect(0, 0, W, AHt);
+      const rg = g.createRadialGradient(sx, 0, 0, sx, 0, Math.max(W, AHt) * 0.55);
+      rg.addColorStop(0, 'rgba(255,200,110,0.28)'); rg.addColorStop(1, 'rgba(255,200,120,0)');
+      g.fillStyle = rg; g.fillRect(0, 0, W, AHt);
+    } else if (key === 'night') {   // xanh lạnh, giữa khung sáng hơn, viền tối hơn
+      g.fillStyle = 'rgba(112,140,222,0.60)'; g.fillRect(0, 0, W, AHt);
+      const r = g.createRadialGradient(W * 0.5, AHt * 0.42, 0, W * 0.5, AHt * 0.42, Math.max(W, AHt) * 0.6);
+      r.addColorStop(0, 'rgba(0,0,0,0.5)'); r.addColorStop(1, 'rgba(0,0,0,0)');
+      g.globalCompositeOperation = 'destination-out'; g.fillStyle = r; g.fillRect(0, 0, W, AHt);
+    } else if (key === 'storm') {   // xám xanh u ám, phía trên tối hơn
+      g.fillStyle = 'rgba(128,142,172,0.46)'; g.fillRect(0, 0, W, AHt);
+      const lg = g.createLinearGradient(0, 0, 0, AHt);
+      lg.addColorStop(0, 'rgba(60,70,95,0.30)'); lg.addColorStop(1, 'rgba(60,70,95,0)');
+      g.fillStyle = lg; g.fillRect(0, 0, W, AHt);
+    } else if (key === 'fire') {   // quầng sáng cam từ đáy khung
+      const r = g.createRadialGradient(W * 0.5, AHt * 1.02, 0, W * 0.5, AHt * 1.02, Math.max(W, AHt) * 0.75);
+      r.addColorStop(0, 'rgba(255,128,40,0.58)'); r.addColorStop(0.5, 'rgba(255,170,90,0.24)'); r.addColorStop(1, 'rgba(255,190,120,0)');
+      g.fillStyle = r; g.fillRect(0, 0, W, AHt);
+    } else if (key === 'glow') {   // quầng sáng dùng cho chuyển cảnh bằng ánh sáng
+      const r = g.createRadialGradient(W / 2, AHt / 2, 0, W / 2, AHt / 2, Math.hypot(W, AHt) / 2);
+      r.addColorStop(0, 'rgba(255,244,214,0.95)'); r.addColorStop(1, 'rgba(255,232,180,0.40)');
+      g.fillStyle = r; g.fillRect(0, 0, W, AHt);
+    } else if (key.startsWith('rays')) {   // raysDL, raysDR (ban ngày) / raysNL, raysNR (ban đêm): 5 tia mềm
+      const left = key.endsWith('L'), night = key[4] === 'N';
+      const sx = left ? -W * 0.06 : W * 1.06, sy = -AHt * 0.12, base = left ? 0.62 : Math.PI - 0.62, dir = left ? 1 : -1, far = Math.hypot(W, AHt) * 1.25;
+      const col = night ? '200,220,255' : '255,238,190';
+      try { g.filter = 'blur(10px)'; } catch (e) { /* trình duyệt không có filter: tia sẽ sắc hơn, vẫn dùng được */ }
+      for (let k = 0; k < 5; k++) {
+        const a = base + dir * (k * 0.2 - 0.12), hw = 0.035 + (k % 2) * 0.018;
+        const gr = g.createLinearGradient(sx, sy, sx + Math.cos(a) * far * 0.8, sy + Math.sin(a) * far * 0.8);
+        gr.addColorStop(0, 'rgba(' + col + ',' + (night ? 0.20 : 0.26) + ')'); gr.addColorStop(1, 'rgba(' + col + ',0)');
+        g.fillStyle = gr; g.beginPath(); g.moveTo(sx, sy);
+        g.lineTo(sx + Math.cos(a - hw) * far, sy + Math.sin(a - hw) * far); g.lineTo(sx + Math.cos(a + hw) * far, sy + Math.sin(a + hw) * far);
+        g.closePath(); g.fill();
+      }
+    }
+    if (key === 'dayL' || key === 'dayR' || key === 'night' || key === 'storm') {   // gộp vignette vào lớp nền ánh sáng: bớt một phép phủ toàn khung ở mỗi khung hình
+      g.globalCompositeOperation = 'multiply';
+      g.drawImage(vignette(), 0, 0);
+    }
+    return (LAY[key] = c);
+  }
+  let VIG = null;
+  function vignette() {
+    if (VIG) return VIG;
+    VIG = mk(W, AHt);
+    const g = VIG.getContext('2d'), r = g.createRadialGradient(W / 2, AHt / 2, Math.min(W, AHt) * 0.32, W / 2, AHt / 2, Math.hypot(W, AHt) * 0.56);
+    r.addColorStop(0, 'rgba(0,0,0,0)'); r.addColorStop(0.6, 'rgba(70,60,50,0.05)'); r.addColorStop(1, 'rgba(40,32,26,0.22)');
+    g.fillStyle = r; g.fillRect(0, 0, W, AHt);
+    return VIG;
+  }
+  const SPR = {};
+  function sprite(key) {
+    if (SPR[key]) return SPR[key];
+    const S = key === 'puff' ? 128 : key === 'star' ? 64 : 48, c = mk(S, S), g = c.getContext('2d'), h = S / 2;
+    if (key === 'puff') {
+      const r = g.createRadialGradient(h, h, 0, h, h, h);
+      r.addColorStop(0, 'rgba(105,105,116,0.78)'); r.addColorStop(0.5, 'rgba(118,118,128,0.40)'); r.addColorStop(1, 'rgba(130,130,140,0)');
+      g.fillStyle = r; g.fillRect(0, 0, S, S);
+    } else if (key === 'star') {   // sao 4 cánh có viền vàng đậm để nhìn thấy trên nền trắng
+      g.beginPath(); g.moveTo(32, 2); g.quadraticCurveTo(32, 32, 62, 32); g.quadraticCurveTo(32, 32, 32, 62); g.quadraticCurveTo(32, 32, 2, 32); g.quadraticCurveTo(32, 32, 32, 2); g.closePath();
+      g.fillStyle = '#ffd23c'; g.fill(); g.lineWidth = 2.5; g.strokeStyle = '#e09b00'; g.stroke();
+    } else {   // emberO (cam) / emberY (vàng)
+      const o = key === 'emberO', r = g.createRadialGradient(h, h, 0, h, h, h);
+      r.addColorStop(0, 'rgba(255,235,150,1)'); r.addColorStop(0.22, o ? 'rgba(255,140,30,0.95)' : 'rgba(255,214,10,0.95)'); r.addColorStop(0.6, 'rgba(255,100,0,0.35)'); r.addColorStop(1, 'rgba(255,80,0,0)');
+      g.fillStyle = r; g.fillRect(0, 0, S, S);
+    }
+    return (SPR[key] = c);
+  }
+
+  // ---- Hạt môi trường: vị trí là hàm của t, hạt sinh từ seed cố định, số lượng bị giới hạn ----
+  const Lh = AHt + 100;
+  function emitRain(R) {
+    const N = Math.max(30, Math.round(110 * tier)), P = [];
+    for (let k = 0; k < N; k++) P.push({ x0: R() * (W + 300), ph: R(), v: 820 + R() * 520, len: 14 + R() * 22, far: R() < 0.45 });
+    return (g, t) => {
+      g.lineCap = 'round';
+      for (let pass = 0; pass < 2; pass++) {
+        g.beginPath();
+        for (const p of P) {
+          if ((pass === 0) !== p.far) continue;
+          const y = _mvMod(p.ph * Lh + p.v * t, Lh) - 50, xx = _mvMod(p.x0 - 0.22 * y, W + 300) - 150;
+          g.moveTo(xx, y); g.lineTo(xx + 0.22 * p.len, y - p.len);
+        }
+        g.strokeStyle = pass === 0 ? 'rgba(110,140,190,0.34)' : 'rgba(70,105,165,0.55)'; g.lineWidth = pass === 0 ? 1.1 : 1.8; g.stroke();
+      }
+    };
+  }
+  function emitSnow(R) {
+    const N = Math.max(30, Math.round(110 * tier)), P = [];
+    for (let k = 0; k < N; k++) P.push({ x0: R() * (W + 300), ph: R(), vy: 28 + R() * 55, A: 10 + R() * 30, f: 0.12 + R() * 0.3, p0: R() * TAU, r: 2.2 + R() * 3.2, dr: R() * 14 - 7 });
+    return (g, t) => {
+      g.beginPath();
+      for (const p of P) {
+        const y = _mvMod(p.ph * Lh + p.vy * t, Lh) - 50, xx = _mvMod(p.x0 + p.dr * t + p.A * Math.sin(TAU * p.f * t + p.p0), W + 300) - 150;
+        g.moveTo(xx + p.r, y); g.arc(xx, y, p.r, 0, TAU);
+      }
+      g.fillStyle = 'rgba(232,242,253,0.96)'; g.fill(); g.strokeStyle = 'rgba(120,160,212,0.85)'; g.lineWidth = 1.1; g.stroke();   // viền xanh nhạt để thấy trên giấy trắng
+    };
+  }
+  function emitDust(R, amb, desert, night) {
+    const N = Math.max(10, Math.round((desert ? 130 : amb ? 24 : 46) * tier)), P = [];
+    for (let k = 0; k < N; k++) P.push({ x0: R() * (W + 40), y0: R() * (AHt + 40), vx: desert ? 40 + R() * 80 : -6 + R() * 14, vy: -(2 + R() * 8), A: 6 + R() * 18, f: 0.1 + R() * 0.35, p0: R() * TAU, r: (desert ? 1.2 : 1.3) + R() * 2.0, tw: 0.15 + R() * 0.4 });
+    const fs = 'rgb(' + (night ? '165,190,235' : desert ? '184,150,98' : '196,150,72') + ')', amax = desert ? 0.75 : amb ? 0.5 : 0.65;
+    return (g, t) => {
+      g.fillStyle = fs;
+      for (const p of P) {
+        const xx = _mvMod(p.x0 + p.vx * t + p.A * Math.sin(TAU * p.f * t + p.p0), W + 40) - 20, yy = _mvMod(p.y0 + p.vy * t + p.A * 0.7 * Math.cos(TAU * p.f * 0.8 * t + p.p0), AHt + 40) - 20;
+        g.globalAlpha = amax * (0.35 + 0.65 * (0.5 + 0.5 * Math.sin(TAU * p.tw * t + p.p0)));
+        g.beginPath(); g.arc(xx, yy, p.r, 0, TAU); g.fill();
+      }
+      g.globalAlpha = 1;
+    };
+  }
+  function emitSmoke(R, heavy) {
+    const N = Math.max(4, Math.round(9 * tier)), P = [];
+    for (let k = 0; k < N; k++) P.push({ ph: R(), T: 7 + R() * 5, x0: W * (0.12 + R() * 0.76), by: AHt * (0.78 + R() * 0.2), rise: AHt * (0.35 + R() * 0.35), dr: (R() - 0.3) * 160, sw: 10 + R() * 30, f: 0.6 + R() * 0.8, p0: R() * TAU, s0: 90 + R() * 60, s1: 160 + R() * 180, a: (heavy ? 0.9 : 0.6) * (0.7 + R() * 0.5) });
+    return (g, t) => {
+      const pf = sprite('puff');
+      for (const p of P) {
+        const u = _mvMod(p.ph + t / p.T, 1), sz = p.s0 + p.s1 * u;
+        const xx = p.x0 + p.dr * u + p.sw * Math.sin(TAU * (u * p.f + p.p0)), yy = p.by - u * p.rise;
+        g.globalAlpha = p.a * Math.pow(Math.sin(Math.PI * u), 1.2);
+        g.drawImage(pf, xx - sz / 2, yy - sz / 2, sz, sz);
+      }
+      g.globalAlpha = 1;
+    };
+  }
+  function emitEmbers(R) {
+    const N = Math.max(12, Math.round(34 * tier)), P = [];
+    for (let k = 0; k < N; k++) P.push({ ph: R(), T: 3 + R() * 3.5, x0: W * (0.15 + R() * 0.7), A: 14 + R() * 30, f: 0.8 + R() * 1.4, p0: R() * TAU, dr: (R() - 0.4) * 90, r: 1.8 + R() * 2.6, hg: 0.45 + R() * 0.5, tw: 3 + R() * 5, y: R() < 0.5 ? 'emberO' : 'emberY' });
+    return (g, t) => {
+      for (const p of P) {
+        const u = _mvMod(p.ph + t / p.T, 1), sz = p.r * 11 * (1 - 0.6 * u);
+        const xx = p.x0 + p.dr * u + p.A * Math.sin(TAU * (u * p.f + p.p0)), yy = AHt * 0.98 - u * AHt * 0.95 * p.hg;
+        g.globalAlpha = Math.pow(1 - u, 0.8) * (0.65 + 0.35 * Math.sin(TAU * p.tw * t + p.p0));
+        g.drawImage(sprite(p.y), xx - sz / 2, yy - sz / 2, sz, sz);
+      }
+      g.globalAlpha = 1;
+    };
+  }
+  function emitSparkles(R, fo) {
+    const N = Math.max(8, Math.round(22 * tier)), P = [];
+    for (let k = 0; k < N; k++) {
+      const near = R() < 0.6;
+      P.push({ x0: near ? _mvCl(fo.fx + (R() - 0.5) * W * 0.5, 0, W) : R() * W, y0: near ? _mvCl(fo.fy + (R() - 0.5) * AHt * 0.5, 0, AHt) : R() * AHt, Tp: 1.6 + R() * 2.4, ph: R(), sz: 14 + R() * 20, vy: 3 + R() * 7 });
+    }
+    return (g, t) => {
+      const sp = sprite('star');
+      for (const p of P) {
+        const a = Math.pow(Math.max(0, Math.sin(TAU * (t / p.Tp + p.ph))), 2.5);
+        if (a < 0.02) continue;
+        const sz = p.sz * (0.7 + 0.3 * a), yy = _mvMod(p.y0 - p.vy * t, AHt + 20) - 10;
+        g.globalAlpha = a * 0.95;
+        g.drawImage(sp, p.x0 - sz / 2, yy - sz / 2, sz, sz);
+      }
+      g.globalAlpha = 1;
+    };
+  }
+  const FX_ORDER = { smoke: 0, dust: 1, rain: 2, snow: 2, embers: 3, sparkle: 4 };
+
+  // ---- Thông tin từng cảnh (tính lười, một lần): camera, ánh sáng, hạt ----
+  function info(i) {
+    if (infos[i]) return infos[i];
+    const s = vs[i], R = _mvRng(_mvSeed(String(s.text || '') + '|' + i + '|' + n)), an = mvAnalyze(s), fo = mvFocus(s, AHt);
+    // Camera
+    const mid = [W / 2, AHt / 2], m = 0.035 * W, bw = fo.x1 - fo.x0 + 2 * m, bh = fo.y1 - fo.y0 + 2 * m, zFit = Math.min(W / bw, AHt / bh);
+    const clampC = (cx, cy, z) => [_mvCl(cx, W / (2 * z), W - W / (2 * z)), _mvCl(cy, AHt / (2 * z), AHt - AHt / (2 * z))];
+    const fit = (cx, cy, z) => {   // giữ khung nội dung chính nằm trong khung nhìn (nếu lọt), rồi ép khung nhìn không vượt mép tranh
+      const vw = W / z, vh = AHt / z, lx = fo.x1 + m - vw / 2, hx = fo.x0 - m + vw / 2, ly = fo.y1 + m - vh / 2, hy = fo.y0 - m + vh / 2;
+      if (lx <= hx) cx = _mvCl(cx, lx, hx);
+      if (ly <= hy) cy = _mvCl(cy, ly, hy);
+      return clampC(cx, cy, z);
+    };
+    let kind = camK[i], cam = null;
+    const ZB = 1.045;   // mức zoom thấp nhất: cắt bớt viền giấy trắng mờ quanh tranh để hình tràn khung như phim
+    const zc = _mvCl(zFit, ZB + 0.04, ZB + 0.1 + R() * 0.07);
+    const pull = () => { const a = fit(fo.fx, fo.fy, zc); return { z0: zc, z1: ZB, ax: a[0], ay: a[1], bx: mid[0], by: mid[1] }; };
+    if (kind === 'push') { const b = fit(fo.fx, fo.fy, zc); cam = { z0: ZB, z1: zc, ax: mid[0], ay: mid[1], bx: b[0], by: b[1] }; }
+    else if (kind === 'pull') cam = pull();
+    else if (kind === 'diag') {
+      const z0 = ZB + 0.02, z1 = _mvCl(zFit, ZB + 0.06, ZB + 0.12), sx = R() < 0.5 ? -1 : 1, sy = R() < 0.5 ? -1 : 1;
+      const a = fit(mid[0] - sx * W, mid[1] - sy * AHt, z0), b = fit(fo.fx, fo.fy, z1);
+      cam = { z0, z1, ax: a[0], ay: a[1], bx: b[0], by: b[1] };
+    } else {   // panLR / panRL
+      const z = _mvCl(zFit, ZB + 0.03, ZB + 0.06), fy = (fo.fy + mid[1]) / 2, l = fit(-1e9, fy, z), r = fit(1e9, fy, z);
+      if (r[0] - l[0] < 0.022 * W) { kind = 'pull'; cam = pull(); }   // nội dung rộng gần hết khung, lia sẽ cắt mất: đổi sang zoom ra
+      else { const A = kind === 'panLR' ? l : r, B = kind === 'panLR' ? r : l; cam = { z0: z, z1: z, ax: A[0], ay: A[1], bx: B[0], by: B[1] }; }
+    }
+    // Ánh sáng
+    const side = R() < 0.5 ? 'L' : 'R', base = an.night ? 'night' : an.storm ? 'storm' : 'day';
+    const light = { base, key: base === 'day' ? 'day' + side : base, str: an.night && an.indoor ? 0.65 : (an.snow ? 0.6 : 1), raysA: (weak || an.storm) ? 0 : an.night ? 0.55 : an.indoor ? 0.7 : 1, rayKey: 'rays' + (an.night ? 'N' : 'D') + side, fire: an.fire, side };
+    layer(light.key); if (light.raysA) layer(light.rayKey); if (light.fire) layer('fire');
+    let flash = null;
+    if (an.lightning) { flash = []; for (let tt = 1.2 + R() * 1.5; tt < s.dur + 2; tt += 3.2 + R() * 3) flash.push(tt); }
+    // Hạt
+    const fx = an.eff.slice().sort((a, b) => FX_ORDER[a] - FX_ORDER[b]).map(k =>
+      k === 'rain' ? emitRain(R) : k === 'snow' ? emitSnow(R) : k === 'embers' ? emitEmbers(R) : k === 'smoke' ? emitSmoke(R, an.heavySmoke) :
+      k === 'sparkle' ? emitSparkles(R, fo) : emitDust(R, an.amb, an.desert, an.night));
+    return (infos[i] = { cam, kind, light, flash, fx, ph: [R() * TAU, R() * TAU, R() * TAU, R() * TAU], fl: 0, sx: side === 'L' ? -W * 0.06 : W * 1.06, sy: -AHt * 0.12 });
+  }
+
+  // Một lớp ảnh với camera (zz = zoom, (cx,cy) = tâm nhìn, xo = lệch ngang thêm cho chuyển cảnh trượt, br = thở nhẹ)
+  function blit(g, img, zz, cx, cy, xo, br) {
+    g.save();
+    g.translate(W / 2 + xo, AHt / 2); g.scale(zz, zz); g.translate(-cx, -cy);
+    if (br) { g.translate(W / 2, AHt * 0.85); g.scale(br, br); g.translate(-W / 2, -AHt * 0.85); }
+    g.drawImage(img, 0, 0, W, AHt, 0, 0, W, AHt);   // chỉ phần nằm trong vùng tranh (phụ đề nằm dưới)
+    g.restore();
+  }
+  // Điều chỉnh màu/ánh sáng (nhân màu: chỉ làm tối/ấm lên, không che nét mực) + tia sáng mềm
+  function grade(g, inf, t, lt) {
+    const L = inf.light;
+    let fl = 0;
+    if (inf.flash) for (const f0 of inf.flash) { const d = lt - f0; fl = Math.max(fl, _mvPulse(d, 0.22), 0.6 * _mvPulse(d - 0.27, 0.2)); }
+    inf.fl = fl;
+    g.save();
+    g.globalCompositeOperation = 'multiply';
+    g.globalAlpha = L.str * (L.base === 'storm' ? 1 - 0.85 * fl : 1 - 0.5 * fl);
+    g.drawImage(layer(L.key), 0, 0);
+    if (L.fire) {   // lửa: quầng cam nhấp nháy nhẹ (tổng 3 sóng, biên độ nhỏ, không chớp gắt)
+      const fk = 0.5 + 0.28 * Math.sin(TAU * 2.3 * t + inf.ph[0]) + 0.17 * Math.sin(TAU * 5.1 * t + inf.ph[1]) + 0.05 * Math.sin(TAU * 9.7 * t + inf.ph[2]);
+      g.globalAlpha = 0.64 + 0.28 * _mvCl(fk, 0, 1);
+      g.drawImage(layer('fire'), 0, 0);
+    }
+    if (L.raysA) {
+      g.globalCompositeOperation = 'screen';
+      g.globalAlpha = L.raysA * (0.75 + 0.25 * Math.sin(TAU * t / 6 + inf.ph[3]));
+      g.translate(inf.sx, inf.sy); g.rotate(0.012 * Math.sin(TAU * t / 9 + inf.ph[2])); g.translate(-inf.sx, -inf.sy);
+      g.drawImage(layer(L.rayKey), 0, 0);
+    }
+    g.restore();
+  }
+  function finish(g, inf) {   // ánh chớp (sấm sét); vignette đã nằm sẵn trong lớp ánh sáng nền
+    if (inf.fl > 0.01) { g.save(); g.globalAlpha = 0.3 * inf.fl; g.fillStyle = '#e6eeff'; g.fillRect(0, 0, W, AHt); g.restore(); }
+  }
+
+  // Vẽ vùng tranh của cảnh i lên g. lt = thời gian trong cảnh, xz/xo = zoom và lệch thêm do chuyển cảnh
+  function pic(g, i, t, lt, xz, xo) {
+    const s = vs[i];
+    if (!s.cv) return;
+    const inf = info(i), c = inf.cam, e = _es(_mvCl(lt / Math.max(0.5, s.dur), 0, 1));
+    const z = _mvLerp(c.z0, c.z1, e);
+    const cx = _mvCl(_mvLerp(c.ax, c.bx, e), W / (2 * z), W - W / (2 * z)), cy = _mvCl(_mvLerp(c.ay, c.by, e), AHt / (2 * z), AHt - AHt / (2 * z));
+    g.save();
+    g.beginPath(); g.rect(0, 0, W, AHt); g.clip();
+    if (s.bgL && s.fgL) {   // có tách lớp: nền chuyển động chậm hơn, vật/người phía trước nhanh hơn một chút (parallax thật)
+      const zb = 1 + (z - 1) * 0.86;
+      blit(g, s.bgL, zb * xz, W / 2 + (cx - W / 2) * 0.78, AHt / 2 + (cy - AHt / 2) * 0.78, xo, 0);
+      blit(g, s.fgL, z * xz, cx, cy, xo, 1 + 0.0028 * Math.sin(TAU * t / 5.5 + inf.ph[0]));
+    } else blit(g, s.cv, z * xz, cx, cy, xo, 0);   // ảnh phẳng: chỉ camera + ánh sáng, không tách người giả
+    grade(g, inf, t, lt);
+    g.save();   // hạt đi theo camera một chút (lớp trước nhanh hơn) cho có chiều sâu
+    g.translate(-(cx - W / 2) * 1.25, -(cy - AHt / 2) * 1.25);
+    for (const f of inf.fx) { g.globalAlpha = 1; f(g, t); }
+    g.restore();
+    g.globalAlpha = 1;
+    finish(g, inf);
+    g.restore();
+  }
+
+  const self = {
+    dk: 0,
+    // Vẽ vùng tranh cho thời điểm t (cảnh hiện tại i, lt = t - st[i]); phụ đề do makeRenderer vẽ sau
+    frame(g, t, i, lt) {
+      self.dk = 0;
+      if (i + 1 < n && lt > 0.3) info(i + 1);   // chuẩn bị trước cảnh sau để không giật khi chuyển
+      let tr = null;
+      if (i < n - 1 && t >= st[i + 1] - winA[i + 1]) tr = { o: i, j: i + 1, p: (t - (st[i + 1] - winA[i + 1])) / (winA[i + 1] + winB[i + 1]), k: trK[i + 1] };
+      else if (i > 0 && t < st[i] + winB[i]) tr = { o: i - 1, j: i, p: (t - (st[i] - winA[i])) / (winA[i] + winB[i]), k: trK[i] };
+      if (!tr) pic(g, i, t, lt, 1, 0);
+      else {
+        const q = _mvCl(tr.p, 0, 1), e = _es(q), k = tr.k, lo = t - st[tr.o], li = Math.max(0, t - st[tr.j]);
+        if (k === 'dip' || k === 'fade') {
+          if (q < 0.5) pic(g, tr.o, t, lo, 1, 0); else pic(g, tr.j, t, li, 1, 0);
+          const hump = 0.5 - 0.5 * Math.cos(TAU * q);
+          if (k === 'dip') self.dk = 0.92 * hump;   // tối dần rồi sáng lên (tối tối đa 92%, không đen hẳn)
+          else { g.save(); g.globalAlpha = 0.88 * hump; g.fillStyle = '#f5f1e8'; g.fillRect(0, 0, W, AHt); g.restore(); }
+        } else {
+          pic(g, tr.o, t, lo, k === 'zoom' ? 1 + 0.10 * e : 1, k === 'slide' ? -0.06 * W * e : 0);
+          og.globalAlpha = 1; og.fillStyle = '#fff'; og.fillRect(0, 0, W, AHt);
+          pic(og, tr.j, t, li, k === 'zoom' ? 0.94 + 0.06 * e : 1, k === 'slide' ? 0.06 * W * (1 - e) : 0);
+          g.save(); g.globalAlpha = e; g.drawImage(ov, 0, 0); g.restore();   // hòa dần cảnh sau lên cảnh trước
+          if (k === 'light') { g.save(); g.globalAlpha = 0.55 * Math.pow(Math.sin(Math.PI * q), 2); g.drawImage(layer('glow'), 0, 0); g.restore(); }
+        }
+      }
+      if (i === 0 && lt < 0.8) { g.save(); g.globalAlpha = 1 - _es(lt / 0.8); g.fillStyle = '#fff'; g.fillRect(0, 0, W, AHt); g.restore(); }   // mở đầu: hiện dần từ giấy trắng
+      if (i === n - 1 && t > tot - 0.55) { g.save(); g.globalAlpha = 0.96 * _es(_mvCl((t - (tot - 0.55)) / 0.95, 0, 1)); g.fillStyle = '#fff'; g.fillRect(0, 0, W, AHt); g.restore(); }   // kết thúc: mờ về giấy trắng
+    },
+    // Phủ tối (chuyển cảnh "tối dần rồi sáng lên") lên cả khung, gồm phụ đề, sau khi phụ đề đã vẽ
+    after(g) {
+      if (self.dk > 0.003) { g.save(); g.globalAlpha = self.dk; g.fillStyle = '#000'; g.fillRect(0, 0, W, H); g.restore(); }
+    },
+    // Giải phóng canvas phụ và trả lại cài đặt làm mịn ảnh của canvas chính
+    dispose() {
+      try {
+        ov.width = ov.height = 0;
+        for (const k in LAY) { LAY[k].width = LAY[k].height = 0; delete LAY[k]; }
+        for (const k in SPR) { SPR[k].width = SPR[k].height = 0; delete SPR[k]; }
+        infos.length = 0;
+        x.imageSmoothingQuality = prevQ; x.imageSmoothingEnabled = prevS;
+      } catch (e) { /* bỏ qua */ }
+    }
+  };
+  return self;
+}
+
 function makeRenderer(vs, st, x) {
   const rv = document.createElement('canvas');
   rv.width = W;
@@ -4570,13 +5020,14 @@ function makeRenderer(vs, st, x) {
   const sn = document.createElement('canvas');
   sn.width = W; sn.height = H;
   const snx = sn.getContext('2d'), AHt = Math.min(H, Math.round(fm.ah + 10));
+  const MV = motionOn() && vs.length ? mvCreate(vs, st, x) : null;   // null = video cũ, mọi đường code cũ giữ nguyên
   // kiểu chuyển cảnh thật sự dùng cho cảnh j (cảnh quá ngắn hoặc cảnh cuối thì mờ trắng như cũ; cảnh cuối chỉ giữ "tối dần")
   const effK = j => {
     const sj = vs[j]; if (!sj || sj.dur < 1.8) return 'fade';
     const k = transKind(j);
     return (j === vs.length - 1 && k !== 'dark') ? 'fade' : k;
   };
-  return function draw(t) {
+  const drawFn = function draw(t) {
     const dt = lastT == null ? 1 / 60 : Math.max(0, t - lastT);
     lastT = t;
     let i = 0;
@@ -4589,6 +5040,8 @@ function makeRenderer(vs, st, x) {
     }
     x.fillStyle = '#fff';
     x.fillRect(0, 0, W, H);
+    let kT = 'fade', tdur = 0;
+    if (MV) MV.frame(x, t, i, lt); else {
     const pr = Math.min(1, lt / s.dur), ez = pr * pr * (3 - 2 * pr), cx = W / 2, cy = fm.cy, kd = i % 4;
     let z = 1, dx = 0;
     if (kd === 0) z = 1 + 0.06 * ez;
@@ -4619,7 +5072,7 @@ function makeRenderer(vs, st, x) {
     hand(x, pos[0], pos[1]);
     }
     x.restore();
-    const kT = effK(i), tdur = Math.min(TRANS_DUR[kT] || 0.5, s.dur * 0.4);
+    kT = effK(i); tdur = Math.min(TRANS_DUR[kT] || 0.5, s.dur * 0.4);
     if (kT === 'fade') {
       const fo = Math.min(1, Math.max(0, lt - (s.dur - 0.5)) / 0.5);
       if (fo > 0) {
@@ -4630,6 +5083,7 @@ function makeRenderer(vs, st, x) {
       snx.clearRect(0, 0, W, AHt);
       snx.drawImage(x.canvas, 0, 0, W, AHt, 0, 0, W, AHt);
       drawTrans(kT, x, sn, Math.min(1, (lt - (s.dur - tdur)) / tdur), W, AHt);
+    }
     }
     if (sub && s.text) {
       x.globalAlpha = Math.max(0, Math.min(1, lt / 0.3, (s.dur - lt) / 0.3));
@@ -4643,6 +5097,7 @@ function makeRenderer(vs, st, x) {
       sp.pages[pi].forEach((l, j) => x.fillText(l, W / 2, fm.sy + j * fm.lh));
       x.globalAlpha = 1;
     }
+    if (MV) { MV.after(x); return; }
     // Tối dần: cả khung (kể cả phụ đề) tối đen ở cuối cảnh, rồi sáng dần lên ở đầu cảnh sau
     let da = 0;
     if (kT === 'dark') da = _es(Math.min(1, Math.max(0, lt - (s.dur - tdur)) / tdur));
@@ -4652,6 +5107,9 @@ function makeRenderer(vs, st, x) {
       x.fillRect(0, 0, W, H);
     }
   };
+  drawFn.mv = !!MV;
+  drawFn.dispose = () => { try { if (MV) MV.dispose(); rv.width = rv.height = 0; sn.width = sn.height = 0; } catch (e) { /* bỏ qua */ } };   // trả bộ nhớ canvas phụ sau khi dựng xong
+  return drawFn;
 }
 
 // ===== XUẤT VIDEO NHANH (không cần phát hết video) =====
@@ -4688,7 +5146,7 @@ async function exportFast() {
   let tot = 0;
   vs.forEach(s => { st.push(tot); tot += s.dur; });
   const dur = tot + 0.4, nF = Math.ceil(dur * FPS);
-  let venc = null, aenc = null;
+  let venc = null, aenc = null, R = null;
   const t00 = Date.now();
   try {
     out.textContent = '⚙ Đang chuẩn bị xuất nhanh...';
@@ -4742,7 +5200,8 @@ async function exportFast() {
       }
     };
     // 3) Vẽ và mã hóa từng khung hình
-    const R = makeRenderer(vs, st, x);
+    R = makeRenderer(vs, st, x);
+    const yEvery = R.mv ? 4 : 15;   // video chuyển động vẽ nặng hơn: nhường luồng cho giao diện (nút Dừng) thường xuyên hơn
     for (let f = 0; f < nF; f++) {
       if (stopFlag) throw new Error('STOP');
       if (encErr) throw encErr;
@@ -4752,11 +5211,10 @@ async function exportFast() {
       vf.close();
       feedAudio((f + 1) / FPS);
       while (venc.encodeQueueSize > 8 || aenc.encodeQueueSize > 40) await sleep(2);
-      if (f % 15 === 0) {
-        out.textContent = `🎬 Đang xuất video nhanh: ${Math.round(f / nF * 100)}%...`;
-        await sleep(0);
-      }
+      if (f % 15 === 0) out.textContent = `🎬 Đang xuất video nhanh: ${Math.round(f / nF * 100)}%...`;
+      if (f % yEvery === 0) await sleep(0);
     }
+    R.dispose(); R = null;
     feedAudio(dur + 1);
     await venc.flush();
     await aenc.flush();
@@ -4767,6 +5225,7 @@ async function exportFast() {
     const secs = Math.round((Date.now() - t00) / 1000);
     out.innerHTML = `<p class="hint">✅ Xuất xong trong ${secs} giây.</p><video class="${fm.v ? 'v' : ''}" controls src="${u}"></video><a download="video-ve-tay.mp4" href="${u}"><button>⬇ Tải video về máy</button></a><button type="button" class="w" onclick="openThumb()">🖼 Tạo thumbnail YouTube</button>`;
   } catch (e) {
+    try { if (R) R.dispose(); } catch (e2) {}
     try { if (venc && venc.state !== 'closed') venc.close(); } catch (e2) {}
     try { if (aenc && aenc.state !== 'closed') aenc.close(); } catch (e2) {}
     if (e && e.message === 'STOP') out.textContent = '⏹ Đã dừng xuất video.';
@@ -4820,15 +5279,19 @@ function play(rec, forceReal) {
       srcs.forEach(n => { try { n.stop(); } catch (e) {} });
       if (mus) mus.stop();
       if (mr && mr.state !== 'inactive') mr.stop();
+      try { R.dispose(); } catch (e) {}
       playing = false;
     };
     const nextTick = fn => {
       if (rec || document.hidden) setTimeout(fn, 1000 / 30);
       else requestAnimationFrame(fn);
     };
+    let lastDraw = -1;
     const frame = () => {
       const t = ac.currentTime - t0;
       if (stopFlag || t >= tot + 0.4) return end();
+      if (R.mv && !rec && t - lastDraw < 0.030) return nextTick(frame);   // xem thử chuyển động: vẽ ~30 khung/giây (màn 60Hz bỏ bớt khung) cho nhẹ máy
+      lastDraw = t;
       R(t);
       nextTick(frame);
     };
