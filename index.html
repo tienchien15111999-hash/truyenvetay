@@ -4622,7 +4622,10 @@ function mvAnalyze(s) {
   const use = eff.slice(0, 3);
   let amb = false;
   if (!use.length) { use.push('dust'); amb = true; }   // cảnh bình thường: chỉ vài hạt bụi trong nắng cho đỡ chết khung hình
-  return { snow, night: bgNight(t), indoor: MV_INDOOR.includes(bk), storm: rain, lightning, fire, desert: bk === 'desert' || has('dust') && /sa mạc|desert|sand/.test(t), eff: use, amb, heavySmoke: bk === 'war' || fire };
+  const night = bgNight(t), dusk = !night && /hoàng hôn|chiều tà|ráng chiều|bình minh|rạng đông|sunset|sunrise|dusk|dawn|golden hour|twilight/.test(t);
+  const cat = (bk === 'forest' || bk === 'mountain' || /rừng|forest|woods|jungle/.test(t)) ? 'forest' : (bk === 'street' || /thành phố|đô thị|phố xá|city|skyscraper|downtown/.test(t)) ? 'city' : MV_INDOOR.includes(bk) ? 'indoor' : bk === 'desert' ? 'desert' : (bk === 'snow' || snow) ? 'snow' : 'generic';
+  const gloom = rain || bk === 'war' || ['sad', 'tense', 'mystery'].includes(String(s.mood || '')) || /u tối|ảm đạm|bóng tối|tuyệt vọng|đau khổ|ma quái|đáng sợ|kinh hoàng|tang thương|chiến tranh|gloomy|grim|horror|despair|bleak|desolate|ruin|funeral/.test(t);
+  return { tod: night ? 'night' : dusk ? 'dusk' : 'day', cat, gloom, smokeFog: fire || has('smoke') || bk === 'war' || bk === 'factory', snow, night, indoor: MV_INDOOR.includes(bk), storm: rain, lightning, fire, desert: bk === 'desert' || has('dust') && /sa mạc|desert|sand/.test(t), eff: use, amb, heavySmoke: bk === 'war' || fire };
 }
 
 // Tìm chủ thể: trọng tâm + khung bao của các nét mực ĐẬM (nền vẽ nét nhạt nên không bị tính)
@@ -4703,20 +4706,21 @@ function mvCreate(vs, st, x) {
     if (key === 'dayL' || key === 'dayR') {   // vàng ấm, sáng nhất ở góc nguồn sáng
       const left = key === 'dayL', sx = left ? 0 : W;
       const lg = g.createLinearGradient(sx, 0, left ? W * 0.85 : W * 0.15, AHt);
-      lg.addColorStop(0, 'rgba(255,214,140,0.38)'); lg.addColorStop(0.5, 'rgba(255,228,178,0.15)'); lg.addColorStop(1, 'rgba(255,238,205,0.04)');
+      lg.addColorStop(0, 'rgba(255,214,140,0.24)'); lg.addColorStop(0.5, 'rgba(255,228,178,0.10)'); lg.addColorStop(1, 'rgba(255,238,205,0.03)');
       g.fillStyle = lg; g.fillRect(0, 0, W, AHt);
       const rg = g.createRadialGradient(sx, 0, 0, sx, 0, Math.max(W, AHt) * 0.55);
-      rg.addColorStop(0, 'rgba(255,200,110,0.28)'); rg.addColorStop(1, 'rgba(255,200,120,0)');
+      rg.addColorStop(0, 'rgba(255,200,110,0.20)'); rg.addColorStop(1, 'rgba(255,200,120,0)');
       g.fillStyle = rg; g.fillRect(0, 0, W, AHt);
     } else if (key === 'night') {   // xanh lạnh, giữa khung sáng hơn, viền tối hơn
-      g.fillStyle = 'rgba(112,140,222,0.60)'; g.fillRect(0, 0, W, AHt);
+      const ng = g.createLinearGradient(0, 0, 0, AHt);   // tím xanh ở trên, xanh lam giữa, xanh ngọc ở đáy (không phủ một màu đơn)
+      ng.addColorStop(0, 'rgba(70,72,172,0.34)'); ng.addColorStop(0.55, 'rgba(84,96,176,0.22)'); ng.addColorStop(1, 'rgba(48,104,128,0.26)');
+      g.fillStyle = ng; g.fillRect(0, 0, W, AHt);
       const r = g.createRadialGradient(W * 0.5, AHt * 0.42, 0, W * 0.5, AHt * 0.42, Math.max(W, AHt) * 0.6);
       r.addColorStop(0, 'rgba(0,0,0,0.5)'); r.addColorStop(1, 'rgba(0,0,0,0)');
       g.globalCompositeOperation = 'destination-out'; g.fillStyle = r; g.fillRect(0, 0, W, AHt);
     } else if (key === 'storm') {   // xám xanh u ám, phía trên tối hơn
-      g.fillStyle = 'rgba(128,142,172,0.46)'; g.fillRect(0, 0, W, AHt);
-      const lg = g.createLinearGradient(0, 0, 0, AHt);
-      lg.addColorStop(0, 'rgba(60,70,95,0.30)'); lg.addColorStop(1, 'rgba(60,70,95,0)');
+      const lg = g.createLinearGradient(0, 0, 0, AHt);   // xám xanh ở trên, tím nhạt giữa, nâu ấm ở đất
+      lg.addColorStop(0, 'rgba(66,76,116,0.32)'); lg.addColorStop(0.55, 'rgba(128,116,150,0.14)'); lg.addColorStop(1, 'rgba(120,98,84,0.18)');
       g.fillStyle = lg; g.fillRect(0, 0, W, AHt);
     } else if (key === 'fire') {   // quầng sáng cam từ đáy khung
       const r = g.createRadialGradient(W * 0.5, AHt * 1.02, 0, W * 0.5, AHt * 1.02, Math.max(W, AHt) * 0.75);
@@ -4879,7 +4883,7 @@ function mvCreate(vs, st, x) {
       return clampC(cx, cy, z);
     };
     let kind = camK[i], cam = null;
-    const ZB = 1.045;   // mức zoom thấp nhất: cắt bớt viền giấy trắng mờ quanh tranh để hình tràn khung như phim
+    const ZB = W < 1000 ? 1.08 : 1.045;   // mức zoom thấp nhất: cắt bớt viền giấy trắng mờ quanh tranh để hình tràn khung như phim (khung dọc hẹp hơn nên cắt nhiều hơn)
     const zc = _mvCl(zFit, ZB + 0.04, ZB + 0.1 + R() * 0.07);
     const pull = () => { const a = fit(fo.fx, fo.fy, zc); return { z0: zc, z1: ZB, ax: a[0], ay: a[1], bx: mid[0], by: mid[1] }; };
     if (kind === 'push') { const b = fit(fo.fx, fo.fy, zc); cam = { z0: ZB, z1: zc, ax: mid[0], ay: mid[1], bx: b[0], by: b[1] }; }
@@ -4903,7 +4907,295 @@ function mvCreate(vs, st, x) {
     const fx = an.eff.slice().sort((a, b) => FX_ORDER[a] - FX_ORDER[b]).map(k =>
       k === 'rain' ? emitRain(R) : k === 'snow' ? emitSnow(R) : k === 'embers' ? emitEmbers(R) : k === 'smoke' ? emitSmoke(R, an.heavySmoke) :
       k === 'sparkle' ? emitSparkles(R, fo) : emitDust(R, an.amb, an.desert, an.night));
-    return (infos[i] = { cam, kind, light, flash, fx, ph: [R() * TAU, R() * TAU, R() * TAU, R() * TAU], fl: 0, sx: side === 'L' ? -W * 0.06 : W * 1.06, sy: -AHt * 0.12 });
+    const look = mkLook(an);
+    return (infos[i] = { idx: i, an, fo, look, dapple: look.dapple, cam, kind, light, flash, fx, ph: [R() * TAU, R() * TAU, R() * TAU, R() * TAU], fl: 0, sx: side === 'L' ? -W * 0.06 : W * 1.06, sy: -AHt * 0.12 });
+  }
+
+  // =====================================================================================
+  // BẢNG MÀU ĐIỆN ẢNH — "nướng" sẵn MỘT lần cho mỗi cảnh (không tốn thời gian ở từng khung hình)
+  // Đọc lớp nền (bgL) và lớp chủ thể (fgL) gốc, KHÔNG sửa chúng; tạo bản đã phối màu để vẽ lên.
+  // Mọi bước là hàm cố định của điểm ảnh + seed của cảnh, nên xem thử và xuất MP4 cho ra cùng một hình.
+  // Nét mực đậm của chủ thể được bỏ qua hoàn toàn để không mất nét vẽ.
+  // =====================================================================================
+  const BK = {}, GEN = {};
+  const _sm = v => v <= 0 ? 0 : v >= 1 ? 1 : v * v * (3 - 2 * v);
+  const _c255 = v => v < 0 ? 0 : v > 255 ? 255 : v;
+
+  // Chọn bảng màu theo thời điểm (ngày/hoàng hôn/đêm) rồi chỉnh theo loại cảnh (rừng, thành phố, trong nhà, sa mạc, tuyết, u tối)
+  function mkLook(an) {
+    const T = {
+      day:  { sky: [[78, 146, 226], [142, 198, 240], [250, 236, 212]], haze: [228, 238, 250], hz: 0.22, light: [255, 238, 204], lw: 0.22, shadow: [150, 170, 226], sw: 0.16, lum: 1.0, sat: 1.08, con: 1.05, fsat: 1.14, fcon: 1.10, nz: 0.032, hue: 0.03, gv: 1.2, gn: [0.94, 0.96, 0.90], glow: 0, blur: 1.5 },
+      dusk: { sky: [[64, 66, 148], [190, 100, 140], [255, 172, 92]], haze: [255, 190, 140], hz: 0.30, light: [255, 176, 100], lw: 0.30, shadow: [110, 92, 172], sw: 0.26, lum: 0.90, sat: 1.12, con: 1.08, fsat: 1.12, fcon: 1.12, nz: 0.036, hue: 0.035, gv: 1.2, gn: [0.97, 0.91, 0.86], glow: 0.5, blur: 1.8 },
+      night: { sky: [[14, 22, 80], [36, 50, 120], [88, 100, 170]], haze: [72, 86, 152], hz: 0.30, light: [212, 226, 255], lw: 0.16, shadow: [36, 46, 118], sw: 0.30, lum: 0.58, sat: 1.05, con: 1.06, fsat: 1.08, fcon: 1.12, nz: 0.036, hue: 0.035, gv: 1.2, gn: [0.90, 0.95, 1.02], glow: 0.85, blur: 1.8 }
+    };
+    const L = Object.assign({ fog: null, dapple: false, bloom: false }, T[an.tod]);
+    L.sky = L.sky.map(a => a.slice());
+    if (an.cat === 'forest') { L.nz *= 1.5; L.hue *= 1.6; L.gv = 2.4; L.dapple = an.tod !== 'night'; L.fog = { c: an.tod === 'night' ? '120,140,190' : an.tod === 'dusk' ? '255,206,168' : '232,244,236', a: 0.30 }; }
+    else if (an.cat === 'city') { L.hue *= 2.0; L.nz *= 1.1; if (an.tod === 'day') L.glow = 0; }
+    else if (an.cat === 'indoor') { L.blur = 0; L.hz = 0.04; L.light = [255, 224, 170]; L.lw = 0.26; L.shadow = [120, 110, 160]; L.sw = 0.20; if (an.tod === 'night') L.lum = 0.74; }
+    else if (an.cat === 'desert') { L.haze = [255, 226, 176]; L.hz = 0.26; L.light = [255, 222, 160]; L.hue *= 0.5; L.gn = [0.97, 0.95, 0.90]; }
+    else if (an.cat === 'snow') { L.shadow = [140, 170, 230]; L.sw = 0.24; L.light = [255, 246, 232]; L.gn = [0.94, 0.97, 1.02]; if (an.tod === 'day') L.sky = [[122, 162, 214], [178, 208, 238], [236, 244, 252]]; }
+    if (an.gloom) {   // u tối nhưng vẫn nhiều sắc độ: bóng xanh tím, ánh sáng hổ phách yếu, trên lạnh dưới ấm
+      L.sat *= 0.88; L.fsat *= 0.92; L.con *= 1.05; L.lum *= 0.88; L.shadow = [70, 82, 124]; L.sw = 0.32; L.light = [240, 200, 150]; L.lw *= 0.5; L.nz *= 1.1;
+      L.fog = { c: '150,160,178', a: 0.34 };
+      if (an.heavySmoke) L.sky = [[58, 52, 76], [150, 94, 88], [232, 150, 104]];   // chiến tranh/lửa: chân trời cháy đỏ cam, đỉnh tím xám
+      else if (an.storm || an.tod === 'day') L.sky = [[78, 88, 118], [118, 130, 156], [186, 190, 204]];
+    } else if (an.storm) L.sky = [[84, 94, 124], [124, 136, 160], [190, 194, 206]];
+    if (an.smokeFog && !L.fog) L.fog = { c: '168,168,176', a: 0.30 };
+    if (an.tod === 'dusk' && !L.fog && an.cat !== 'indoor') L.fog = { c: '255,196,150', a: 0.22 };
+    L.bloom = L.glow > 0 || an.fire;
+    return L;
+  }
+
+  // Quy trình nướng (generator: mỗi lần yield là một khối nhỏ ~10ms để không giật khi xem thử)
+  function* bakeGen(i) {
+    const B = BK[i] = { done: false, bg: null, fg: null, fog: null, dap: null };
+    try {
+      const s = vs[i], inf = info(i), an = inf.an, L = inf.look, fo = inf.fo, hasL = !!(s.bgL && s.fgL);
+      const R = _mvRng(_mvSeed('color|' + String(s.text || '') + '|' + i));
+      const sS = inf.light.side === 'L' ? -1 : 1;   // vị trí nguồn sáng: -1 = bên trái, +1 = bên phải (cùng phía với tia sáng)
+      // bảng nhiễu giá trị 2 tầng (24px và 80px) cho các sắc độ loang nhẹ trong cùng một màu
+      const mkNz = cell => { const gx = Math.ceil(W / cell) + 2, gy = Math.ceil(AHt / cell) + 2, a = new Float32Array(gx * gy); for (let k = 0; k < a.length; k++) a[k] = R() * 2 - 1; const ci = new Int32Array(W), cf = new Float32Array(W); for (let x = 0; x < W; x++) { ci[x] = (x / cell) | 0; cf[x] = _sm((x % cell) / cell); } return { a, gx, cell, ci, cf }; };
+      const n1 = mkNz(40), n2 = mkNz(150), n3 = mkNz(72);
+      const nzAt = (N, y, x, ri, rf) => { const i0 = ri * N.gx + N.ci[x], f = N.cf[x]; const a = N.a[i0] + (N.a[i0 + 1] - N.a[i0]) * f, b = N.a[i0 + N.gx] + (N.a[i0 + N.gx + 1] - N.a[i0 + N.gx]) * f; return a + (b - a) * rf; };
+      // bảng theo hàng (độ sâu): màu bầu trời, sương xa, tông mặt đất
+      const hy = AHt * 0.5, S0 = L.sky[0], S1 = L.sky[1], S2 = L.sky[2];
+      const skyR = new Float32Array(AHt), skyG = new Float32Array(AHt), skyB = new Float32Array(AHt), skyW = new Float32Array(AHt), hzW = new Float32Array(AHt), gmR = new Float32Array(AHt), gmG = new Float32Array(AHt), gmB = new Float32Array(AHt), litY = new Float32Array(AHt);
+      for (let y = 0; y < AHt; y++) {
+        const t = Math.min(1, y / hy), a = t < 0.55 ? t / 0.55 : 1, A = t < 0.55 ? S0 : S1, Bc = t < 0.55 ? S1 : S2, u = t < 0.55 ? a : (t - 0.55) / 0.45;
+        skyR[y] = A[0] + (Bc[0] - A[0]) * u; skyG[y] = A[1] + (Bc[1] - A[1]) * u; skyB[y] = A[2] + (Bc[2] - A[2]) * u;
+        const yn = y / AHt;
+        skyW[y] = yn < 0.40 ? 1 : yn > 0.66 ? 0 : 1 - (yn - 0.40) / 0.26;
+        hzW[y] = L.hz * Math.exp(-Math.pow((yn - 0.46) / 0.22, 2));
+        const g = _sm((yn - 0.45) / 0.55);   // đất: xa nhạt và hơi xanh, gần đậm và ấm
+        gmR[y] = 0.99 + (L.gn[0] - 0.99) * g; gmG[y] = 1.0 + (L.gn[1] - 1.0) * g; gmB[y] = 1.02 + (L.gn[2] - 1.02) * g;
+        litY[y] = 1 - yn;
+      }
+      const litX = new Float32Array(W);
+      for (let x = 0; x < W; x++) litX[x] = 1 - Math.abs((x / W - 0.5) * 2 - sS) / 2;
+      const LR = L.light[0] / 255, LG = L.light[1] / 255, LB = L.light[2] / 255, SR = L.shadow[0] / 255, SG = L.shadow[1] / 255, SB = L.shadow[2] / 255;
+      const HR = L.haze[0], HG = L.haze[1], HB = L.haze[2];
+      const wantGlow = L.bloom;
+      let glowAny = false;
+
+      // ---- Lớp nền: bầu trời nhiều sắc, đất/cây/tường có sắc độ loang, sương xa, ánh sáng có hướng, cửa sổ/đèn phát sáng ----
+      const src = hasL ? [['bg', s.bgL], ['fg', s.fgL]] : [['bg', s.cv]];
+      let fgData = null;
+      for (const [role, img] of src) {
+        const c = mk(W, AHt), g = c.getContext('2d', { willReadFrequently: true });
+        g.drawImage(img, 0, 0, W, AHt, 0, 0, W, AHt);
+        const id = g.getImageData(0, 0, W, AHt), d = id.data;
+        const glow = (role === 'bg' && wantGlow) || (role === 'fg' && (wantGlow || an.fire)) ? new Uint8Array(W * AHt) : null;
+        let skyMask = null;
+        if (role === 'bg' && an.cat !== 'indoor') {
+          const cand = [];
+          for (let y = 24; y < 64 && y < AHt; y += 8) for (let x = 20; x < W; x += 40) {
+            const p = (y * W + x) * 4, r0 = d[p], g0 = d[p + 1], b0 = d[p + 2], mx0 = Math.max(r0, g0, b0), mn0 = Math.min(r0, g0, b0), l0 = (mx0 + mn0) / 510;
+            if (d[p + 3] > 180 && l0 > 0.72 && mn0 < 247 && mx0 - mn0 < 70) cand.push(r0 + g0 + b0);
+          }
+          if (cand.length) {
+            cand.sort((a, b) => a - b);
+            const med = cand[cand.length >> 1];
+            skyMask = new Uint8Array(W * AHt);
+            const stk = new Int32Array(W * AHt); let sp = 0;
+            for (let y = 24; y < 64 && y < AHt; y += 8) for (let x = 20; x < W; x += 40) {
+              const p = (y * W + x) * 4, sum = d[p] + d[p + 1] + d[p + 2];
+              if (d[p + 3] > 180 && Math.abs(sum - med) <= 40 && !skyMask[y * W + x]) { skyMask[y * W + x] = 1; stk[sp++] = y * W + x; }
+            }
+            while (sp > 0) {   // loang vùng: mỗi bước chỉ nhận điểm gần như cùng màu với điểm kề (cho phép chuyển sắc nhẹ)
+              const idx = stk[--sp], px = idx % W, py = (idx / W) | 0, q = idx * 4, pr = d[q], pg = d[q + 1], pb = d[q + 2];
+              for (let k = 0; k < 4; k++) {
+                const nx = k === 0 ? px - 1 : k === 1 ? px + 1 : px, ny = k === 2 ? py - 1 : k === 3 ? py + 1 : py;
+                if (nx < 0 || ny < 0 || nx >= W || ny >= AHt) continue;
+                const ni = ny * W + nx; if (skyMask[ni]) continue;
+                const q2 = ni * 4;
+                if (d[q2 + 3] > 8 && Math.abs(d[q2] - pr) + Math.abs(d[q2 + 1] - pg) + Math.abs(d[q2 + 2] - pb) <= 14) { skyMask[ni] = 1; stk[sp++] = ni; }
+              }
+            }
+          }
+          yield;
+        }
+        const CH = weak ? 24 : 60;   // khối hàng mỗi lần: máy yếu chia nhỏ hơn để mỗi khung không bị nặng
+        for (let y0 = 0; y0 < AHt; y0 += CH) {
+          const y1 = Math.min(AHt, y0 + CH);
+          for (let y = y0; y < y1; y++) {
+            const ri1 = (y / 40) | 0, rf1 = _sm((y % 40) / 40), ri2 = (y / 150) | 0, rf2 = _sm((y % 150) / 150), ri3 = (y / 72) | 0, rf3 = _sm((y % 72) / 72);
+            const ly = litY[y], hzy = hzW[y], sky = skyW[y], gR = gmR[y], gG = gmG[y], gB = gmB[y], sr = skyR[y], sg = skyG[y], sb = skyB[y];
+            let p = y * W * 4;
+            for (let x = 0; x < W; x++, p += 4) {
+              const a = d[p + 3];
+              if (a === 0) continue;
+              let r = d[p], gg = d[p + 1], b = d[p + 2];
+              const mx = r > gg ? (r > b ? r : b) : (gg > b ? gg : b), mn = r < gg ? (r < b ? r : b) : (gg < b ? gg : b);
+              if (role === 'fg') {
+                if (mx < 90 || (mx < 150 && mx - mn < 40)) continue;   // nét mực đậm và điểm khử răng cưa của nét (tối, xám): giữ nguyên 100%
+                // ---- Chủ thể: khối sáng/tối theo hướng sáng, viền sáng phản chiếu, tương phản và màu sắc nổi hơn ----
+                const ln = _mvCl(((x - fo.fx) / Math.max(60, (fo.x1 - fo.x0) / 2)) * sS * 0.7 + ((fo.fy - y) / Math.max(60, (fo.y1 - fo.y0) / 2)) * 0.3, -1, 1);
+                const lumF = (mx + mn) / 510, f = 1 + 0.08 * ln;
+                r *= f; gg *= f; b *= f;
+                if (ln > 0) { const w = ln * 0.22; r *= 1 + (LR - 1) * w; gg *= 1 + (LG - 1) * w; b *= 1 + (LB - 1) * w; }
+                else { const w = -ln * 0.16 * (1.15 - lumF * 0.6); r *= 1 + (SR - 1) * w; gg *= 1 + (SG - 1) * w; b *= 1 + (SB - 1) * w; }
+                const yb = (y - fo.fy) / Math.max(60, (fo.y1 - fo.y0) / 2);
+                if (yb > 0) { const ao = 1 - 0.07 * (yb > 1 ? 1 : yb); r *= ao; gg *= ao; b *= ao; }
+                const xn = x + sS * 9;   // viền sáng: điểm cách 9px về phía nguồn sáng đã trống => đang ở mép được chiếu sáng
+                if (a > 200 && (xn < 0 || xn >= W || d[(y * W + xn) * 4 + 3] < 30)) { const rw = 0.06 + 0.16 * (lumF > 0.6 ? 1 : lumF / 0.6); r += (L.light[0] - r) * rw; gg += (L.light[1] - gg) * rw; b += (L.light[2] - b) * rw; }   // viền sáng nhẹ, dịu hơn trên màu tối
+                const gr = 0.3 * r + 0.59 * gg + 0.11 * b;
+                r = gr + (r - gr) * L.fsat; gg = gr + (gg - gr) * L.fsat; b = gr + (b - gr) * L.fsat;
+                r = (r - 128) * L.fcon + 128; gg = (gg - 128) * L.fcon + 128; b = (b - 128) * L.fcon + 128;
+                if (glow && r > 240 && gg > 150 && gg < 235 && b < 110) { glow[y * W + x] = 1; glowAny = true; }
+                d[p] = _c255(r); d[p + 1] = _c255(gg); d[p + 2] = _c255(b);
+                continue;
+              }
+              // ---- Nền ----
+              if (!hasL && mx < 80) continue;   // ảnh phẳng (không có lớp tách): nét mực đậm giữ nguyên
+              const lum0 = (mx + mn) / 510, sat0 = mx - mn;
+              if (glow && r >= 250 && gg >= 222 && b <= 176 && r - b >= 80) {   // cửa sổ/đèn/trăng: phát sáng, không bị làm tối
+                d[p + 1] = _c255(gg + 10); d[p + 2] = _c255(b * 0.8); glow[y * W + x] = 1; glowAny = true; continue;
+              }
+              const nv = nzAt(n1, y, x, ri1, rf1) * 0.65 + nzAt(n2, y, x, ri2, rf2) * 0.35, nh = nzAt(n3, y, x, ri3, rf3);
+              if (skyMask && skyMask[y * W + x]) {   // bầu trời: chuyển sắc nhiều tầng từ đỉnh tới chân trời
+                const k = Math.max(sky, 0.35) * 0.88, v = 1 + nv * 0.025;
+                d[p] = _c255((r + (sr - r) * k) * v); d[p + 1] = _c255((gg + (sg - gg) * k) * v); d[p + 2] = _c255((b + (sb - b) * k) * v);
+                continue;
+              }
+              if (mn >= 236 && sat0 < 16 && sky > 0.3 && skyMask && (skyMask[y * W + Math.max(0, x - 10)] || skyMask[y * W + Math.min(W - 1, x + 10)] || skyMask[Math.max(0, y - 10) * W + x])) {   // mây (nằm trong bầu trời): nhuốm màu ánh sáng của giờ trong ngày, đáy mây hơi tối
+                const k = 0.40 * sky; r += (L.sky[2][0] - r) * k; gg += (L.sky[2][1] - gg) * k; b += (L.sky[2][2] - b) * k;
+                if (an.tod === 'night') { r *= 0.62; gg *= 0.66; b *= 0.8; }
+                d[p] = _c255(r); d[p + 1] = _c255(gg); d[p + 2] = _c255(b);
+                continue;
+              }
+              // loang sắc độ trong cùng một màu: sáng/tối ± và lệch sắc nhẹ
+              const sf = sat0 > 70 ? 1 : sat0 > 40 ? 0.6 : 0.3, isG = gg > r && gg > b && sat0 > 30, v = 1 + nv * L.nz * sf * (isG ? L.gv : 1);
+              r *= v; gg *= v; b *= v;
+              if (sat0 > 70 || (isG && sat0 > 30)) { const h = nh * L.hue * (isG ? L.gv : 1); if (h > 0) { r += h * (gg - r); gg += h * (b - gg); b += h * (r - b); } else { const q = -h; r += q * (b - r); gg += q * (r - gg); b += q * (gg - b); } }
+              r *= gR; gg *= gG; b *= gB;   // đất xa nhạt/xanh, gần đậm/ấm
+              // ánh sáng có hướng + bóng
+              const lit = litX[x] * 0.75 + ly * 0.25;
+              if (lit > 0.5) { const w = _sm((lit - 0.5) * 2) * L.lw; r *= 1 + (LR - 1) * w * 2; gg *= 1 + (LG - 1) * w * 2; b *= 1 + (LB - 1) * w * 2; }
+              else { const w = _sm((0.5 - lit) * 2) * L.sw * (1.15 - lum0); r *= 1 + (SR - 1) * w; gg *= 1 + (SG - 1) * w; b *= 1 + (SB - 1) * w; }
+              r *= L.lum; gg *= L.lum; b *= L.lum;
+              // sương xa (viễn cảnh): nhạt hơn, bớt bão hòa
+              if (hzy > 0.004) { const hh = hzy * (0.55 + 0.45 * lum0); r += (HR - r) * hh; gg += (HG - gg) * hh; b += (HB - b) * hh; }
+              const gr = 0.3 * r + 0.59 * gg + 0.11 * b, sa = L.sat * (1 - hzy * 0.9);
+              r = gr + (r - gr) * sa; gg = gr + (gg - gr) * sa; b = gr + (b - gr) * sa;
+              r = (r - 128) * L.con + 128; gg = (gg - 128) * L.con + 128; b = (b - 128) * L.con + 128;
+              d[p] = _c255(r); d[p + 1] = _c255(gg); d[p + 2] = _c255(b);
+            }
+          }
+          yield;
+        }
+        g.putImageData(id, 0, 0);
+        if (role === 'fg') fgData = d;
+        if (role === 'bg' && hasL && L.blur > 0 && an.cat !== 'indoor') {   // hậu cảnh mờ nhẹ ở xa (phần trên), tiền cảnh gần giữ nét
+          const t = mk(W, AHt), tg = t.getContext('2d');
+          try { tg.filter = 'blur(' + L.blur + 'px)'; } catch (e) { /* không có filter: bỏ qua */ }
+          tg.drawImage(c, 0, 0); tg.filter = 'none';
+          tg.globalCompositeOperation = 'destination-in';
+          const mg = tg.createLinearGradient(0, 0, 0, AHt); mg.addColorStop(0, 'rgba(0,0,0,1)'); mg.addColorStop(0.42, 'rgba(0,0,0,0.9)'); mg.addColorStop(0.78, 'rgba(0,0,0,0)');
+          tg.fillStyle = mg; tg.fillRect(0, 0, W, AHt);
+          g.drawImage(t, 0, 0); t.width = t.height = 0;
+          yield;
+        }
+        if (glow && glowAny) {   // quầng sáng (bloom) quanh cửa sổ, đèn, trăng, lửa
+          const gi = g.createImageData(W, AHt), gd = gi.data;
+          for (let k = 0, q = 0; k < glow.length; k++, q += 4) if (glow[k]) { gd[q] = 255; gd[q + 1] = 214; gd[q + 2] = 130; gd[q + 3] = 255; }
+          const t = mk(W, AHt), tg = t.getContext('2d'); tg.putImageData(gi, 0, 0);
+          const t2 = mk(W, AHt), t2g = t2.getContext('2d');
+          try { t2g.filter = 'blur(10px)'; } catch (e) { /* bỏ qua */ }
+          t2g.drawImage(t, 0, 0);
+          try { t2g.filter = 'blur(28px)'; } catch (e) { /* bỏ qua */ }
+          t2g.globalAlpha = 0.6; t2g.drawImage(t, 0, 0); t2g.filter = 'none'; t2g.globalAlpha = 1;
+          g.save(); g.globalCompositeOperation = 'screen'; g.globalAlpha = Math.max(0.35, L.glow) * (role === 'fg' ? 0.7 : 1); g.drawImage(t2, 0, 0); g.restore();
+          t.width = t.height = t2.width = t2.height = 1;
+          yield;
+        }
+        if (role === 'bg') {   // tràn khung: nền gốc mờ dần về giấy trắng ở mép (dải ~60-80px). Dựng "kim tự tháp" thu nhỏ của chính bức tranh rồi xếp từ thô đến mịn để màu bên trong tràn mượt ra mép, không lộ viền trắng
+          const lv = [c]; let cw = W, ch = AHt;
+          for (let k = 1; k <= 6; k++) { cw = Math.max(2, cw >> 1); ch = Math.max(2, ch >> 1); const t = mk(cw, ch), tg = t.getContext('2d'); tg.imageSmoothingEnabled = true; tg.imageSmoothingQuality = 'high'; tg.drawImage(lv[k - 1], 0, 0, cw, ch); lv.push(t); }
+          const fin = mk(W, AHt), fg2 = fin.getContext('2d'); fg2.imageSmoothingEnabled = true; fg2.imageSmoothingQuality = 'high';
+          for (let k = lv.length - 1; k >= 0; k--) fg2.drawImage(lv[k], 0, 0, W, AHt);
+          for (let k = 0; k < lv.length; k++) lv[k].width = lv[k].height = 0;
+          B.bg = fin; continue;
+        }
+        B[role] = c;
+      }
+      // ---- Bóng đổ của người/vật xuống đất theo hướng sáng (từng dải 6px, dẹt và nghiêng ra xa nguồn sáng) ----
+      if (hasL && fgData && B.bg) {
+        const sil = mk(W, AHt), sg = sil.getContext('2d');
+        sg.drawImage(s.fgL, 0, 0, W, AHt, 0, 0, W, AHt);
+        sg.globalCompositeOperation = 'source-in'; sg.fillStyle = 'rgb(' + L.shadow.join(',') + ')'; sg.fillRect(0, 0, W, AHt);
+        const sh = mk(W, AHt), shg = sh.getContext('2d'), SW = 6, k = 0.30, skew = -sS * 0.32, NS = Math.ceil(W / SW), yb = new Float32Array(NS), has = new Uint8Array(NS);
+        for (let si = 0; si < NS; si++) {   // đường chân (nơi chạm đất) của từng dải 6px
+          const xc = Math.min(W - 1, si * SW + 3);
+          let y = AHt - 1;
+          while (y > 0 && fgData[(y * W + xc) * 4 + 3] < 128) y--;
+          if (y <= 0) continue;
+          has[si] = 1;
+          if (y > AHt * 0.5 && y < AHt - 6) yb[si] = y;   // chỉ vật đứng ở nửa dưới khung mới chạm đất
+        }
+        const base = new Float32Array(NS);
+        for (let si = 0; si < NS; si++) {   // dải không chạm đất (thân/đầu người) dùng đường chân nội suy từ dải chạm đất gần nhất
+          if (!has[si]) continue;
+          if (yb[si] > 0) { base[si] = yb[si]; continue; }
+          let l = -1, r = -1;
+          for (let q = 1; q <= 15 && l < 0; q++) if (si - q >= 0 && yb[si - q] > 0) l = si - q;
+          for (let q = 1; q <= 15 && r < 0; q++) if (si + q < NS && yb[si + q] > 0) r = si + q;
+          base[si] = l >= 0 && r >= 0 ? yb[l] + (yb[r] - yb[l]) * (si - l) / (r - l) : l >= 0 ? yb[l] : r >= 0 ? yb[r] : 0;
+        }
+        for (let si = 0; si < NS; si++) {
+          const yr = base[si];
+          if (yr < 8) continue;
+          shg.save();
+          shg.setTransform(1, 0, -skew, -k, skew * yr, yr * (1 + k));   // X = x + skew*(yr-y), Y = yr + k*(yr-y): lật qua đường chân, dẹt và nghiêng ra xa nguồn sáng
+          shg.drawImage(sil, si * SW, 0, SW, yr, si * SW, 0, SW, yr);
+          shg.restore();
+        }
+        const bgc = B.bg.getContext('2d');
+        bgc.save(); bgc.globalCompositeOperation = 'multiply'; bgc.globalAlpha = an.tod === 'night' ? 0.5 : 0.36;
+        try { bgc.filter = 'blur(2.5px)'; } catch (e) { /* bỏ qua */ }
+        bgc.drawImage(sh, 0, 0); bgc.restore();
+        sil.width = sil.height = sh.width = sh.height = 1;
+        yield;
+      }
+      // ---- Sương mù (đặt giữa nền và chủ thể để tạo chiều sâu) ----
+      if (L.fog && hasL) {
+        const c = mk(W, AHt), g = c.getContext('2d');
+        for (let k = 0; k < 7; k++) {
+          const cx = R() * W, cy = AHt * (0.38 + R() * 0.5), rx = W * (0.24 + R() * 0.3), ry = AHt * (0.07 + R() * 0.1);
+          g.save(); g.translate(cx, cy); g.scale(1, ry / rx);
+          const gr = g.createRadialGradient(0, 0, 0, 0, 0, rx); gr.addColorStop(0, 'rgba(' + L.fog.c + ',0.55)'); gr.addColorStop(1, 'rgba(' + L.fog.c + ',0)');
+          g.fillStyle = gr; g.beginPath(); g.arc(0, 0, rx, 0, TAU); g.fill(); g.restore();
+        }
+        B.fog = c;
+      }
+      // ---- Ánh sáng lọt qua tán cây (đốm sáng) ----
+      if (L.dapple) {
+        const c = mk(W, AHt), g = c.getContext('2d');
+        for (let k = 0; k < 38; k++) {
+          const cx = R() * W, cy = R() * AHt * 0.8, r = 18 + R() * 46;
+          const gr = g.createRadialGradient(cx, cy, 0, cx, cy, r); gr.addColorStop(0, 'rgba(255,240,190,0.55)'); gr.addColorStop(1, 'rgba(255,240,190,0)');
+          g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.fill();
+        }
+        B.dap = c;
+      }
+    } catch (e) { B.err = String(e && e.message || e); }
+    B.done = true;
+    // giữ tối đa 3 cảnh đã nướng quanh cảnh hiện tại để tiết kiệm bộ nhớ
+    for (const k in BK) if (Math.abs(k - i) > 2) { const o = BK[k]; for (const f of ['bg', 'fg', 'fog', 'dap']) if (o[f]) o[f].width = o[f].height = 0; delete BK[k]; delete GEN[k]; }
+  }
+  // Lấy bản đã nướng của cảnh i (nướng nốt ngay nếu chưa xong)
+  function bakeOf(i) {
+    if (BK[i] && BK[i].done) return BK[i];
+    if (!GEN[i]) GEN[i] = bakeGen(i);
+    let r; do { r = GEN[i].next(); } while (!r.done);
+    delete GEN[i];
+    return BK[i];
+  }
+  // Chuẩn bị trước cảnh i: mỗi khung hình chỉ làm một khối nhỏ
+  function warm(i) {
+    if (BK[i] && BK[i].done) return;
+    if (!GEN[i]) GEN[i] = bakeGen(i);
+    if (GEN[i].next().done) delete GEN[i];
   }
 
   // Một lớp ảnh với camera (zz = zoom, (cx,cy) = tâm nhìn, xo = lệch ngang thêm cho chuyển cảnh trượt, br = thở nhẹ)
@@ -4935,6 +5227,14 @@ function mvCreate(vs, st, x) {
       g.translate(inf.sx, inf.sy); g.rotate(0.012 * Math.sin(TAU * t / 9 + inf.ph[2])); g.translate(-inf.sx, -inf.sy);
       g.drawImage(layer(L.rayKey), 0, 0);
     }
+    if (inf.dapple && !weak) {   // rừng: đốm sáng lọt qua tán cây, trôi rất chậm
+      const bk = BK[inf.idx];
+      if (bk && bk.dap) {
+        g.setTransform(1, 0, 0, 1, 0, 0);
+        g.globalCompositeOperation = 'screen'; g.globalAlpha = 0.20 * (0.8 + 0.2 * Math.sin(TAU * t / 7 + inf.ph[1]));
+        g.drawImage(bk.dap, 9 * Math.sin(TAU * t / 11 + inf.ph[0]), 5 * Math.sin(TAU * t / 8 + inf.ph[2]));
+      }
+    }
     g.restore();
   }
   function finish(g, inf) {   // ánh chớp (sấm sét); vignette đã nằm sẵn trong lớp ánh sáng nền
@@ -4950,11 +5250,13 @@ function mvCreate(vs, st, x) {
     const cx = _mvCl(_mvLerp(c.ax, c.bx, e), W / (2 * z), W - W / (2 * z)), cy = _mvCl(_mvLerp(c.ay, c.by, e), AHt / (2 * z), AHt - AHt / (2 * z));
     g.save();
     g.beginPath(); g.rect(0, 0, W, AHt); g.clip();
-    if (s.bgL && s.fgL) {   // có tách lớp: nền chuyển động chậm hơn, vật/người phía trước nhanh hơn một chút (parallax thật)
-      const zb = 1 + (z - 1) * 0.86;
-      blit(g, s.bgL, zb * xz, W / 2 + (cx - W / 2) * 0.78, AHt / 2 + (cy - AHt / 2) * 0.78, xo, 0);
-      blit(g, s.fgL, z * xz, cx, cy, xo, 1 + 0.0028 * Math.sin(TAU * t / 5.5 + inf.ph[0]));
-    } else blit(g, s.cv, z * xz, cx, cy, xo, 0);   // ảnh phẳng: chỉ camera + ánh sáng, không tách người giả
+    const bk = bakeOf(i), bgImg = bk.bg || s.bgL || s.cv, fgImg = bk.bg ? bk.fg : s.fgL;   // bản đã phối màu (nếu nướng lỗi thì dùng ảnh gốc)
+    if (bgImg && (bk.fg || (!bk.bg && s.bgL && s.fgL))) {   // có tách lớp: nền chuyển động chậm hơn, vật/người phía trước nhanh hơn một chút (parallax thật)
+      const zb = 1 + (z - 1) * 0.86, bx = W / 2 + (cx - W / 2) * 0.78, by = AHt / 2 + (cy - AHt / 2) * 0.78;
+      blit(g, bgImg, zb * xz, bx, by, xo, 0);
+      if (bk.fog && !weak) { g.globalAlpha = inf.look.fog.a / 0.30 * 0.62; blit(g, bk.fog, zb * xz * 1.04, bx + 22 * Math.sin(TAU * t / 16 + inf.ph[1]), by, xo, 0); g.globalAlpha = 1; }   // sương trôi chậm giữa nền và chủ thể
+      blit(g, fgImg, z * xz, cx, cy, xo, 1 + 0.0028 * Math.sin(TAU * t / 5.5 + inf.ph[0]));
+    } else blit(g, bgImg, z * xz, cx, cy, xo, 0);   // ảnh phẳng: chỉ camera + ánh sáng + phối màu, không tách người giả
     grade(g, inf, t, lt);
     g.save();   // hạt đi theo camera một chút (lớp trước nhanh hơn) cho có chiều sâu
     g.translate(-(cx - W / 2) * 1.25, -(cy - AHt / 2) * 1.25);
@@ -4970,7 +5272,7 @@ function mvCreate(vs, st, x) {
     // Vẽ vùng tranh cho thời điểm t (cảnh hiện tại i, lt = t - st[i]); phụ đề do makeRenderer vẽ sau
     frame(g, t, i, lt) {
       self.dk = 0;
-      if (i + 1 < n && lt > 0.3) info(i + 1);   // chuẩn bị trước cảnh sau để không giật khi chuyển
+      if (i + 1 < n && lt > 0.3) { info(i + 1); warm(i + 1); }   // chuẩn bị trước (và phối màu dần, mỗi khung một khối nhỏ) cho cảnh sau để không giật khi chuyển
       let tr = null;
       if (i < n - 1 && t >= st[i + 1] - winA[i + 1]) tr = { o: i, j: i + 1, p: (t - (st[i + 1] - winA[i + 1])) / (winA[i + 1] + winB[i + 1]), k: trK[i + 1] };
       else if (i > 0 && t < st[i] + winB[i]) tr = { o: i - 1, j: i, p: (t - (st[i] - winA[i])) / (winA[i] + winB[i]), k: trK[i] };
@@ -4993,6 +5295,7 @@ function mvCreate(vs, st, x) {
       if (i === 0 && lt < 0.8) { g.save(); g.globalAlpha = 1 - _es(lt / 0.8); g.fillStyle = '#fff'; g.fillRect(0, 0, W, AHt); g.restore(); }   // mở đầu: hiện dần từ giấy trắng
       if (i === n - 1 && t > tot - 0.55) { g.save(); g.globalAlpha = 0.96 * _es(_mvCl((t - (tot - 0.55)) / 0.95, 0, 1)); g.fillStyle = '#fff'; g.fillRect(0, 0, W, AHt); g.restore(); }   // kết thúc: mờ về giấy trắng
     },
+    prep() { if (vs[0] && vs[0].cv) { info(0); bakeOf(0); } },   // nướng sẵn màu cảnh đầu
     // Phủ tối (chuyển cảnh "tối dần rồi sáng lên") lên cả khung, gồm phụ đề, sau khi phụ đề đã vẽ
     after(g) {
       if (self.dk > 0.003) { g.save(); g.globalAlpha = self.dk; g.fillStyle = '#000'; g.fillRect(0, 0, W, H); g.restore(); }
@@ -5003,6 +5306,8 @@ function mvCreate(vs, st, x) {
         ov.width = ov.height = 0;
         for (const k in LAY) { LAY[k].width = LAY[k].height = 0; delete LAY[k]; }
         for (const k in SPR) { SPR[k].width = SPR[k].height = 0; delete SPR[k]; }
+        for (const k in BK) { const o = BK[k]; for (const f of ['bg', 'fg', 'fog', 'dap']) if (o[f]) o[f].width = o[f].height = 0; delete BK[k]; }
+        for (const k in GEN) delete GEN[k];
         infos.length = 0;
         x.imageSmoothingQuality = prevQ; x.imageSmoothingEnabled = prevS;
       } catch (e) { /* bỏ qua */ }
@@ -5108,6 +5413,7 @@ function makeRenderer(vs, st, x) {
     }
   };
   drawFn.mv = !!MV;
+  drawFn.prep = () => { if (MV) MV.prep(); };
   drawFn.dispose = () => { try { if (MV) MV.dispose(); rv.width = rv.height = 0; sn.width = sn.height = 0; } catch (e) { /* bỏ qua */ } };   // trả bộ nhớ canvas phụ sau khi dựng xong
   return drawFn;
 }
@@ -5244,9 +5550,12 @@ function play(rec, forceReal) {
   stopFlag = false;
   const ac = A(), cv = $('cv'), x = cv.getContext('2d'), dest = ac.createMediaStreamDestination();
   ac.resume().then(() => {
-    const t0 = ac.currentTime + 0.5, st = [];
+    const st = [];
     let tot = 0;
     validScenes.forEach(s => { st.push(tot); tot += s.dur; });
+    const R = makeRenderer(validScenes, st, x);
+    if (R.prep) R.prep();   // video chuyển động: phối màu sẵn cảnh đầu trước khi tính t0, để hình và tiếng khởi động cùng lúc
+    const t0 = ac.currentTime + 0.5;
     const srcs = [];
     validScenes.forEach((s, i) => {
       if (s.buf) {
@@ -5274,7 +5583,6 @@ function play(rec, forceReal) {
       mr.start(1000);
       $('out').textContent = 'Đang xuất video theo thời gian thật, vui lòng đợi...';
     }
-    const R = makeRenderer(validScenes, st, x);
     const end = () => {
       srcs.forEach(n => { try { n.stop(); } catch (e) {} });
       if (mus) mus.stop();
