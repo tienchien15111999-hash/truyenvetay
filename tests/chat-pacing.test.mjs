@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {chatChunks,missingBirth,missingBirthReply,nudgeDelayMs} from '../lib/chat-pacing.js';
+assert.deepEqual(missingBirth({fullName:'An',gender:'nam',birthDate:'2000-01-01',birthHour:0}),[]);
+assert.deepEqual(missingBirth({fullName:'An',gender:'nam',birthDate:'2000-01-01'}),['giờ sinh']);
+assert.match(missingBirthReply({fullName:'An',gender:'nam',birthDate:'2000-01-01'}),/giờ sinh thôi/);
+const text='Một ý dễ hiểu. '.repeat(150);
+const chunks=chatChunks(text);assert.ok(chunks.length>1);assert.ok(chunks.every(c=>c.length<=650));
+assert.equal(chunks.join('').replace(/\s/g,''),text.replace(/\s/g,''));
+assert.deepEqual(chatChunks(''),[]);
+const keep={off:process.env.CHAT_PACING_OFF,sec:process.env.BIRTH_NUDGE_WAIT_SECONDS};
+delete process.env.CHAT_PACING_OFF;delete process.env.BIRTH_NUDGE_WAIT_SECONDS;
+assert.equal(nudgeDelayMs(),60000);
+process.env.BIRTH_NUDGE_WAIT_SECONDS='90';assert.equal(nudgeDelayMs(),90000);
+process.env.BIRTH_NUDGE_WAIT_SECONDS='9999';assert.equal(nudgeDelayMs(),120000);
+process.env.BIRTH_NUDGE_WAIT_SECONDS='0';assert.equal(nudgeDelayMs(),0);
+process.env.CHAT_PACING_OFF='1';assert.equal(nudgeDelayMs(),0);
+for(const [k,v] of [['CHAT_PACING_OFF',keep.off],['BIRTH_NUDGE_WAIT_SECONDS',keep.sec]]) v===undefined?delete process.env[k]:process.env[k]=v;
+console.log('Chat pacing tests OK');

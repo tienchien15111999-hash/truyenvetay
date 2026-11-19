@@ -1,0 +1,31 @@
+.page {
+  min-height: 100dvh; padding: clamp(16px, 5vw, 54px) 14px; color: #213a33;
+  background: #eef3ed; color-scheme: light;
+}
+.sheet {
+  width: min(100%, 570px); margin: 0 auto; padding: clamp(22px, 5vw, 42px);
+  background: #fffef9; border: 1px solid #ced8cd; border-top: 5px solid #23674d;
+  border-radius: 5px 5px 16px 16px; box-shadow: 0 10px 40px #1938270c;
+}
+.header h1 { font: 600 clamp(30px, 6vw, 42px)/1.18 Georgia,serif; letter-spacing: -.035em; margin: 0; color: #184b37; }
+.header p, .done p { margin: 12px 0 0; line-height: 1.6; }
+.block { margin: 24px 0 0; padding: 0; border: 0; min-width: 0; }
+.block legend { width: 100%; border-bottom: 1px solid #dbe1d6; padding: 0 0 7px; margin: 0 0 10px; font-weight: 700; }
+.block small { font-size: .83em; font-weight: 400; color: #526354; }
+.block label { display: grid; gap: 5px; margin-bottom: 10px; font-size: 14px; font-weight: 500; }
+.block input:not([type=radio]):not([type=checkbox]), .block select {
+  width: 100%; min-width: 0; min-height: 45px; padding: 9px 10px; border: 1px solid #aabbad;
+  border-radius: 7px; background: #fff; color: #23382c; font-size: 16px;
+}
+.calendar { display: flex; gap: 8px; margin-bottom: 12px; }
+.calendar label, .block .leap { display: flex; align-items: center; gap: 7px; min-height: 42px; margin: 0; }
+.calendar label { flex: 1; padding: 7px 10px; border: 1px solid #c2cec0; border-radius: 7px; cursor: pointer; }
+.calendar label:has(:checked) { background: #e4f0e5; border-color: #417358; }
+.block input[type=radio], .block input[type=checkbox] { accent-color: #23674d; width: 17px; height: 17px; }
+.block .leap { margin-bottom: 9px; }
+.date { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 10px; }
+.send { width: 100%; min-height: 48px; margin-top: 16px; background: #205f45; color: white; border: 0; border-radius: 8px; cursor: pointer; font-weight: 600; }
+.send:disabled { opacity: .72; cursor: progress; }
+.error { color: #902e27; }
+.done img { display: block; width: 100%; margin: 18px auto; }
+.reply { white-space: pre-wrap; }
