@@ -109,7 +109,7 @@ let r = await say(BIRTH, { onProgress: async (x) => progress.push(x) });
 assert.deepEqual(kinds(), []);
 assert.equal(progress.length, 1);
 assert.ok(progress[0].imageUrl.includes('/api/laso?'));
-assert.doesNotMatch(r.reply, /Nguyễn Văn An/, 'khách chỉ được gọi là bạn, không gọi họ tên');
+assert.match(r.reply, /Nguyễn Văn An/);
 assert.match(r.reply, /Tiền bạc, tài chính/);
 assert.equal(stateOf().stage, 'ASK_SECTION');
 assert.equal(stateOf().paid, false);

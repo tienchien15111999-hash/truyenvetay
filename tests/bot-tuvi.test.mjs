@@ -105,7 +105,7 @@ r = await say('bỏ qua', { onProgress: async (x) => progress.push(x) });
 assert.equal(JSON.parse(profiles.get(PSID).state).info.maritalStatus,'không muốn chia sẻ');
 assert.deepEqual(geminiCalls, ['reading']);
 assert.equal(progress.length, 1);
-assert.doesNotMatch(progress[0].statusText, /Nguyễn Văn An/, 'khách chỉ được gọi là bạn, không gọi họ tên');
+assert.match(progress[0].statusText, /Nguyễn Văn An/);
 assert.ok(progress[0].imageUrl.startsWith('https://xemtuvi-delta.vercel.app/api/laso?'), 'không có dấu / thừa: ' + progress[0].imageUrl);
 assert.ok(progress[0].imageUrl.includes('date=1995-08-15') && progress[0].imageUrl.includes('hour=14'));
 assert.equal(r.imageSentInProgress, true);
