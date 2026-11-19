@@ -134,7 +134,8 @@ const titles = (r) => r.quickReplies.map((q) => q.title);
 
 // 4a) Khách điền thông tin: lá số + chữ chào + các nút chủ đề, chưa luận mục nào
 let r = await say('Nguyễn Văn An, Nam, sinh 15/08/1995 dương lịch, 14h30, đã kết hôn');
-assert.match(r.reply, /Chào Nguyễn Văn An! Bạn chọn một mục nhé:/);
+assert.match(r.reply, /Chào bạn! Bạn chọn một mục nhé:/);
+assert.doesNotMatch(r.reply, /Nguyễn Văn An/, 'khách chỉ được gọi là bạn, không gọi họ tên');
 assert.ok(r.imageUrl.includes('/api/laso?'));
 assert.deepEqual(titles(r), ['💼 Sự nghiệp', '🔒 ❤️ Tình duyên', '🌿 Sức khỏe']);
 assert.equal(stateOf().stage, 'TREE');
@@ -266,7 +267,8 @@ const confirmed = tree.confirmTree(loaded, stateOf(), 'confirm', settingsObj);
 assert.deepEqual(confirmed.next.tree.unlocked, ['b']);
 assert.equal(confirmed.next.payment, null);
 assert.equal(confirmed.next.stage, 'TREE');
-assert.match(confirmed.message, /Bên mình đã nhận được thanh toán, cảm ơn Nguyễn Văn An/);
+assert.match(confirmed.message, /Bên mình đã nhận được thanh toán, cảm ơn bạn/);
+assert.doesNotMatch(confirmed.message, /Nguyễn Văn An/);
 assert.deepEqual(confirmed.offered.map((o) => o.label), ['Xem ❤️ Tình duyên', '🏠 Mục chính']);
 profiles.set(PSID, { ...profiles.get(PSID), state: JSON.stringify(confirmed.next) });
 reset();

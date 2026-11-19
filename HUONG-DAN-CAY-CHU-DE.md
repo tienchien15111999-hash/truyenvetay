@@ -66,3 +66,7 @@ Danh sách "1. ... 2. ..." chỉ hiện ở màn hình chọn mục (sau khi g�
 ## Khách hỏi thêm trong một mục
 
 Khách đang xem một mục (ví dụ Tình duyên 2027) rồi gõ câu hỏi cụ thể ("năm sau tôi có con không"): bot trả lời đúng câu hỏi đó theo lá số, trong phạm vi mục đang xem. Bot không gửi lại bài của mục. Khách gõ "xem tình duyên" (chỉ muốn mở mục) thì bot gửi bài của mục như khi bấm nút. Mục khóa vẫn bị chặn bằng code.
+
+## Cách gọi khách
+
+Bot chỉ xưng "mình" và gọi khách là "bạn", không bao giờ gọi họ tên hay tên riêng. Chữ {name} trong mọi câu mẫu bạn tự soạn (lời chào, mời chuyển khoản, báo nhận tiền...) sẽ tự thành "bạn". Họ tên khách không được đưa cho AI, và nếu AI lỡ viết đủ họ tên thì bot tự đổi thành "bạn". Thông báo gửi riêng cho chủ shop vẫn ghi tên khách để bạn biết là ai.

@@ -46,3 +46,23 @@ assert.equal(withMaritalField(withMaritalField('Form cũ')),withMaritalField('Fo
 for(const prompt of [buildTuViReadingPrompt(styleSettings,chart,'đang ly thân'),buildSectionPrompt(styleSettings,chart,SECTIONS[3],'','đang ly thân'),buildPaidConsultPrompt(styleSettings,chart,{},[],'đang ly thân'),lifetimePrompt(styleSettings,chart,{title:'Gia đạo'},false,'đang ly thân')]) {
   assert.match(prompt,/Khách tự khai tình trạng hôn nhân hiện tại: đang ly thân/);
 }
+
+// Khách chỉ được gọi là "bạn": lời dặn gửi AI không chứa họ tên, và có luật xưng hô
+{
+  const { generateLaSo } = await import('../lib/tuvi.js');
+  const { lifetimePrompt } = await import('../lib/lifetime.js');
+  const { buildSectionPrompt } = await import('../lib/tuviflow.js');
+  const chart = generateLaSo({ fullName: 'Trần Quốc Huy', gender: 'nam', birthDate: '1995-08-15', birthHour: 14, isLunar: false, viewYear: 2027 });
+  const prompts = [
+    lifetimePrompt(DEFAULT_SETTINGS, chart, { title: 'Tổng quan' }, false, 'độc thân'),
+    lifetimePrompt(DEFAULT_SETTINGS, chart, null, true, 'độc thân'),
+    buildTuViReadingPrompt(DEFAULT_SETTINGS, chart, 'độc thân'),
+  ];
+  for (const text of prompts) {
+    assert.ok(!text.includes('Trần Quốc Huy'), 'không đưa họ tên khách cho AI');
+    assert.match(text, /chỉ xưng “mình” và gọi khách là “bạn”/);
+  }
+  const { hideName } = await import('../lib/text.js');
+  assert.equal(hideName('Chào Trần Quốc Huy nhé', 'Trần Quốc Huy'), 'Chào bạn nhé');
+  console.log('customer name rule tests OK');
+}
