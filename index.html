@@ -57,7 +57,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
     <input id="cfAccountId" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Account ID gồm 32 ký tự">
     <label for="cfApiToken">Cloudflare Workers AI API Token</label>
     <input id="cfApiToken" type="password" autocomplete="off" spellcheck="false" placeholder="Dán API Token của Cloudflare">
-    <p class="hint">Lấy hai giá trị ở Cloudflare → Workers AI → Use REST API. Trình duyệt nhớ chúng trong tab này.</p>
+    <p class="hint">Lấy mã ở Cloudflare → Workers AI → REST API. Nếu đã sao chép lệnh kiểm tra, bạn có thể dán vào ô API Token để web lấy mã sau Bearer. Trình duyệt nhớ thông tin trong tab này.</p>
     <details id="cfServerSettings">
       <summary>Dùng cấu hình Cloudflare trên Vercel</summary>
       <p class="hint">Để trống hai ô trên nếu dự án đã có Account ID và API Token trên Vercel.</p>
@@ -576,6 +576,23 @@ class CloudflareUnavailable extends Error {}
 let cloudflareBlocked = null, cloudDraftActive = false;
 const CF_BLOCKING_CODES = ['CF_CONFIG', 'CF_INPUT_CONFIG', 'CF_WEB_CODE', 'CF_UNAUTHORIZED', 'CF_UNAVAILABLE', 'CF_DAILY_LIMIT', 'CF_RATE_LIMIT'];
 
+function normalizeCloudflareAccount(value) {
+  const text = value.trim();
+  const raw = text.match(/^[\"']?([a-f0-9]{32})[\"']?$/i)?.[1];
+  const fromLabel = text.match(/\baccount[ \t_-]*id[ \t]*[:=][ \t]*[\"']?([a-f0-9]{32})(?=$|[\s\"'])/i)?.[1];
+  const fromLink = text.match(/https:\/\/(?:api\.cloudflare\.com\/client\/v4\/accounts\/|dash\.cloudflare\.com\/)([a-f0-9]{32})(?=$|[\s\/?#\"'])/i)?.[1];
+  return (raw || fromLabel || fromLink || '').toLowerCase();
+}
+
+function normalizeCloudflareToken(value) {
+  const text = value.trim();
+  const fromHeaders = new Set([...text.matchAll(/\bAuthorization[ \t]*:[ \t]*Bearer[ \t]+([A-Za-z0-9._~+\/-]+={0,2})(?=$|[\s\"'])/gi)].map(match => match[1]));
+  if (fromHeaders.size > 1) return '';
+  const standalone = text.replace(/^([\"'])([\s\S]*)\1$/, '$2').replace(/^Bearer[ \t]+/i, '').trim();
+  const token = [...fromHeaders][0] || standalone;
+  return token.length <= 512 && /^[A-Za-z0-9._~+\/-]+={0,2}$/.test(token) ? token : '';
+}
+
 async function cfCall(payload, timeout = 95000) {
   if (!payload.probe && cloudflareBlocked) throw cloudflareBlocked;
   if (!payload.probe && abortGen) throw new Error('Đã dừng');
@@ -584,12 +601,22 @@ async function cfCall(payload, timeout = 95000) {
   if (!payload.probe) ctl.add(controller);
   try {
     const headers = { 'Content-Type': 'application/json' };
-    const accountId = $('cfAccountId').value.trim();
-    const token = $('cfApiToken').value.trim();
-    if (accountId || token) {
-      if (!/^[a-f0-9]{32}$/i.test(accountId) || !/^[!-~]{1,512}$/.test(token)) {
-        throw new CloudflareUnavailable('Điền đủ Account ID gồm 32 ký tự và API Token của Cloudflare.');
+    const accountField = $('cfAccountId'), tokenField = $('cfApiToken');
+    if (accountField.value.trim() || tokenField.value.trim()) {
+      const accountId = normalizeCloudflareAccount(accountField.value);
+      const token = normalizeCloudflareToken(tokenField.value);
+      if (!accountId || !token) {
+        if (payload.probe) (!accountId ? accountField : tokenField).focus();
+        throw new CloudflareUnavailable(!accountId
+          ? 'Account ID chưa đúng. Hãy sao chép đủ 32 ký tự từ mục Get Account ID của Cloudflare.'
+          : 'Chưa đọc được API Token. Dùng Copy API Token hoặc dán dòng Authorization: Bearer trong lệnh kiểm tra.');
       }
+      accountField.value = accountId;
+      tokenField.value = token;
+      try {
+        sessionStorage.setItem(cfSessionFields.cfAccountId, accountId);
+        sessionStorage.setItem(cfSessionFields.cfApiToken, token);
+      } catch (e) {}
       headers['X-Cloudflare-Account-Id'] = accountId;
       headers.Authorization = 'Bearer ' + token;
     } else {

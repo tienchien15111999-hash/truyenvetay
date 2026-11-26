@@ -11,7 +11,7 @@
 
 1. Trong Cloudflare, mở **Workers AI → Use REST API** để lấy **Account ID** và tạo **Workers AI API Token**. Gói **Workers Free** dùng hạn mức theo ngày.
 2. Cập nhật các file trong ZIP vào repo hiện tại để Vercel triển khai bản mới.
-3. Mở web → **Cài đặt → API chia cảnh và vẽ tranh → Cloudflare Workers AI**. Nhập **Account ID** và **API Token**, rồi bấm **Kiểm tra kết nối Cloudflare**. Trình duyệt nhớ hai giá trị trong phiên của tab và giữ chúng ngoài file sao lưu cài đặt.
+3. Mở web → **Cài đặt → API chia cảnh và vẽ tranh → Cloudflare Workers AI**. Nhập **Account ID** và **API Token**, rồi bấm **Kiểm tra kết nối Cloudflare**. Có thể dán riêng token hoặc dòng **Authorization: Bearer** trong lệnh kiểm tra. Trình duyệt nhớ hai giá trị trong phiên của tab và giữ chúng ngoài file sao lưu cài đặt.
 4. Chọn **Cách vẽ tranh → Minh họa truyện vẽ tay** để tạo tranh màu bằng FLUX. Giọng Vbee dùng App ID, token và mã giọng đang cài. Chép lời từ TikTok/video/MP3 và giọng Gemini dùng key Gemini.
 5. Khi tạo ảnh bị gián đoạn, bấm **Chạy bù** hoặc mở lại web, bấm **Mở lại video tạo dở**, rồi bấm **Chạy bù**. Trình duyệt lưu một video đang tạo dở.
 
