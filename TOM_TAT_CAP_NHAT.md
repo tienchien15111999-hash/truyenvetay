@@ -9,6 +9,9 @@
 
 ## Bản Cloudflare Workers AI
 
+Khi dùng Cloudflare, kịch bản được tạo theo từng nhóm tối đa bốn cảnh, bố cục theo nhóm tối đa năm cảnh. Yêu cầu chữ gặp lỗi tạm thời được thử lại một lần với GLM-4.7 Flash trên Cloudflare. Nếu một phần vẫn thất bại, bấm **Bắt đầu tạo video** với cùng nội dung trong tab hiện tại để dùng lại các phần kịch bản đã xong. Khi lỗi ở bước bố cục, web có thể dùng mô tả từ kịch bản cho các cảnh đó. Cập nhật cùng lúc **`index.html`** và **`api/cloudflare-ai.js`**.
+
+
 1. Trong Cloudflare, mở **Workers AI → Use REST API** để lấy **Account ID** và tạo **Workers AI API Token**. Gói **Workers Free** dùng hạn mức theo ngày.
 2. Cập nhật các file trong ZIP vào repo hiện tại để Vercel triển khai bản mới.
 3. Mở web → **Cài đặt → API chia cảnh và vẽ tranh → Cloudflare Workers AI**. Nhập **Account ID** và **API Token**, rồi bấm **Kiểm tra kết nối Cloudflare**. Có thể dán riêng token hoặc dòng **Authorization: Bearer** trong lệnh kiểm tra. Trình duyệt nhớ hai giá trị trong phiên của tab và giữ chúng ngoài file sao lưu cài đặt.

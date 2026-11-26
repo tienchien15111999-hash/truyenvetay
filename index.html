@@ -573,7 +573,9 @@ async function gemMulti(models, body, timeout = 80000, rounds = 2) {
 }
 
 class CloudflareUnavailable extends Error {}
+class CloudflareTemporaryError extends Error {}
 let cloudflareBlocked = null, cloudDraftActive = false;
+const CF_TRANSIENT_CODES = ['CF_TIMEOUT', 'CF_BUSY', 'CF_UPSTREAM', 'CF_NETWORK', 'CF_EMPTY', 'CF_INCOMPLETE'];
 const CF_BLOCKING_CODES = ['CF_CONFIG', 'CF_INPUT_CONFIG', 'CF_WEB_CODE', 'CF_UNAUTHORIZED', 'CF_UNAVAILABLE', 'CF_DAILY_LIMIT', 'CF_RATE_LIMIT'];
 
 function normalizeCloudflareAccount(value) {
@@ -634,11 +636,16 @@ async function cfCall(payload, timeout = 95000) {
         if (!payload.probe) cloudflareBlocked = e;
         throw e;
       }
+      if (CF_TRANSIENT_CODES.includes(data.error?.code) || [502, 503, 504].includes(response.status)) {
+        throw new CloudflareTemporaryError(data.error?.message || 'Cloudflare hoặc Vercel chưa trả lời kịp.');
+      }
       throw new Error(msg);
     }
     return data;
   } catch (e) {
-    if (e.name === 'AbortError') throw new Error(!payload.probe && abortGen ? 'Đã dừng' : 'Cloudflare xử lý quá thời gian.');
+    if (!payload.probe && abortGen) throw new Error('Đã dừng');
+    if (e.name === 'AbortError') throw new CloudflareTemporaryError('Cloudflare xử lý quá thời gian.');
+    if (e instanceof TypeError) throw new CloudflareTemporaryError('Kết nối tới Cloudflare bị gián đoạn.');
     throw e;
   } finally {
     clearTimeout(timer);
@@ -646,14 +653,15 @@ async function cfCall(payload, timeout = 95000) {
   }
 }
 
-async function storyAI(body, timeout, rounds) {
+async function storyAI(body, timeout, rounds, { task, backup } = {}) {
   if (storyProvider() === 'gemini') return await gemMulti(TXT_MODELS, body, timeout, rounds);
   const data = await cfCall({
     kind: 'text',
     parts: body.contents.flatMap(content => content.parts),
-    json: body.generationConfig?.responseMimeType === 'application/json'
+    json: body.generationConfig?.responseMimeType === 'application/json',
+    task, backup
   }, timeout);
-  if (typeof data.text !== 'string' || !data.text.trim()) throw new Error('Cloudflare không trả nội dung văn bản.');
+  if (typeof data.text !== 'string' || !data.text.trim()) throw new CloudflareTemporaryError('Cloudflare không trả nội dung văn bản.');
   return { candidates: [{ content: { parts: [{ text: data.text }] } }] };
 }
 
@@ -683,15 +691,25 @@ async function makeScriptPart(idea, min, opt) {
 Chỉ trả về JSON: {"story":"tóm tắt cốt truyện 1-2 câu, tiếng Anh","setting":"bối cảnh chung (thời gian, địa điểm, không khí), tiếng Anh","identity":"BỘ NHẬN DIỆN bối cảnh, tiếng Anh: quốc gia / tổ chức / thời đại mà truyện nói về và 3-6 dấu hiệu nhìn là nhận ra ngay, viết bằng tên đồ vật cụ thể, ví dụ China: flag_china, greatwall, tiananmen, redstar, officers in red-star caps. Dấu hiệu quốc gia: cờ nước đó (flag_china, flag_vietnam, flag_usa, flag_russia, flag_japan, hoặc flag_<tên nước> cho nước khác), địa danh, biểu tượng, đồng phục đặc trưng. Truyện không gắn với nơi hay tổ chức cụ thể thì để chuỗi rỗng","characters":"BẢNG NHÂN VẬT CỐ ĐỊNH cho cả truyện, tiếng Anh, mỗi người một mục ngăn bằng dấu chấm phẩy, dạng 'MAIN = tên (who=tên viết liền không dấu bằng chữ Latin nếu là người nổi tiếng thật, ví dụ trump, einstein, jobs, bacho, napoleon, lincoln, xijinping, putin, obama (người nào cũng được, tool tự thiết kế nét đặc trưng); job=nghề hoặc chức vụ nếu biết, chọn một trong doctor/nurse/police/soldier/chef/worker/farmer/teacher/judge/king/firefighter/pilot/businessman/president/artist/student/monk/scientist, hoặc MỘT từ tiếng Anh khác nếu nghề/chức vụ không có trong danh sách, ví dụ general, official, spy, reporter): ngoại hình ổn định: độ tuổi, dáng người, khuôn mặt, kiểu và màu tóc, màu da, trang phục và một dấu hiệu nhận ra ngay'. MỌI người được nhắc TÊN trong truyện (tối đa 8 người, quan trọng nhất xếp trước) đều phải có một mục và MỘT vai riêng (MAIN, SECOND, THIRD, FOURTH, FIFTH, SIXTH, SEVENTH, EIGHTH), giữ vai đó mãi mãi, không ai dùng chung vai; chỉ những người không có tên mới là CROWD. Tên đầy đủ chữ Latin viết ngay sau dấu '=' (ví dụ 'MAIN = Donald Trump (who=trump, job=president): ...'); người nổi tiếng thật BẮT BUỘC có who=. Mỗi nhân vật PHẢI khác tất cả những người còn lại ít nhất một nét nhìn thấy được","scenes":[{"text":"lời kể tiếng Việt của cảnh","image":"mô tả cảnh để vẽ tranh, tiếng Anh, 2 câu. BẮT ĐẦU bằng đúng một nhãn loại cảnh: [OBJECT] nếu lời kể nói về một vật/tiền/giấy tờ/sự việc/con số/ý tưởng (cận cảnh đồ vật, KHÔNG có người), [PERSON] nếu có người đang làm gì đó (nêu rõ họ cầm/đưa/đếm/mang vật gì, ví dụ người đàn ông cầm tiền thì phải ghi cash stack), [PLACE] nếu lời kể tả một nơi chốn/hành trình/thời điểm. Sau nhãn: vẽ đúng khoảnh khắc cụ thể nhìn thấy được, nêu ai làm gì với ai hoặc với vật gì, chọn những vật và dấu hiệu nơi chốn cần để người xem hiểu diễn biến chính, KHÔNG thêm cảnh vật trang trí mà lời kể không nhắc (mặt trời, mây, cây, nhà...). Chỉ ghi vai trò MAIN/SECOND/THIRD/FOURTH/FIFTH/SIXTH/SEVENTH/EIGHTH/CROWD và cảm xúc khi cảnh thật sự có người","mood":"tâm trạng của cảnh để chọn nhạc nền, chỉ chọn MỘT trong: calm, sad, tense, mystery, happy, epic, hopeful"}]}
 Nội dung: ${idea}`;
 
+  const cloud = storyProvider() === 'cloudflare';
+  const prompt = cloud ? `Bạn là biên kịch video truyện vẽ tay. Viết đúng ${n} cảnh, tổng khoảng ${total} từ tiếng Việt. Mỗi cảnh có câu trọn vẹn. Giữ nguyên mốc thời gian và số liệu. Kịch bản có sẵn thì chia cảnh theo văn bản. Ý tưởng ngắn thì phát triển thành câu chuyện. ${rw ? REWRITE : ''} ${opt.note || ''}
+Mỗi image là một câu tiếng Anh dưới 35 từ mô tả một khoảnh khắc nhìn thấy được, bắt đầu bằng [PERSON], [OBJECT] hoặc [PLACE]. Dùng vai MAIN, SECOND, THIRD, FOURTH, FIFTH, SIXTH, SEVENTH, EIGHTH trong mô tả. characters liệt kê các vai tiếng Anh ngăn cách bằng chấm phẩy, ví dụ 'MAIN = Lan (job=student): black hair, red shirt; SECOND = Nam: round glasses, blue jacket'. Nếu là người nổi tiếng, thêm who=tên viết liền không dấu sau tên người. Trả JSON {"story":"","setting":"","identity":"","characters":"","scenes":[{"text":"","image":"","mood":"calm"}]}.
+Nội dung: ${idea}` : p;
   const d = await storyAI({
-    contents: [{ parts: [{ text: p }] }],
+    contents: [{ parts: [{ text: prompt }] }],
     generationConfig: { responseMimeType: 'application/json' }
-  }, 95000);
+  }, 95000, undefined, { task: 'script', backup: opt.backup });
 
   const t = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('').replace(/```json|```/g, '').trim();
   const a = t.indexOf('{'), b = t.lastIndexOf('}');
   const j = JSON.parse(a >= 0 && b > a ? t.slice(a, b + 1) : t);
-  if (!j.scenes || !j.scenes.length) throw new Error('Kịch bản trả về trống');
+  if (!Array.isArray(j.scenes) || !j.scenes.length) {
+    if (cloud) throw new CloudflareTemporaryError('Cloudflare trả kịch bản trống.');
+    throw new Error('Kịch bản trả về trống');
+  }
+  if (cloud && (j.scenes.length !== n || j.scenes.some(scene => typeof scene?.text !== 'string' || !scene.text.trim()))) {
+    throw new CloudflareTemporaryError(`Cloudflare chưa trả đủ ${n} cảnh hợp lệ.`);
+  }
   return j;
 }
 
@@ -742,33 +760,81 @@ function fixSceneBreaks(sc) {
   if (moved) log(`  ✂ Đã chỉnh lại ${moved} chỗ ngắt cảnh để không cụt câu.`);
   return out.filter(s => s.text);
 }
+let cloudScriptDraft = null;
+
+async function retryCloudText(run, label) {
+  try {
+    return await run(false);
+  } catch (e) {
+    if (abortGen || !(e instanceof CloudflareTemporaryError || e instanceof SyntaxError)) throw e;
+    log(`  ↻ ${label} chưa hoàn tất. Đang thử lại bằng model chữ dự phòng của Cloudflare…`);
+    await nap(650);
+    if (abortGen) throw new Error('Đã dừng');
+    return await run(true);
+  }
+}
+
+function cloudScriptPieces(idea, count) {
+  if (idea.split(/\s+/).length < 320) return null;
+  const sentences = splitSentences(idea);
+  if (sentences.length < count) return null;
+  // Mỗi câu chỉ vào một phần, cân theo độ dài và luôn chừa câu cho các phần sau.
+  const pieces = [];
+  let from = 0, remaining = idea.length;
+  for (let i = 0; i < count; i++) {
+    const target = remaining / (count - i);
+    const limit = sentences.length - (count - i - 1);
+    let to = from + 1, size = sentences[from].length + 1;
+    while (to < limit && (i === count - 1 || size + sentences[to].length / 2 < target)) {
+      size += sentences[to++].length + 1;
+    }
+    pieces.push(sentences.slice(from, to).join(' '));
+    remaining -= size;
+    from = to;
+  }
+  return pieces;
+}
+
 // Video dài: viết kịch bản theo từng phần ~24 cảnh để không bị cụt và không quá thời gian
 async function makeScript(idea, min) {
-  const n = imgCount(), total = Math.round(min * 60 * 3.2), PART = 24;
-  const parts = Math.max(1, Math.ceil(n / PART));
-  if (parts === 1) return await makeScriptPart(idea, min, { n, total, note: '' });
-  const slice = idea.split(/\s+/).filter(Boolean).length >= 600;
-  const pieces = slice ? sliceText(idea, parts) : null;
-  let res = null; const scenes = [];
-  for (let i = 0; i < parts; i++) {
+  const cloud = storyProvider() === 'cloudflare';
+  const n = imgCount(), total = Math.round(min * 60 * 3.2), partSize = cloud ? 4 : 24;
+  const parts = Math.max(1, Math.ceil(n / partSize));
+  if (!cloud && parts === 1) return await makeScriptPart(idea, min, { n, total, note: '' });
+  const pieces = cloud ? cloudScriptPieces(idea, parts)
+    : idea.split(/\s+/).filter(Boolean).length >= 600 ? sliceText(idea, parts) : null;
+  const signature = cloud && JSON.stringify([idea, min, n, srcMode, $('rewriteOn')?.checked]);
+  if (cloud && cloudScriptDraft?.signature !== signature) cloudScriptDraft = null;
+  const stored = cloud ? cloudScriptDraft : null;
+  let res = stored?.res || null;
+  const scenes = stored?.scenes.slice() || [];
+  const first = stored?.next || 0;
+  if (first) log(`  ↪ Đã giữ ${scenes.length} cảnh kịch bản trong tab này. Viết tiếp từ phần ${first + 1}/${parts}.`);
+  for (let i = first; i < parts; i++) {
     if (abortGen) throw new Error('Đã dừng');
     const cnt = Math.floor(n / parts) + (i < n % parts ? 1 : 0);
     const prevTail = scenes.slice(-2).map(x => x.text).join(' ').slice(-400);
     const note = `Đây là PHẦN ${i + 1}/${parts} của video dài ${min} phút (chỉ viết ${cnt} cảnh của phần này). ` +
-      (slice ? 'Nội dung bên dưới là đoạn tương ứng của phần này: kể đủ mọi ý, không bỏ sót. ' : `Hãy chia câu chuyện thành ${parts} phần cân đối rồi chỉ viết phần ${i + 1}. `) +
+      (pieces ? 'Nội dung bên dưới là đoạn tương ứng của phần này: kể đủ mọi ý, không bỏ sót. ' : `Hãy chia câu chuyện thành ${parts} phần cân đối rồi chỉ viết phần ${i + 1}. `) +
       (i > 0 ? `Bảng nhân vật CỐ ĐỊNH đã có (giữ nguyên mọi vai, KHÔNG đổi vai của ai; người mới quan trọng phải dùng vai còn trống; trong trường characters hãy trả về bảng ĐẦY ĐỦ gồm cả người cũ): ${res.characters || ''}. Bối cảnh: ${res.setting || ''}. Bộ nhận diện: ${res.identity || ''}. Phần trước kết thúc bằng: ${prevTail}. Viết tiếp liền mạch, không mở bài lại, không lặp lại. ` : '') +
       (i < parts - 1 ? 'Chưa kết thúc truyện ở phần này.' : 'Đây là phần cuối: hãy kết truyện.');
     log(`✍️ Đang viết kịch bản phần ${i + 1}/${parts}...`);
-    let r = null;
-    for (let t = 0; t < 2 && !r; t++) {
-      try { r = await makeScriptPart(slice ? pieces[i] : idea, Math.round(min * cnt / n * 10) / 10, { n: cnt, total: Math.round(total * cnt / n), note }); }
-      catch (e) { if (abortGen || e instanceof CloudflareUnavailable || t) throw e; }
+    const write = backup => makeScriptPart(pieces ? pieces[i] : idea, Math.round(min * cnt / n * 10) / 10,
+      { n: cnt, total: Math.round(total * cnt / n), note, backup });
+    let r;
+    if (cloud) r = await retryCloudText(write, `Phần kịch bản ${i + 1}/${parts}`);
+    else {
+      try { r = await write(false); }
+      catch (e) { if (abortGen) throw e; r = await write(false); }
     }
-    if (!res) res = r; else if (r.characters && r.characters.length >= (res.characters || '').length * 0.8) res.characters = r.characters;
+    if (abortGen) throw new Error('Đã dừng');
+    if (!res) res = { ...r, scenes: [] };
+    else if (r.characters && r.characters.length >= (res.characters || '').length * 0.8) res.characters = r.characters;
     scenes.push(...r.scenes);
+    if (cloud) cloudScriptDraft = { signature, res, scenes, next: i + 1 };
   }
-  res.scenes = scenes;
-  return res;
+  if (cloud) cloudScriptDraft = null;
+  return { ...res, scenes };
 }
 
 let storyCtx = '', settingCtx = '';
@@ -816,7 +882,7 @@ function motion2DUI() {
   document.querySelectorAll('.motion-choice').forEach(select => { select.closest('label').hidden = !interactionOn(); });
 }
 
-async function refineBatch(sc, part, from) {
+async function refineBatch(sc, part, from, backup) {
   const list = part.map((x, i) => `${from + i + 1}. ${x.text}`).join('\n');
   const motionRule = interactionOn() ? `- Với cảnh có hành động diễn ra trực tiếp trong câu kể, có thể thêm motion vào mục JSON của cảnh. Dạng motion: {"action":"drink","actor":"MAIN","target":"SECOND","item":"cup","pose":"sit","cue":"nguyên văn 2 đến 6 từ tiếng Việt từ lời kể ở đúng lúc có động tác"}. action chỉ được là: ${Object.keys(StoryMotion.labels).join(', ')}. give là đưa đồ trực tiếp giữa hai người, actor là người đưa, target là người nhận. pick là nhặt đồ từ mặt đất. openDoor là mở cửa, openBox là mở nắp hộp/rương. launch và separate chỉ dùng cho tên lửa đang phóng hoặc đang tách tầng thật sự. item chỉ được là cup, bottle, key, book, phone, letter, box, bag, spoon, food hoặc để trống. pose dùng sit hoặc stand. Không thêm motion nếu hành động chỉ là ý định, được nhắc trong lời thoại mà không diễn ra, hoặc cần tay chân hay đạo cụ không phù hợp.` : '';
   const p = `Bạn là đạo diễn storyboard cho video minh họa truyện vẽ tay. Mỗi cảnh cần giúp người xem hiểu đúng diễn biến ngay cả khi tắt tiếng.
@@ -838,9 +904,9 @@ ${list}`;
   const d = await storyAI({
     contents: [{ parts: [{ text: p }] }],
     generationConfig: { responseMimeType: 'application/json' }
-  }, 95000);
+  }, 95000, undefined, { task: 'storyboard', backup });
   const { shots } = readGemJson(d);
-  if (!Array.isArray(shots)) throw new Error('Storyboard trả sai định dạng');
+  if (!Array.isArray(shots)) throw new SyntaxError('Storyboard trả sai định dạng');
   const briefs = new Map();
   for (const shot of shots) {
     const id = shot?.id;
@@ -855,13 +921,25 @@ ${list}`;
   });
 }
 async function refineImages(sc) {
-  const B = 14, out = [];
+  const cloud = storyProvider() === 'cloudflare';
+  const B = cloud ? 5 : 14, out = [];
   for (let from = 0; from < sc.scenes.length; from += B) {
     const part = sc.scenes.slice(from, from + B);
     if (sc.scenes.length > B) log(`🎬 Đang soạn bố cục cảnh ${from + 1}-${from + part.length}/${sc.scenes.length}...`);
     let r = null;
-    for (let t = 0; t < 2 && !r; t++) {
-      try { r = await refineBatch(sc, part, from); } catch (e) { if (abortGen || e instanceof CloudflareUnavailable) throw e; }
+    if (cloud) {
+      try { r = await retryCloudText(backup => refineBatch(sc, part, from, backup), 'Lượt soạn bố cục'); }
+      catch (e) {
+        if (abortGen) throw e;
+        if (e instanceof CloudflareUnavailable) {
+          return out.concat(sc.scenes.slice(from).map(() => null));
+        }
+        log(`  ℹ Cảnh ${from + 1}–${from + part.length} dùng mô tả trong kịch bản.`);
+      }
+    } else {
+      for (let t = 0; t < 2 && !r; t++) {
+        try { r = await refineBatch(sc, part, from); } catch (e) { if (abortGen) throw e; }
+      }
     }
     out.push(...(r || part.map(() => null)));
   }
@@ -4440,6 +4518,9 @@ async function start(isRetry = false) {
     }
   } catch (e) {
     log(abortGen ? '⏹ Đã dừng.' : '❌ LỖI: ' + e.message);
+    if (provider === 'cloudflare' && cloudScriptDraft?.next) {
+      log('  ↪ Kịch bản đã viết được giữ trong tab này. Bấm Bắt đầu tạo video với cùng nội dung để viết tiếp.');
+    }
   }
   if (cloudDraftActive && scenes.length) await storeCloudDraft(imageMode);
   $('go').disabled = false;

@@ -1,6 +1,7 @@
 const { timingSafeEqual } = require('node:crypto');
 
 const TEXT_MODEL = '@cf/google/gemma-4-26b-a4b-it';
+const BACKUP_TEXT_MODEL = '@cf/zai-org/glm-4.7-flash';
 const IMAGE_MODEL = '@cf/black-forest-labs/flux-2-klein-4b';
 const DIMENSIONS = {
   '4:5': [768, 960], '21:9': [1120, 480], '9:16': [576, 1024], '16:9': [1024, 576]
@@ -13,7 +14,7 @@ function validImage(part) {
     part.data.length <= 600_000 && /^[A-Za-z0-9+/]+={0,2}$/.test(part.data);
 }
 
-function buildTextRequest(parts, json, probe) {
+function buildTextRequest(parts, { json, probe, limit, backup }) {
   const content = [];
   for (const part of parts) {
     if (typeof part.text === 'string' && part.text.trim()) content.push({ type: 'text', text: part.text });
@@ -26,9 +27,9 @@ function buildTextRequest(parts, json, probe) {
   const body = {
     messages: [{ role: 'user', content: content.every(part => part.type === 'text')
       ? content.map(part => part.text).join('\n\n') : content }],
-    max_completion_tokens: probe ? 32 : 8192,
+    max_completion_tokens: probe ? 32 : limit,
     temperature: probe ? 0 : 0.25,
-    chat_template_kwargs: { thinking: false }
+    chat_template_kwargs: backup ? { enable_thinking: false } : { thinking: false }
   };
   if (json) body.response_format = { type: 'json_object' };
   return { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -65,6 +66,12 @@ async function upstreamError(response, res, personal) {
   const details = errors.map(err => String(err?.message || '')).join(' ');
   if (errors.some(err => Number(err?.code) === 3036) || /neurons?.{0,70}limit|daily.{0,60}(limit|quota)|free allocation|out of neurons|account.{0,30}limit reached/i.test(details)) {
     return sendError(res, 429, 'CF_DAILY_LIMIT', 'Hết hạn mức Cloudflare hôm nay. Hạn mức ngày làm mới lúc 7 giờ sáng theo giờ Việt Nam.');
+  }
+  if ([408, 504].includes(response.status) || errors.some(err => [3007, 3008].includes(Number(err?.code)))) {
+    return sendError(res, 504, 'CF_TIMEOUT', 'Cloudflare xử lý quá thời gian.');
+  }
+  if (errors.some(err => Number(err?.code) === 3040) || /capacity temporarily exceeded/i.test(details)) {
+    return sendError(res, 503, 'CF_BUSY', 'Cloudflare đang quá tải.');
   }
   if (response.status === 429 || /rate.limit|too many requests/i.test(details)) {
     return sendError(res, 429, 'CF_RATE_LIMIT', 'Cloudflare đang giới hạn lượt gọi. Hãy chờ rồi bấm Chạy bù.');
@@ -128,28 +135,37 @@ module.exports = async (req, res) => {
   let request;
   try { request = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; }
   catch { return sendError(res, 400, 'INPUT', 'Dữ liệu gửi lên chưa hợp lệ.'); }
-  const { kind, parts, aspect, json, probe } = request || {};
+  const { kind, parts, aspect, json, probe, task, backup: tryBackup } = request || {};
   if (!['text', 'image'].includes(kind) || !Array.isArray(parts) || parts.length === 0 || parts.length > 16 ||
       parts.some(part => !part || typeof part !== 'object' || (typeof part.text === 'string' && part.text.length > 160000))) {
     return sendError(res, 400, 'INPUT', 'Nội dung hoặc số ảnh mẫu vượt giới hạn.');
   }
-  const config = kind === 'text' ? buildTextRequest(parts, json === true, probe === true) : buildImageRequest(parts, aspect);
+  const scriptTask = kind === 'text' && (task === 'script' || task === 'storyboard');
+  const backup = scriptTask && tryBackup === true && parts.every(part => !part.inlineData);
+  const limit = task === 'script' ? 3000 : task === 'storyboard' ? 2400 : 8192;
+  const config = kind === 'text' ? buildTextRequest(parts, { json: json === true, probe: probe === true, backup, limit })
+    : buildImageRequest(parts, aspect);
   if (!config) return sendError(res, 400, 'INPUT', 'Nội dung, ảnh mẫu hoặc tỉ lệ khung chưa hợp lệ.');
-  const model = kind === 'text' ? TEXT_MODEL : IMAGE_MODEL;
+  const model = kind === 'image' ? IMAGE_MODEL : backup ? BACKUP_TEXT_MODEL : TEXT_MODEL;
+  const waitMs = probe === true && kind === 'text' ? 40_000 : kind === 'image' ? 80_000 : 87_000;
   try {
     const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/ai/run/${model}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, ...config.headers },
       body: config.body,
       redirect: 'error',
-      signal: AbortSignal.timeout(kind === 'text' ? 85_000 : 80_000)
+      signal: AbortSignal.timeout(waitMs)
     });
     if (!response.ok) return await upstreamError(response, res, personal);
     if (kind === 'image') return await sendImage(response, res, personal);
     const body = await response.json();
     if (body.success === false) return await upstreamError(new Response(JSON.stringify(body), { status: 422 }), res, personal);
     const result = body.result || body;
-    const message = result.choices?.[0]?.message?.content;
+    const choice = result.choices?.[0];
+    if (scriptTask && choice?.finish_reason === 'length') {
+      return sendError(res, 502, 'CF_INCOMPLETE', 'Cloudflare trả về một phần nội dung.');
+    }
+    const message = choice?.message?.content;
     const text = typeof message === 'string' ? message : Array.isArray(message) ?
       message.map(part => part?.text || '').join('') : result.response;
     if (typeof text !== 'string' || !text.trim()) return sendError(res, 502, 'CF_EMPTY', 'Cloudflare không trả nội dung văn bản.');
