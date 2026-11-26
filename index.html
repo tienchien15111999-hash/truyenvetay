@@ -32,7 +32,7 @@ canvas.v,video.v{width:auto;max-height:80vh;max-width:100%;margin:0 auto}
 .thumb canvas{width:100%;display:block}
 .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:#555;text-align:center;padding:6px}
 .cap{font-size:12.5px;color:#333;margin:6px 0 0;max-height:4.5em;overflow:hidden}
-.ph[hidden]{display:none}
+.ph[hidden],.chk[hidden]{display:none}
 .card details{margin-top:6px}
 .card summary{font-size:13px}
 summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px 0}#go{font-size:18px;padding:14px 24px}
@@ -43,7 +43,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
 <body>
 <main>
 <h1>Tạo video vẽ tay kể chuyện</h1>
-<p>Nhập truyện hoặc ý tưởng. Tool tự viết kịch bản, vẽ tranh đen trắng, bàn tay cầm bút vẽ từng nét, rồi xuất ra video.</p>
+<p>Nhập truyện hoặc ý tưởng. Tool chia cảnh, tạo tranh theo lời kể và dựng video có phụ đề, giọng đọc.</p>
 
 <details class="box" id="set" open onchange="saveSet()">
   <summary><b>⚙ Cài đặt</b> (nhập một lần, tool tự nhớ trên máy bạn)</summary>
@@ -69,7 +69,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
         <button type="button" class="w sm" onclick="refReset()">↩ Dùng lại ảnh mẫu có sẵn</button>
       </div>
     </div>
-    <p class="hint">Nhân vật và đồ vật/cảnh vật do tool tự vẽ theo bộ mẫu có sẵn nên luôn đồng nhất; ảnh này chỉ gửi kèm AI làm tham khảo cảm giác nét. Ảnh nên có nét rõ, nền trắng. Tranh vẫn được ép về đen trắng.</p>
+    <p class="hint" id="refHint">Ảnh giúp AI tham khảo nét vẽ đồ vật. Chế độ SVG dùng nhân vật dựng sẵn.</p>
   </div>
 
   <div id="spriteBox" style="margin:12px 0">
@@ -98,7 +98,6 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
     <label>Hugging Face Token (Tùy chọn - Để trống vẫn chạy bình thường)</label>
     <input id="hftok" type="password" placeholder="hf_... (Nếu có sẽ hỗ trợ vẽ ảnh bằng FLUX.1-schnell cực nhanh)">
   </div>
-  <p class="hint">Cả hai chế độ đều tự động tách nét mực để bàn tay vẽ từng nét và không bao giờ bị trống cảnh.</p>
 
   <div class="row">
     <div>
@@ -213,16 +212,17 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   <p class="hint" id="nimgHint"></p>
   <label class="chk"><input type="checkbox" id="sub" checked>Hiện phụ đề</label>
   <select id="vmode" hidden><option value="hand">hand</option></select>
-  <div style="margin:10px 0"><label>✒️ Cách vẽ tranh (cả hai kiểu đều có bàn tay cầm bút vẽ từng nét)</label>
+  <div style="margin:10px 0"><label for="isrc">Cách vẽ tranh</label>
   <select id="isrc" onchange="vui()">
-    <option value="svg_ink">✒️ Vẽ tranh nét mực đen trắng bằng AI (Miễn phí 100%, nhanh & ổn định nhất)</option>
-    <option value="svg">🏃 Người que đen trắng nét bút lông (Miễn phí - đã nâng cấp)</option>
+    <option value="svg_ink">Vẽ tay bằng SVG · có bàn tay vẽ từng nét</option>
+    <option value="illustrated">Minh họa truyện vẽ tay · nét mực, màu và biểu cảm</option>
   </select>
+  <p class="hint" id="artHint" hidden>Chế độ minh họa dùng Gemini tạo ảnh, cần key có quyền tạo ảnh và có thể tính phí theo lượt. Bạn có thể tải ảnh mẫu trong Cài đặt. Video hiện tranh hoàn chỉnh và chuyển động camera.</p>
   <label class="chk" style="margin-top:8px"><input type="checkbox" id="motionVid" onchange="mvUI();saveSet()">🎬 Video kể chuyện chuyển động (camera điện ảnh, ánh sáng, khói/bụi/mưa/tuyết, chuyển cảnh mượt)</label>
-  <p class="hint" id="mvHint" hidden>🎬 Đang bật: tranh hiện ngay (không có bàn tay vẽ), camera zoom/lia tự chọn khác nhau mỗi cảnh, thêm ánh sáng ngày/đêm, hiệu ứng khói bụi mưa tuyết lửa theo nội dung cảnh và chuyển cảnh mượt. Không đổi cách vẽ tranh, giọng đọc, nhạc nền, phụ đề. Muốn có hiệu ứng chiều sâu (parallax nền/người) thì bật ô này TRƯỚC khi bấm "Bắt đầu tạo video" hoặc bấm 🔄 Vẽ lại cảnh; tranh vẽ trước đó vẫn có camera, ánh sáng, hạt, chuyển cảnh. Tắt ô này là về lại video vẽ tay như cũ.</p></div>
+  <p class="hint" id="mvHint" hidden></p></div>
   <div style="margin:10px 0"><label>🎨 Chế độ màu</label>
   <label class="chk"><input type="checkbox" id="bgOn" checked>🏞 Vẽ bối cảnh nền (văn phòng, phố, nhà, ruộng, nhà máy... tự chọn theo lời kể)</label>
-    <select id="cmode" onchange="applyPalette();saveSet()"><option value="vivid" selected>🌈 Màu rực rỡ như video hoạt hình (miễn phí: có nền trời, đồi, đất + tô màu cả tranh)</option><option value="bw">Đen trắng</option><option value="accent">Màu nhấn (chỉ chi tiết cần nhấn mạnh)</option><option value="color">Ảnh màu (tô màu cả tranh)</option></select></div>
+    <select id="cmode" onchange="applyPalette();saveSet()"><option value="vivid" selected>Màu nổi bật theo cảnh</option><option value="bw">Đen trắng</option><option value="accent">Màu nhấn (chỉ chi tiết cần nhấn mạnh)</option><option value="color">Ảnh màu (tô màu cả tranh)</option></select></div>
   <button id="go" onclick="start(false)">Bắt đầu tạo video</button>
   <button id="retryBtn" class="warn" onclick="start(true)" hidden>🔄 Chạy bù các tranh lỗi</button>
   <button id="stp" class="w" onclick="stopGen()" hidden>■ Dừng tạo</button>
@@ -400,7 +400,7 @@ function importSet(inp) {
         }
       });
       if (!n) throw new Error('không thấy mục cài đặt nào');
-      if (!['svg_ink', 'svg'].includes($('isrc').value)) $('isrc').value = 'svg_ink'; $('style').value = 'ref';
+      if ($('isrc').value !== 'illustrated') $('isrc').value = 'svg_ink'; $('style').value = 'ref';
       vui(); nimgHint(); if (typeof styleUI === 'function') styleUI(); saveSet();
       alert('Đã nạp cài đặt từ file sao lưu.');
     } catch (e) { alert('File này không đọc được: ' + e.message); }
@@ -420,7 +420,10 @@ function vui() {
   $('hfBox').hidden = !(mode === 'free_img' || mode === 'img' || mode === 'ai3d');
   $('ai3dHint').hidden = mode !== 'ai3d';
   $('aiRefBox').hidden = mode !== 'ai3d';
-  if ($('styleHint')) $('styleHint').hidden = mode === 'ai3d';
+  if ($('styleHint')) $('styleHint').hidden = mode === 'ai3d' || mode === 'illustrated';
+  $('artHint').hidden = mode !== 'illustrated';
+  $('spriteBox').hidden = mode === 'illustrated';
+  $('bgOn').closest('label').hidden = mode === 'illustrated';
   try { refUI(); } catch (e) { /* chưa khởi tạo xong, lát nữa styleUI sẽ gọi */ }
   try { mvUI(); } catch (e) { /* ô motionVid chưa có */ }
 }
@@ -434,7 +437,7 @@ try {
   });
   if (o.keys) $('set').open = false;
 } catch (e) {}
-if (!['svg_ink', 'svg'].includes($('isrc').value)) $('isrc').value = 'svg_ink'; $('style').value = 'ref';
+if ($('isrc').value !== 'illustrated') $('isrc').value = 'svg_ink'; $('style').value = 'ref';
 if (!['bw', 'accent', 'color', 'vivid'].includes($('cmode').value)) $('cmode').value = 'vivid'; // chế độ tự động: luôn dùng cách vẽ có nhân vật dựng sẵn + bong bóng + chia khung
 vui();
 $('set').addEventListener('input', saveSet);
@@ -454,10 +457,10 @@ $('nimg').addEventListener('input', nimgHint);
 $('min').addEventListener('change', nimgHint);
 nimgHint();
 
-async function gem(model, body, timeout = 80000) {
+async function gem(model, body, timeout = 80000, rounds = 2) {
   if (retiredModels.has(model)) throw new Error(`404 Model ${model} đã ngừng hỗ trợ`);
   let err = '';
-  for (let r = 0; r < 2; r++) {
+  for (let r = 0; r < rounds; r++) {
     for (let i = 0; i < keys.length; i++) {
       if (abortGen) throw new Error('Đã dừng');
       const k = keys[(ki + i) % keys.length];
@@ -495,17 +498,17 @@ async function gem(model, body, timeout = 80000) {
         if (/^(400|404)/.test(err)) throw new Error(err);
       }
     }
-    await nap(2500 * (r + 1));
+    if (r + 1 < rounds) await nap(2500 * (r + 1));
   }
   throw new Error(err);
 }
 
-async function gemMulti(models, body, timeout = 80000) {
+async function gemMulti(models, body, timeout = 80000, rounds = 2) {
   let lastErr = '';
   for (const m of models) {
     if (retiredModels.has(m)) continue;
     try {
-      return await gem(m, body, timeout);
+      return await gem(m, body, timeout, rounds);
     } catch (e) {
       if (abortGen) throw e;
       lastErr = e.message;
@@ -518,8 +521,8 @@ async function makeScriptPart(idea, min, opt) {
   const n = opt.n, total = opt.total;
   const rw = $('rewriteOn') && $('rewriteOn').checked && srcMode !== 'text';
   const REWRITE = 'Nội dung bên dưới có thể là bản chép lời từ một video tham khảo. KHÔNG giữ nguyên câu chữ và không dịch sát từng câu: hãy viết lại hoàn toàn thành một câu chuyện mới của riêng người kể, bằng lời văn khác, cách mở đầu và cách dẫn dắt khác, chỉ giữ lại các sự kiện, thông tin và ý chính (tên người, mốc thời gian, số liệu thật). Bỏ lời chào đầu cuối video, quảng cáo và lời kêu gọi đăng ký kênh. Nếu chỉ là ý tưởng ngắn thì viết thành truyện hay có mở đầu, cao trào, kết. Nếu nội dung dài thì phải kể HẾT toàn bộ từ đầu đến cuối, không bỏ phần nào, không tóm tắt quá ngắn.';
-  const p = `Bạn là biên kịch video kể chuyện vẽ tay. Từ nội dung bên dưới, tạo kịch bản video dài ${min} phút: khoảng ${total} từ lời kể, chia đúng ${n} cảnh, mỗi cảnh khoảng ${Math.round(total / n)} từ. QUY TẮC NGẮT CẢNH: lời kể của mỗi cảnh phải gồm các câu TRỌN VẸN, bắt đầu từ đầu một câu và kết thúc bằng dấu chấm, chấm than hoặc chấm hỏi. Tuyệt đối không cắt một câu làm đôi giữa hai cảnh; thà cảnh dài hoặc ngắn hơn khoảng 30% còn hơn bị cụt câu. ${opt.note || ''} ${rw ? REWRITE : 'Nếu nội dung đã là truyện hoàn chỉnh thì giữ nguyên lời văn, chỉ chia cảnh. Nếu chỉ là ý tưởng thì viết thành truyện hay có mở đầu, cao trào, kết.'} Ngày, tháng, năm viết bằng CHỮ SỐ (ví dụ \"ngày 15 tháng 3 năm 2020\", \"năm 1945\"), không viết bằng chữ, để tool vẽ lịch lên tranh; giữ nguyên mọi mốc thời gian có trong nội dung.
-Chỉ trả về JSON: {"story":"tóm tắt cốt truyện 1-2 câu, tiếng Anh","setting":"bối cảnh chung (thời gian, địa điểm, không khí), tiếng Anh","identity":"BỘ NHẬN DIỆN bối cảnh, tiếng Anh: quốc gia / tổ chức / thời đại mà truyện nói về và 3-6 dấu hiệu nhìn là nhận ra ngay, viết bằng tên đồ vật cụ thể, ví dụ China: flag_china, greatwall, tiananmen, redstar, officers in red-star caps. Dấu hiệu quốc gia: cờ nước đó (flag_china, flag_vietnam, flag_usa, flag_russia, flag_japan, hoặc flag_<tên nước> cho nước khác), địa danh, biểu tượng, đồng phục đặc trưng. Truyện không gắn với nơi hay tổ chức cụ thể thì để chuỗi rỗng","characters":"BẢNG NHÂN VẬT CỐ ĐỊNH cho cả truyện, tiếng Anh, mỗi người một mục ngăn bằng dấu chấm phẩy, dạng 'MAIN = tên (who=tên viết liền không dấu bằng chữ Latin nếu là người nổi tiếng thật, ví dụ trump, einstein, jobs, bacho, napoleon, lincoln, xijinping, putin, obama (người nào cũng được, tool tự thiết kế nét đặc trưng); job=nghề hoặc chức vụ nếu biết, chọn một trong doctor/nurse/police/soldier/chef/worker/farmer/teacher/judge/king/firefighter/pilot/businessman/president/artist/student/monk/scientist, hoặc MỘT từ tiếng Anh khác nếu nghề/chức vụ không có trong danh sách, ví dụ general, official, spy, reporter): đặc điểm nhận diện (mũ, râu, kính, tóc)'. MỌI người được nhắc TÊN trong truyện (tối đa 8 người, quan trọng nhất xếp trước) đều phải có một mục và MỘT vai riêng (MAIN, SECOND, THIRD, FOURTH, FIFTH, SIXTH, SEVENTH, EIGHTH), giữ vai đó mãi mãi, không ai dùng chung vai; chỉ những người không có tên mới là CROWD. Tên đầy đủ chữ Latin viết ngay sau dấu '=' (ví dụ 'MAIN = Donald Trump (who=trump, job=president): ...'); người nổi tiếng thật BẮT BUỘC có who=. Mỗi nhân vật PHẢI khác tất cả những người còn lại ít nhất một nét nhìn thấy được","scenes":[{"text":"lời kể tiếng Việt của cảnh","image":"mô tả cảnh để vẽ tranh, tiếng Anh, 2 câu. BẮT ĐẦU bằng đúng một nhãn loại cảnh: [OBJECT] nếu lời kể nói về một vật/tiền/giấy tờ/sự việc/con số/ý tưởng (cận cảnh đồ vật, KHÔNG có người), [PERSON] nếu có người đang làm gì đó (nêu rõ họ cầm/đưa/đếm/mang vật gì, ví dụ người đàn ông cầm tiền thì phải ghi cash stack), [PLACE] nếu lời kể tả một nơi chốn/hành trình/thời điểm. Sau nhãn: vẽ đúng khoảnh khắc cụ thể nhìn thấy được, nêu rõ MỌI vật/địa điểm/hành động được nhắc đến trong lời kể của cảnh này, KHÔNG thêm cảnh vật trang trí mà lời kể không nhắc (mặt trời, mây, cây, nhà...). Chỉ ghi vai trò MAIN/SECOND/THIRD/FOURTH/FIFTH/SIXTH/SEVENTH/EIGHTH/CROWD và cảm xúc khi cảnh thật sự có người","mood":"tâm trạng của cảnh để chọn nhạc nền, chỉ chọn MỘT trong: calm, sad, tense, mystery, happy, epic, hopeful"}]}
+  const p = `Bạn là biên kịch video kể chuyện vẽ tay. Từ nội dung bên dưới, tạo kịch bản video dài ${min} phút: khoảng ${total} từ lời kể, chia đúng ${n} cảnh, mỗi cảnh khoảng ${Math.round(total / n)} từ. QUY TẮC NGẮT CẢNH: lời kể của mỗi cảnh phải gồm các câu TRỌN VẸN, bắt đầu từ đầu một câu và kết thúc bằng dấu chấm, chấm than hoặc chấm hỏi. Tuyệt đối không cắt một câu làm đôi giữa hai cảnh; thà cảnh dài hoặc ngắn hơn khoảng 30% còn hơn bị cụt câu. Ưu tiên một diễn biến nhìn thấy được cho mỗi tranh. Khi chuyển địa điểm, mốc thời gian, người thực hiện hành động, hoặc từ nguyên nhân sang kết quả, ưu tiên ngắt cảnh ở ranh giới câu gần nhất. ${opt.note || ''} ${rw ? REWRITE : 'Nếu nội dung đã là truyện hoàn chỉnh thì giữ nguyên lời văn, chỉ chia cảnh. Nếu chỉ là ý tưởng thì viết thành truyện hay có mở đầu, cao trào, kết.'} Ngày, tháng, năm viết bằng CHỮ SỐ (ví dụ \"ngày 15 tháng 3 năm 2020\", \"năm 1945\"), không viết bằng chữ, để tool vẽ lịch lên tranh; giữ nguyên mọi mốc thời gian có trong nội dung.
+Chỉ trả về JSON: {"story":"tóm tắt cốt truyện 1-2 câu, tiếng Anh","setting":"bối cảnh chung (thời gian, địa điểm, không khí), tiếng Anh","identity":"BỘ NHẬN DIỆN bối cảnh, tiếng Anh: quốc gia / tổ chức / thời đại mà truyện nói về và 3-6 dấu hiệu nhìn là nhận ra ngay, viết bằng tên đồ vật cụ thể, ví dụ China: flag_china, greatwall, tiananmen, redstar, officers in red-star caps. Dấu hiệu quốc gia: cờ nước đó (flag_china, flag_vietnam, flag_usa, flag_russia, flag_japan, hoặc flag_<tên nước> cho nước khác), địa danh, biểu tượng, đồng phục đặc trưng. Truyện không gắn với nơi hay tổ chức cụ thể thì để chuỗi rỗng","characters":"BẢNG NHÂN VẬT CỐ ĐỊNH cho cả truyện, tiếng Anh, mỗi người một mục ngăn bằng dấu chấm phẩy, dạng 'MAIN = tên (who=tên viết liền không dấu bằng chữ Latin nếu là người nổi tiếng thật, ví dụ trump, einstein, jobs, bacho, napoleon, lincoln, xijinping, putin, obama (người nào cũng được, tool tự thiết kế nét đặc trưng); job=nghề hoặc chức vụ nếu biết, chọn một trong doctor/nurse/police/soldier/chef/worker/farmer/teacher/judge/king/firefighter/pilot/businessman/president/artist/student/monk/scientist, hoặc MỘT từ tiếng Anh khác nếu nghề/chức vụ không có trong danh sách, ví dụ general, official, spy, reporter): ngoại hình ổn định: độ tuổi, dáng người, khuôn mặt, kiểu và màu tóc, màu da, trang phục và một dấu hiệu nhận ra ngay'. MỌI người được nhắc TÊN trong truyện (tối đa 8 người, quan trọng nhất xếp trước) đều phải có một mục và MỘT vai riêng (MAIN, SECOND, THIRD, FOURTH, FIFTH, SIXTH, SEVENTH, EIGHTH), giữ vai đó mãi mãi, không ai dùng chung vai; chỉ những người không có tên mới là CROWD. Tên đầy đủ chữ Latin viết ngay sau dấu '=' (ví dụ 'MAIN = Donald Trump (who=trump, job=president): ...'); người nổi tiếng thật BẮT BUỘC có who=. Mỗi nhân vật PHẢI khác tất cả những người còn lại ít nhất một nét nhìn thấy được","scenes":[{"text":"lời kể tiếng Việt của cảnh","image":"mô tả cảnh để vẽ tranh, tiếng Anh, 2 câu. BẮT ĐẦU bằng đúng một nhãn loại cảnh: [OBJECT] nếu lời kể nói về một vật/tiền/giấy tờ/sự việc/con số/ý tưởng (cận cảnh đồ vật, KHÔNG có người), [PERSON] nếu có người đang làm gì đó (nêu rõ họ cầm/đưa/đếm/mang vật gì, ví dụ người đàn ông cầm tiền thì phải ghi cash stack), [PLACE] nếu lời kể tả một nơi chốn/hành trình/thời điểm. Sau nhãn: vẽ đúng khoảnh khắc cụ thể nhìn thấy được, nêu ai làm gì với ai hoặc với vật gì, chọn những vật và dấu hiệu nơi chốn cần để người xem hiểu diễn biến chính, KHÔNG thêm cảnh vật trang trí mà lời kể không nhắc (mặt trời, mây, cây, nhà...). Chỉ ghi vai trò MAIN/SECOND/THIRD/FOURTH/FIFTH/SIXTH/SEVENTH/EIGHTH/CROWD và cảm xúc khi cảnh thật sự có người","mood":"tâm trạng của cảnh để chọn nhạc nền, chỉ chọn MỘT trong: calm, sad, tense, mystery, happy, epic, hopeful"}]}
 Nội dung: ${idea}`;
 
   const d = await gemMulti(TXT_MODELS, {
@@ -613,49 +616,76 @@ async function makeScript(idea, min) {
 let storyCtx = '', settingCtx = '';
 
 function sceneCtx(s) {
-  return `Story: ${storyCtx}\nSetting: ${settingCtx}\nIDENTITY CUES (signs of the story's country/organisation/era; use them only when this scene's narration is about that place, and NEVER draw a national flag unless the narration of the scene names that country): ${identityCtx || 'none'}\nFIXED CAST for the whole video (the same person ALWAYS uses the same role in EVERY scene; never swap roles, never give one role to two different people; anyone not listed is CROWD): ${chars}\nNarration of this scene (Vietnamese, the picture MUST show what it says): ${s.text}\nPrevious scene picture: ${s.prev || 'none (this is the first scene)'}\nScene to draw: ${s.image}`;
+  const i = scenes.indexOf(s);
+  const previous = i > 0 ? scenes[i - 1].image : s.prev;
+  return `Story context (for continuity only): ${storyCtx}
+Overall setting: ${settingCtx}
+Identity cues only when directly relevant to this scene: ${identityCtx || 'none'}
+Fixed cast (use these designs only for characters present in this scene): ${chars}
+Previous shot (continuity only, do not repeat its contents): ${previous || 'none'}
+Current Vietnamese narration (source of truth): ${s.text}
+Scene to draw (current brief, including the user’s visual directions): ${s.image}`;
 }
 
-// Bước đạo diễn: đọc cả truyện rồi viết lại mô tả vẽ cho từng cảnh khớp với lời kể
+function readGemJson(response) {
+  const t = (response.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('');
+  return JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1));
+}
+
+const SHOT_TYPES = ['OBJECT', 'PERSON', 'PLACE'];
+const SHOT_SIZES = ['WIDE', 'MEDIUM', 'CLOSE', 'XCLOSE', 'TOP', 'LOW', 'SIDE', 'OTS'];
+function storyboardBrief(entry) {
+  const type = String(entry?.type || '').toUpperCase();
+  const shot = String(entry?.shot || '').toUpperCase();
+  const action = typeof entry?.action === 'string' ? entry.action.trim() : '';
+  const set = setKey(entry?.set);
+  const must = Array.isArray(entry?.must) ? entry.must.filter(x => typeof x === 'string' && x.trim()).slice(0, 4) : [];
+  if (!SHOT_TYPES.includes(type) || !SHOT_SIZES.includes(shot) || !action || !set || !must.length) return null;
+  return [
+    `[${type}] [${shot}] ${action}`,
+    entry.staging && typeof entry.staging === 'string' ? `Composition: ${entry.staging.trim()}` : '',
+    entry.continuity && typeof entry.continuity === 'string' ? `Continuity: ${entry.continuity.trim()}` : '',
+    `SET: ${set}`,
+    `MUST SHOW: ${must.map(x => x.trim()).join(', ')}`
+  ].filter(Boolean).join('\n');
+}
+
 async function refineBatch(sc, part, from) {
   const list = part.map((x, i) => `${from + i + 1}. ${x.text}`).join('\n');
-  const p = `Bạn là đạo diễn hình ảnh cho video kể chuyện vẽ nét mực đen trắng. Dưới đây là cốt truyện, nhân vật và lời kể từng cảnh. Với MỖI cảnh, viết mô tả để vẽ tranh bằng tiếng Anh (2-3 câu) theo quy tắc:
-0) BẮT ĐẦU mỗi mô tả bằng đúng một nhãn: [OBJECT] CHỈ khi lời kể thật sự tả một vật cụ thể, giấy tờ, con số hay kết quả mà không ai làm gì với nó (cận cảnh vật đó thật to, KHÔNG vẽ người). Ước mơ, mong muốn, suy nghĩ, lời nói, kế hoạch, ý tưởng KHÔNG được dùng [OBJECT]; [PERSON] khi một người đang làm hoặc cảm thấy điều gì; [PLACE] khi lời kể tả nơi chốn, hành trình hay thời điểm. Đừng cho người vào cảnh chỉ để cho đầy khung; nếu cả truyện toàn cảnh có người thì hãy xen cảnh [OBJECT] vào những chỗ lời kể nhấn vào một vật.
-1) Chọn khoảnh khắc cụ thể nhất NHÌN THẤY ĐƯỢC trong lời kể, không vẽ ý trừu tượng (ý trừu tượng thì đổi thành BIỂU TƯỢNG, không minh họa theo nghĩa đen của chữ: nợ nần = giấy tờ + tiền, thành công = cúp, bí mật = chìa khóa; với tin tức/số liệu/kinh tế dùng chart_down hoặc chart_up (biểu đồ đi xuống/đi lên), arrow_down/arrow_up (mũi tên giảm/tăng), percent (phần trăm, giảm giá), warning (cảnh báo, rủi ro), wallet (ví, tiền tiết kiệm/chi tiêu), newspaper (bản tin), bulb (ý tưởng)).
-2) Liệt kê rõ MỌI vật, địa điểm, hành động được nhắc trong lời kể bằng tiếng Anh đơn giản. Vật mà nhân vật cầm/đưa/nhận/đếm/mang thì phải có mặt trong tranh (ví dụ người đàn ông cầm tiền thì phải thấy cục tiền "cash stack" trong tay và/hoặc to ngay bên cạnh). Có thể dùng tên vật quen thuộc: cash, banknote, coin, bag (túi tiền), chest, key, letter, paper, gift, flower, apple, bread, cake, pot, bowl, clock, phone, computer, book, car, bus, bicycle, boat, plane, house, hospital, school, bridge, well, tree, palm, bamboo, pine, buffalo, dog, cat, horse, elephant, pig, chicken, rabbit, bird, sparrow, fish, motorbike, plane...
-2b) CON VẬT VÀ PHƯƠNG TIỆN: khi lời kể có con vật hay xe cộ thì ghi đúng TÊN LOÀI/LOẠI bằng một danh từ tiếng Anh cụ thể (horse, elephant, buffalo, tiger, duck... chứ không ghi chung chung là "animal" hay "vehicle"), số lượng, đang làm gì (running, grazing, flying, parked...), nhìn về phía nào, đứng gần hay xa. Con vật phải là chủ thể rõ ràng của tranh khi lời kể nói về nó (to, đủ cả thân, không bị che hay cắt mất đầu/chân/đuôi); nhiều con cùng loài thì ghi 2-3 con ở khoảng cách khác nhau.
-3) BỐI CẢNH (BẮT BUỘC, mọi cảnh): tranh không bao giờ để người/vật đứng trên nền trắng trống. Cuối mỗi mô tả ghi đúng một cụm \"SET: <loại>\" cho NƠI mà cảnh diễn ra, chọn trong: office (văn phòng, công ty, họp), home (trong nhà, gia đình), kitchen, classroom (trường học), shop (cửa hàng), market (chợ), hospital, bank (ngân hàng, tiền bạc, vay nợ, chứng khoán), court (tòa án, chính phủ), factory (nhà máy, công nhân), street (thành phố, phố, đám đông ngoài đường), village (làng quê), farm (ruộng, nông dân), forest, mountain, beach (biển, tàu thuyền, bến cảng), desert, war (chiến tranh, bom, lính), snow, park, palace (cung điện, đền chùa, thời cổ đại), studio (CHỈ cho cảnh [OBJECT] cận cảnh một vật/con số/giấy tờ), plain (không rõ nơi nào). Chọn đúng nơi lời kể diễn ra; lời kể không nói rõ thì suy ra từ cốt truyện và giữ nơi của cảnh trước nếu chưa đổi địa điểm; không chọn nơi không liên quan tới truyện. Tool tự vẽ tường, sàn, cửa sổ, nhà cửa, cây cối, bầu trời của nơi đó, nên mô tả chỉ cần nêu người và vật chính (không tả lại nền). Ban đêm thì ghi thêm chữ night trong mô tả.
-4) Với cảnh [PERSON]/[PLACE] có người: dùng đúng vai trò MAIN/SECOND/THIRD/FOURTH/FIFTH/SIXTH/SEVENTH/EIGHTH/CROWD và ngoại hình nhân vật trong danh sách, giống nhau ở mọi cảnh; nêu nét mặt cảm xúc và tư thế. Mọi người trong cùng một cảnh phải khác nhau ít nhất một nét (nón, râu, kính, tóc, họa tiết áo hoặc tư thế); cảnh có đám đông thì ghi rõ từng người CROWD một nét riêng, không cho cả đám giống hệt nhau. Cảnh [OBJECT] thì không nhắc tới nhân vật.
-5) Bối cảnh liền mạch với cảnh trước; nếu đổi địa điểm thì nói rõ.
-6) Hiệu ứng có màu: khi lời kể có máu/vết thương thì ghi blood; lửa/cháy/nổ thì ghi flames, explosion, smoke; ánh sáng/đèn bật/tia sáng thì ghi beam, spark, bulb; sét thì ghi lightning; tiền thì ghi cash; nước mắt/nước thì ghi drop, waves. Nhà bị cháy thì viết rõ "burned house with flames and smoke". Các từ này giúp tranh được tô màu nhấn đúng chỗ.
-7) GÓC MÁY: ngay sau nhãn loại, thêm đúng một nhãn góc máy: [WIDE] toàn cảnh (nhân vật nhỏ, nơi chốn lớn), [MEDIUM] trung cảnh, [CLOSE] cận cảnh (một mặt/bàn tay/vật chiếm hơn nửa khung, dùng cho cảm xúc), [XCLOSE] siêu cận (một chi tiết lấp đầy khung, dùng cho vật quan trọng), [TOP] nhìn từ trên xuống, [LOW] góc thấp (chủ thể cao, to), [SIDE] nhìn nghiêng, [OTS] qua vai (lưng người gần to ở một bên, đối tượng kia ở xa). Đọc cả truyện rồi chọn: không dùng cùng một góc quá 2 cảnh liền, không cảnh nào cũng để chủ thể giữa khung. Sau đó ghi vị trí (left/center/right; foreground/midground/background), ánh sáng/cảm xúc và 1-2 chi tiết BẮT BUỘC phải thấy.
-8) Ý TRỪU TƯỢNG (ước mơ, mong muốn, suy nghĩ, lời nói, kế hoạch, so sánh, cảm xúc): dùng [PERSON], vẽ MAIN đang nghĩ hoặc nói, ghi rõ \"thought bubble containing <vật ước mơ>\" hoặc \"speech bubble containing <vật>\". Không vẽ riêng vật ước mơ như thể nó có thật.
-9) TƯƠNG PHẢN (người thường vs nhân vật chính, trước vs sau, hai quan điểm): ghi \"split frame: left side ..., right side ...\" để chia đôi khung, mỗi bên một kiểu người/vật khác nhau.
-10) Nhân vật chính (nhất là khi truyện về một người thật nổi tiếng, hãy ghi rõ tên người đó) phải có mặt ở ít nhất 2/3 số cảnh và luôn cùng ngoại hình. Mỗi cảnh phải tự kể được ý chính mà người xem không cần đọc lời kể; không bao giờ để khung gần như trống.
-11) VẼ ĐỦ: trước khi viết mỗi mô tả, tự liệt kê MỌI người (cha, mẹ, con, sếp, đối thủ, đám đông...) và MỌI vật/địa điểm (tòa tháp, sân golf, sòng bạc, khách sạn, thành phố...) mà lời kể nhắc đến. Mỗi người được nhắc (ngoài nhân vật chính) phải được vẽ thành một người riêng (vai SECOND/THIRD...); mỗi vật/địa điểm phải có mặt trong tranh. Kết thúc mô tả bằng đúng một cụm: \"MUST SHOW: a, b, c\" liệt kê những thứ đó (tiếng Anh). Ví dụ lời kể \"Cha của ông là nhà kinh doanh bất động sản\" thì MUST SHOW: older man in suit (father), building, house. Lời kể về nhiều thứ (khách sạn, sòng bạc, sân golf) thì phải thấy từng thứ, mỗi thứ một hình rõ ràng.
-12) Khi cảnh có người trong bảng nhân vật, ghi rõ vai và tên trong mô tả, ví dụ 'MAIN (Trump, president)', 'SECOND (his father, businessman)'; nếu nghề/chức vụ của người đó rõ từ lời kể thì ghi nghề đó (doctor, police, soldier, chef, worker, judge, king...) để tranh mặc đúng đồng phục. Người đó luôn dùng đúng vai đó ở mọi cảnh; không bao giờ gán vai khác cho họ hay cho người khác dùng vai đó.\n12b) NHẬN DIỆN BỐI CẢNH: CỜ NƯỚC chỉ được đưa vào mô tả khi LỜI KỂ CỦA CHÍNH CẢNH NÀY nhắc tên nước đó (hoặc người/quân đội/chính phủ nước đó); khi đó đặt đúng một lá cờ (tên như flag_china) trên cột cạnh cảnh và ghi vào cụm MUST SHOW. Lời kể không nhắc tên nước thì TUYỆT ĐỐI không có cờ nào (kể cả cờ chung) và không cần dấu hiệu quốc gia. Các dấu hiệu khác (địa danh, biểu tượng, đồng phục đặc trưng) chỉ dùng khi hợp với cảnh, tối đa một cái, không đặt làm trang trí cho mọi cảnh. Không bao giờ dùng cờ của nước khác.${$('isrc').value === 'ai3d' ? '\n13) KIỂU ẢNH AI 3D HOẠT HÌNH: mô tả như một cảnh phim hoạt hình 3D bằng tiếng Anh: nhân vật, hành động, biểu cảm, bối cảnh, góc máy, ánh sáng. KHÔNG dùng thẻ [OBJECT]/[PERSON]/[PLACE], KHÔNG nhắc bong bóng, nền trắng hay nét vẽ. Mỗi lần nhắc nhân vật phải kèm lại ngoại hình cố định (tóc, màu da, quần áo, kính, tuổi) giống hệt mọi cảnh.' : ''}
-\nChỉ trả về JSON: {"images":["mô tả cảnh 1","mô tả cảnh 2"]} với đúng ${part.length} phần tử theo thứ tự (chỉ cho các cảnh trong danh sách).
+  const p = `Bạn là đạo diễn storyboard cho video minh họa truyện vẽ tay. Mỗi cảnh cần giúp người xem hiểu đúng diễn biến ngay cả khi tắt tiếng.
+- Với mỗi lời kể, chọn một khoảnh khắc có ý nghĩa kể chuyện nhất. Viết rõ ai đang làm gì, với ai hoặc với vật nào, và chi tiết nhìn thấy nào giúp người xem hiểu kết quả hoặc cảm xúc. Ví dụ “Qua nhiều ngày thất bại, Lan tìm được hạt giống cuối cùng” → cận tay Lan nhặt đúng một hạt còn lại từ túi trống, nét mặt nhẹ nhõm. Đừng vẽ cả chuỗi sự kiện hoặc chen các vật chỉ được nhắc thoáng qua.
+- action (tiếng Anh): một hành động hoặc trạng thái cụ thể. Dùng đúng vai MAIN, SECOND, THIRD, FOURTH, FIFTH, SIXTH, SEVENTH, EIGHTH cho người có trong bảng. Người phụ vô danh là CROWD. Nêu đúng người làm, người nhận, biểu cảm, hướng nhìn và tương tác tay khi có. Không ép nhân vật chính xuất hiện. Động vật/xe: đúng loài/loại và hành động. Giấc mơ, hồi tưởng, suy nghĩ và dự định phải được phân biệt rõ với hiện tại bằng khung nhỏ, bong bóng hoặc ánh sáng khác khi cần. Không thêm sự kiện, người, số liệu, đồ vật hay cờ không có căn cứ. Cờ chỉ xuất hiện khi liên quan trực tiếp đến lời kể của cảnh.
+- type: PERSON khi nhân vật làm gì/cảm thấy gì, OBJECT khi một vật hoặc kết quả tự nó là chủ thể, PLACE khi nơi chốn/hành trình là ý chính. Với đoạn trừu tượng, dùng một chi tiết hoặc biểu đồ liên quan trực tiếp. Dùng tương phản trước-sau/chia khung chỉ khi lời kể thực sự so sánh.
+- shot: WIDE, MEDIUM, CLOSE, XCLOSE, TOP, LOW, SIDE, OTS. Mở không gian bằng WIDE khi địa điểm quan trọng, dùng MEDIUM cho tương tác, CLOSE cho nét mặt hoặc đồ vật quyết định. Chọn theo diễn biến của truyện.
+- staging (tiếng Anh): nêu vị trí chủ thể, điểm nhìn và ánh sáng/thời điểm khi liên quan. Dùng một điểm nhấn rõ, chừa khoảng trống quanh nó, đặt chi tiết phụ phía sau. Nếu lời kể nhắc ngày tháng, chừa góc trên trái cho nhãn do phần mềm chèn.
+- set: chọn một từ trong ${SET_KEYS.join(', ')}. continuity (tiếng Anh): chi tiết cần giữ từ cảnh trước, như vị trí, quần áo hoặc đạo cụ đang cầm, hoặc mô tả rõ chỗ đổi thời gian/địa điểm. Để trống nếu không có gì phải giữ. Không bê hành động cảnh trước vào cảnh hiện tại.
+- must: 1-4 chi tiết thiết yếu trực tiếp chứng minh diễn biến (hành động/đồ vật/bằng chứng nhìn thấy, tiếng Anh). Giữ đúng số lượng khi nó quan trọng. Mọi thông tin còn lại vẫn nằm trong lời kể.
+Trả duy nhất JSON {"shots":[{"id":${from + 1},"type":"PERSON","shot":"MEDIUM","action":"...","staging":"...","set":"home","continuity":"","must":["..."]}]} gồm ${part.length} mục, ID là số đứng trước lời kể, không đổi thứ tự.
 Cốt truyện: ${sc.story || ''}
 Bối cảnh: ${sc.setting || ''}
-BỘ NHẬN DIỆN (dấu hiệu để người xem nhận ra nước/tổ chức/thời đại): ${sc.identity || ''}
-Bảng nhân vật CỐ ĐỊNH (mỗi người luôn đúng MỘT vai ở MỌI cảnh, không đổi vai; người ngoài bảng là CROWD): ${sc.characters || ''}
-${from ? 'Cảnh ngay trước nhóm này (để liền mạch, KHÔNG viết lại): ' + sc.scenes[from - 1].text + '\n' : ''}Các cảnh cần viết mô tả (giữ đúng thứ tự):
+Dấu hiệu văn hóa/thời đại: ${sc.identity || ''}
+Bảng nhân vật: ${sc.characters || ''}
+${from ? 'Lời kể ngay trước nhóm này: ' + sc.scenes[from - 1].text + '\n' : ''}Danh sách cảnh:
 ${list}`;
   const d = await gemMulti(TXT_MODELS, {
     contents: [{ parts: [{ text: p }] }],
     generationConfig: { responseMimeType: 'application/json' }
   }, 95000);
-  const t = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('').replace(/```json|```/g, '').trim();
-  const a = t.indexOf('{'), b = t.lastIndexOf('}');
-  const j = JSON.parse(a >= 0 && b > a ? t.slice(a, b + 1) : t);
-  if (!Array.isArray(j.images) || j.images.length !== part.length) throw new Error('Số mô tả không khớp số cảnh');
-  return j.images;
+  const { shots } = readGemJson(d);
+  if (!Array.isArray(shots)) throw new Error('Storyboard trả sai định dạng');
+  const briefs = new Map();
+  for (const shot of shots) {
+    const id = shot?.id;
+    if (!Number.isInteger(id) || id <= from || id > from + part.length) continue;
+    briefs.set(id, briefs.has(id) ? null : storyboardBrief(shot));
+  }
+  return part.map((_, i) => briefs.get(from + i + 1) || null);
 }
 async function refineImages(sc) {
-  const B = 30, out = [];
+  const B = 14, out = [];
   for (let from = 0; from < sc.scenes.length; from += B) {
     const part = sc.scenes.slice(from, from + B);
-    if (sc.scenes.length > B) log(`🎬 Đang ghép hình ảnh cho cảnh ${from + 1}-${from + part.length}/${sc.scenes.length}...`);
+    if (sc.scenes.length > B) log(`🎬 Đang soạn bố cục cảnh ${from + 1}-${from + part.length}/${sc.scenes.length}...`);
     let r = null;
     for (let t = 0; t < 2 && !r; t++) {
       try { r = await refineBatch(sc, part, from); } catch (e) { if (abortGen) throw e; }
@@ -804,7 +834,8 @@ function figureSvg(a, sw) {
   _cw = +w; _dS = (Math.abs(Math.round(x * 7 + y * 13)) % 2000) + 31;
   // Tay chân dạng ống dày (đa giác bao quanh đường cong), có giày và bàn tay; điểm gắn vai/hông giữ nguyên để hoạt ảnh không lệch
   const VV = cmodeV() === 'vivid';
-  const _SK = (VV && who && who.learned && LIB.jobs[who.key] && /^#[0-9a-f]{6}$/i.test(LIB.jobs[who.key].skin || '')) ? LIB.jobs[who.key].skin : '#ffffff'; // màu da theo ảnh thật
+  const learnedSkin = who?.learned && LIB.jobs[who.key]?.skin;
+  const _SK = VV ? (/^#[0-9a-f]{6}$/i.test(learnedSkin || '') ? learnedSkin : '#f8dfca') : '#ffffff';
   const _sh = (shirtFill(role).match(/#[0-9a-fA-F]{6}/) || ['#ffffff'])[0];
   const PANTS = VV ? ({ MAIN: '#2b3a67', SECOND: '#3d3d4a', THIRD: '#7a4b2a', FOURTH: '#5b3a8a', FIFTH: '#2f5d4a', SIXTH: '#6b3b3b', SEVENTH: '#3a4f7a', EIGHTH: '#5a5a2f' }[role] || '#4a5568') : '#ffffff', SLV = VV ? _sh : '#ffffff', SHOE = VV ? '#5b3a29' : '#ffffff';
   const qp = (x0, y0, cx, cy, x1, y1, n = 9) => { const r = []; for (let i = 0; i <= n; i++) { const t = i / n, u = 1 - t; r.push([u * u * x0 + 2 * u * t * cx + t * t * x1, u * u * y0 + 2 * u * t * cy + t * t * y1]); } return r; };
@@ -832,7 +863,15 @@ function figureSvg(a, sw) {
   // đầu to hình oval
   g += '<!--@head-->';
   if (!VV) g += '<ellipse cx="-66" cy="-266" rx="9" ry="13" fill="#ffffff"/><ellipse cx="66" cy="-266" rx="9" ry="13" fill="#ffffff"/>';
-  g += VV ? `<ellipse cx="0" cy="-268" rx="62" ry="60" fill="${_SK}"/>` : `<ellipse cx="0" cy="-268" rx="66" ry="58" fill="#ffffff"/>`;
+  g += VV ? `<path d="M-62 -271C-63 -308 -42 -331 0 -330C35 -330 63 -307 63 -271C64 -235 38 -207 1 -208C-35 -208 -60 -232 -62 -271Z" fill="${_SK}"/>` : `<ellipse cx="0" cy="-268" rx="66" ry="58" fill="#ffffff"/>`;
+  if (VV) {
+    const shadow = learnedSkin ? '#9c6757' : '#e4a991';
+    const line = (w * 0.42).toFixed(1);
+    g += `<path d="M2 -271 Q11 -262 7 -258 L1 -257" stroke-width="${line}"/>`;
+    if (!['angry', 'scared', 'cry'].includes(face)) {
+      g += `<path d="M-45 -254 q6 -3 12 0 M35 -254 q6 -3 12 0" stroke="${shadow}" stroke-width="${line}"/>`;
+    }
+  }
   // phụ kiện sau đầu
   if (acc === 'long') g += `<path d="M-60 -290 Q-82 -250 -66 -214"/><path d="M60 -290 Q82 -250 66 -214"/>`;
   if (acc === 'beard') {
@@ -842,7 +881,10 @@ function figureSvg(a, sw) {
     } else g += `<path d="M-52 -250 Q-50 -204 0 -200 Q50 -204 52 -250 Q30 -232 0 -234 Q-30 -232 -52 -250 Z" fill="#ffffff"/>`;
   }
   // mặt
-  const eye = (cx, r) => `<circle cx="${cx}" cy="-272" r="${r}" fill="#111111" stroke="none"/>`;
+  const look = (a.look === 'left' ? -1 : a.look === 'right' ? 1 : 0) * flip;
+  const eye = (cx, r) => VV
+    ? `<ellipse cx="${cx + 2.5 * look}" cy="-272" rx="${r + 0.5}" ry="${r + 2}" fill="#111111" stroke="none"/><circle cx="${cx + 2.5 * look + 1.5}" cy="-274" r="1.8" fill="#ffffff" stroke="none"/>`
+    : `<circle cx="${cx}" cy="-272" r="${r}" fill="#111111" stroke="none"/>`;
   const er = (face === 'surprised' || face === 'scared') ? 6.5 : 5;
   const sweat = '<path d="M62 -302 Q72 -286 62 -278 Q52 -286 62 -302 Z" fill="#ffffff"/>';
   if (face === 'happy' || face === 'proud') g += `<path d="M-30 -270 Q-21 -284 -12 -270"/><path d="M12 -270 Q21 -284 30 -270"/>`;
@@ -862,7 +904,7 @@ function figureSvg(a, sw) {
   else if (face === 'open' || face === 'surprised') g += `<ellipse cx="0" cy="-244" rx="8" ry="11" fill="#ffffff"/>`;
   else if (face === 'sad' || face === 'cry') g += `<path d="M-15 -240 Q0 -254 15 -240"/>`;
   else if (face === 'angry') g += `<path d="M-15 -242 Q0 -250 15 -242"/>`;
-  else g += `<path d="M-14 -244 L14 -244"/>`;
+  else if (!['worried', 'scared', 'doubt', 'determined', 'tired', 'proud'].includes(face)) g += `<path d="M-14 -244 L14 -244"/>`;
   if (face === 'cry') g += `<path d="M-26 -258 Q-30 -246 -26 -240" stroke-width="${w * 0.7}"/><path d="M26 -258 Q30 -246 26 -240" stroke-width="${w * 0.7}"/>`;
   let holdStr = '';
   // đồ vật đang cầm trong tay: <person hold="cash"/> (tên đồ vật lấy từ PROPS), holdsize chỉnh to nhỏ
@@ -1010,7 +1052,7 @@ const PAL = {
   cool: { red: '#6b7fb0', orange: '#8aa4c8', yellow: '#c9d6e6', green: '#4f8a8b', blue: '#2f5d9e' },
   comic: { red: '#ff2d3d', orange: '#ff8c00', yellow: '#ffe600', green: '#00c853', blue: '#1e6bff' },
   color: { red: '#f04452', orange: '#ff9a1f', yellow: '#ffd91a', green: '#2fb457', blue: '#3a8dff' },
-  vivid: { red: '#e8473f', orange: '#ff9f1c', yellow: '#ffd23f', green: '#43b84b', blue: '#2f8cff' }
+  vivid: { red: '#df5346', orange: '#ee922e', yellow: '#f7c45c', green: '#48a767', blue: '#2074a7' }
 };
 const accentEnabled = () => (!$('accentOn') || $('accentOn').checked) && ($('cmode') ? $('cmode').value !== 'bw' : true);
 const cmodeV = () => $('cmode') ? $('cmode').value : 'accent';
@@ -1966,19 +2008,19 @@ COLOR ACCENTS (__ACCENTRULE__): the drawing is black line art, and color is used
 
 STEP 1 - CHOOSE THE SCENE TYPE FROM THE NARRATION (the "Scene to draw" may start with [OBJECT], [PERSON] or [PLACE]: follow it; if there is no label, decide yourself). Draw ONLY what the narration needs:
   A) OBJECT scene: the narration is about a thing, money, a document, an event, a result or an idea, and nobody needs to be seen. Show the key object(s) BIG and centered, with NO people at all. Small items (cash, banknote, coin, key, letter, paper, gift, ring, diamond, phone, book, apple, flower, clock, cup) use size 2.2 to 3.6 (put 1 to 4 of them, e.g. 3 cash stacks side by side or a pile of coins); large items (house, car, bus, boat, tree, hospital, school, bridge) use size 1.2 to 2. 1 to 5 tags in total, usually 1 to 3.
-  B) PERSON scene: someone does or feels something. 1 to 3 people. If a person holds, carries, receives, gives, counts or shows an object, that object MUST be visible: put it in their hand with the hold attribute (see below) and, when the object is the point of the sentence, also place a bigger copy of the prop next to them. The picture must still read correctly if the narration were hidden.
+  B) PERSON scene: someone does or feels something. 1 to 3 people. If a person holds, carries, receives, gives, counts or shows an object, that object MUST be visible: put it in their hand with the hold attribute (see below) and, keep the object large enough to recognize in the hand. Show it once unless the scene brief explicitly calls for an inset or more than one item. The picture must still read correctly if the narration were hidden.
   C) PLACE scene: the narration describes a place, a journey or a time of day. Draw that place with 2 to 6 props that the narration names or clearly implies. People only if the narration mentions them.
 - MISSING OBJECTS: if an object the narration names is NOT in the PROPS lists, STILL use a <prop> tag and give it a NEW short English noun as the type (lowercase, 1 to 2 words joined with _, for example type="handcuffs", type="stamp", type="microscope"). The tool designs and draws that new object automatically and remembers it, so never replace it with a different object from the list and always use the same noun for the same thing (be specific: "tiger", "duck", "helicopter", "microscope" instead of "animal", "bird", "aircraft", "device"). Only things that are not a single object (a landscape, a whole crowd scene) are drawn by you, with at most 6 simple shapes.
 - ANIMALS, VEHICLES AND PLANTS (the picture must make them recognisable at a glance): ALWAYS use a <prop> tag for them, NEVER draw an animal or vehicle yourself with your own shapes. Pick the prop whose name is the exact species or kind in the narration (horse, elephant, buffalo or cow, dog, cat, pig, chicken for hen/rooster, rabbit, sparrow for a bird standing, bird for a bird flying, fish, car, motorbike, bicycle, bus, train, plane, boat, house, tree, palm, bamboo, pine...). If the exact species is not in the lists (tiger, lion, monkey, duck, goat, deer, bear, snake, frog, turtle, butterfly, crab, helicopter, truck, tractor...) write it as a NEW English noun in type="...": the tool then designs a complete, correct drawing of that exact thing. Never replace a missing species with a different animal (a tiger is not a cat, a duck is not a bird).
   Placement and size: animals and vehicles stand on the ground with their feet or wheels at y 700 to 860; birds and planes float in the sky area (y 120 to 380) because they are floating props; fish swim in water (put <prop type="waves"/> in front of them or place the fish lower). Show the WHOLE animal: its head, legs and tail must be inside the frame and not hidden behind people or other props. Size guide next to a person of size 1.3: dog, cat, pig, chicken, rabbit 1.0 to 1.4; horse, buffalo, elephant, car, bus 0.9 to 1.3 (a big animal or vehicle is the hero of its scene: use 1.2 to 1.8 when no person is shown); sparrow, bird, fish 1.2 to 2.2. facing="right" is the default; use facing="left" so that the animal or vehicle looks TOWARD the person or the main subject, or in the direction it moves. A herd, flock or traffic jam = 2 to 4 props of the same type at different x, slightly different sizes (the lower and bigger one is nearer), overlapping a little. A person who rides, leads, feeds or pets an animal stands right next to it, overlapping its side. Trees: a forest or orchard = 3 to 5 trees of different sizes and types.
 - DREAMS / WISHES / THOUGHTS / PLANS / WORDS SPOKEN: never draw the thing alone as if it were real. Draw the person (MAIN, pose think or shout, matching face) and put <prop type="thought" .../> (dream, wish, idea, plan) or <prop type="speech" .../> (something said aloud) beside and above the head, then place the prop that shows the dream or the words (cash, house, tower, bulb, chart_up...) INSIDE the bubble with a smaller size, drawn AFTER the bubble. The bubble prop x,y is its centre.
 - CONTRAST (ordinary people vs the hero, before vs after, two opposite opinions): split the frame into two halves with a clear gap: one side a CROWD person with a small hut/house, the other side MAIN with a big building/tower.
-- MUST SHOW: if the description contains a 'MUST SHOW:' list, EVERY item in it must appear in the picture (people as separate <person> tags with a different role and look, objects as props or your own simple drawing). Do not drop any item to keep the picture simple; shrink and arrange them instead.
+- MUST SHOW: if the description contains a 'MUST SHOW:' list, EVERY item in it must appear in the picture (people as separate <person> tags with a different role and look, objects as props or your own simple drawing). Make the principal action largest and arrange the other required details around it. Keep the main prop and interaction easy to see.
 - IDENTITY: the line 'IDENTITY CUES' lists signs of the country, organisation or era of the story. FLAGS: draw a national flag (flag_china, flag_vietnam, flag_usa, flag_russia, flag_japan; for any other country flag_<country in English>) ONLY when the narration of THIS scene names that country (or its people / army / government) and then show that country's flag ONCE, medium size, on its pole beside the scene. If the narration of this scene does not name a country, draw NO flag and no national flag in any form (also no generic flag prop). Never use another country's flag. Other cues (landmark such as greatwall, tiananmen, eiffel, whitehouse, khue; redstar; an emblem; a typical uniform such as plaofficer) are optional: use at most one, only when it fits this scene, never as decoration in every picture.
 - The picture is never an empty white page: it always has a BACKDROP of the right place, and if the narration is about a person, show that person; the picture alone must tell the story.
 - NEWS / NUMBERS / ECONOMY / ABSTRACT IDEAS: use SYMBOLS instead of a literal drawing of the words. Prices, stocks, sales or the economy falling = <prop type="chart_down"/> (rising = chart_up); a drop or rise = arrow_down / arrow_up; a discount or rate = percent; danger, risk or a warning = warning; savings, spending or personal money = wallet + cash; a headline, report or announcement = newspaper; an idea = bulb; a secret = key; success = trophy; debt = paper + cash. Show 1 to 3 symbols BIG (size 2 to 3.5), then at most one or two people reacting (worried, surprised). Never try to draw the abstract word itself with random shapes.
 - Do NOT put a person in the scene just to fill space. The place itself is painted by the tool (BACKDROP), so do NOT add sun, clouds, hills, trees, houses, fences or grass as decoration and do NOT use <ground>; only add a prop when the narration names it or it is the subject of the scene.
-- Every important object, place and action named in "Scene to draw" and in the narration MUST be visible and recognizable. Never skip an object, and never swap it for an unrelated prop.
+- Show the single story beat chosen in the scene brief. Preserve who acts on whom or on what; the MUST SHOW list defines the evidence for it. Leave out passing mentions, and put background details in a supporting role.
 
 BACKDROP (the PLACE where this scene happens; this is what stops the picture from being people on empty white): the FIRST tag of your SVG must be <backdrop type="office"/> with exactly ONE type from: office, home, kitchen, classroom, shop, market, hospital, bank, court, factory, street, village, farm, forest, mountain, beach, desert, war, snow, park, palace, studio, plain. If the 'Scene to draw' contains 'SET: xxx', copy xxx exactly. Otherwise choose the place where the narration happens: a company, boss, meeting, work desk = office; a family or private moment = home; cooking or a restaurant = kitchen; school or lecture = classroom; buying or selling in a store = shop, in an open market = market; doctor or sickness = hospital; money, loans, savings or stocks = bank; a trial or government = court; workers, machines or production = factory; a city, traffic or a crowd outdoors = street; countryside houses = village; rice, crops or a farmer = farm; trees or wild nature = forest; mountains = mountain; sea, ship or harbour = beach; soldiers, fighting or bombing = war; snow or winter = snow; a park or garden = park; kings, emperors, temples or ancient times = palace; a close-up of one object, number or document = studio; nothing clear = the same place as the previous scene, else plain. The tool then draws the walls, floor, windows, skyline, trees, hills and sky of that place in light line art (and the night sky if the narration says night), so you only draw the FOREGROUND: the people and the objects the narration needs, standing in the lower part of the picture with their feet at y 640 to 860, leaving the upper part to the backdrop. Props that belong to the place AND matter to the story (a desk and computer in an office, a bed in a hospital, a car or bus in a street, a house in a village) are placed as <prop> tags in the middle ground. Keep the foreground readable: at most 3 important things overlapping, never a wall of props.
 
@@ -1987,9 +2029,10 @@ PEOPLE: NEVER draw people yourself. For EVERY person write exactly one self-clos
   x,y = the point where the FEET touch the ground (x between 150 and __XMAX__, y between 640 and 860). size 1 = about 330px tall (MAIN usually 1.3 to 1.5, SECOND 1.1 to 1.4, CROWD 0.7 to 0.9 placed behind or beside the others).
   role: MAIN, SECOND, THIRD, FOURTH, FIFTH, SIXTH, SEVENTH, EIGHTH or CROWD (use the roles from the Characters list; each role has its own fixed look so the audience recognizes the same character in every scene).
   pose (pick the one that shows the action): stand, wave, cheer, point, walk, run, sit, sad, carry, think, shout, hips.
-  face: smile, happy, open, flat, sad, cry, angry, surprised.
+  face: smile, happy, open, flat, sad, cry, angry, surprised, worried, scared, doubt, determined, tired, proud. Optional look="left|right" sets the direction of the eyes toward the person or object they are reacting to.
   acc: none, tuft, hat, cap, glasses, beard, crown, long (long hair). mark (shirt pattern): none, stripe, dots, vest, tie. Copy each character's acc and mark from the Characters list and keep them IDENTICAL in every scene (if the list gives none, OMIT acc and mark and the tool uses the role's default look: MAIN = tuft, SECOND = hat + stripes, THIRD = glasses + dots, FOURTH = long hair + vest, FIFTH = cap + tie, SIXTH = beard + dots, SEVENTH = hat + vest, EIGHTH = tuft + stripes, CROWD = plain).
   job (optional but IMPORTANT when the narration shows someone's occupation or position): doctor, nurse, police, soldier, chef, worker (builder/engineer), farmer, teacher, judge (lawyer in court), king (queen/emperor), firefighter, pilot, businessman (CEO/boss/banker), president (politician/minister), artist, student, monk, scientist, OR any other job or rank as ONE lowercase English word (general, official, spy, reporter, referee, admiral...): the tool designs a new outfit automatically the first time and reuses it. The tool dresses the person in the matching uniform and hat, so do NOT add acc/mark/hat for that person. Copy each character's job from the Characters list and keep it IDENTICAL in every scene; a CROWD person may also carry a job (e.g. a crowd of workers).
+  For a handover, show the giver extending the object toward the recipient and both looking at the exchange. Use one held object and put the people close enough to visibly interact.
   hold (optional): a prop type name from the lists below, drawn IN THE PERSON'S HAND (e.g. hold="cash", hold="book", hold="gift", hold="phone", hold="key", hold="bag"). Use pose="carry" (both hands in front) for things held with two hands, or pose="point"/"wave" for one hand. holdsize (optional, 0.6 to 2) makes the held item smaller or bigger.
   CAMERA: the description may carry a shot tag after the scene tag: WIDE (small figures, big place), MEDIUM, CLOSE (one face/hand/object fills over half the frame), XCLOSE (one detail fills the frame), TOP (seen from above), LOW (subject large and tall, low viewpoint), SIDE (profile), OTS (big back of a person at one edge, the other subject beyond). Follow it. Do NOT centre every subject: use thirds. DEPTH (only when the narration needs it): draw in 3 layers in this order: background first (small, high on the page, size 0.4-0.8), middle (main action), foreground last (large size 1.5+, partly cut by a frame edge). Nearer = bigger and lower; let near objects overlap far ones. Never add objects just to fill space.
   FAMOUS PLACES AND PEOPLE (viewers must recognise them at a glance): if the narration names a famous place, city or country, make its landmark prop the main picture, drawn at size 0.9-1.4 so the WHOLE landmark stays inside the frame (never cropped) with its base on the ground line (y about 740-800). Put people small, beside it or in the foreground below it, and NEVER draw people, props or crowds on top of the landmark. Keep the rest of the scene sparse: Paris = eiffel, New York / USA = liberty, London = bigben, Egypt = pyramid, Rome / Italy = colosseum, Pisa = pisa, Japan = fuji, Washington / US government = whitehouse, Hanoi = khue or motcot, China = greatwall. If the narration names one of these real people, add who="trump" / "einstein" / "jobs" / "bacho" / "napoleon" / "lincoln" to that <person> (hair, hat, tie are set automatically). For ANY OTHER real famous person (politician, leader, celebrity, athlete, scientist) write who="<their name in lowercase Latin letters joined together, e.g. xijinping, putin, obama, messi>": the tool designs that person's recognisable hair, glasses and clothes automatically the first time and reuses it in every scene. Always keep the same who= for the same person. The tool adds a name label under landmarks and these people, so never write <text> yourself. For ANYTHING ELSE that must be named, add <label text="Name" x=".." y=".."/> (x,y = the thing's feet/base, max 3 words).
@@ -2014,10 +2057,10 @@ STORY EFFECTS (use them when the narration has them):
   light / a lamp turned on / a ray of light / hope / a bright idea -> <prop type="beam" .../> under a lamp or window (draw it BEFORE the objects it lights), <prop type="spark" .../> for sparkles, <prop type="bulb" .../> for an idea.
   money -> <prop type="cash" .../> (a bundle), <prop type="banknote" .../>, <prop type="coin" .../>, <prop type="bag" .../>.
 EXAMPLES (only the logic, adapt to the real scene):
-  "He counted a thick bundle of money" -> <person role="MAIN" x="520" y="800" size="1.4" pose="carry" face="happy" hold="cash"/> and <prop type="cash" x="1000" y="780" size="2.6"/> (a big cash stack beside him).
+  "He counted a thick bundle of money" -> <person role="MAIN" x="520" y="800" size="1.4" pose="carry" face="happy" hold="cash"/> (make the stack clear in his hands).
   "The debt was ten million" -> OBJECT scene: <prop type="paper" x="480" y="780" size="2.8"/> <prop type="cash" x="1000" y="780" size="2.6"/> and no person.
   "The old house burned to the ground" -> PLACE/OBJECT scene: <prop type="ruins" x="640" y="800" size="1.6"/> <prop type="flames" x="640" y="800" size="1.6"/> <prop type="smoke" x="640" y="330" size="1.4"/> and no person.
-  "Night fell over the village" -> PLACE scene: <ground y="800" kind="grass"/> <prop type="hut" .../> <prop type="moon" .../> <prop type="star" .../> and no person unless named.
+  "Night fell over the village" -> PLACE scene: <backdrop type="village"/>, night lighting, no person unless named.
 Output ONLY the <svg>...</svg> code.`;
 
 const loadImg = s => new Promise((ok, no) => {
@@ -2038,10 +2081,13 @@ try {
 const refB64 = () => refData.split(',')[1];
 const refMime = () => (refData.match(/^data:([^;]+);/) || [])[1] || 'image/jpeg';
 function refUI() {
-  const on = $('style').value === 'ref' && $('isrc').value !== 'ai3d';
+  const illustrated = $('isrc').value === 'illustrated';
+  const on = illustrated || ($('style').value === 'ref' && $('isrc').value !== 'ai3d');
   $('refBox').hidden = !on;
+  $('refPrev').hidden = illustrated && !refCustom;
   $('refPrev').src = refData;
-  $('refStat').textContent = refCustom ? '✅ Đang dùng ảnh bạn đã tải lên.' : 'Đang dùng ảnh mẫu có sẵn (người doodle đầu tròn). Chọn file ở trên để đổi sang ảnh của bạn.';
+  $('refHint').textContent = illustrated ? 'Có thể tải ảnh nhân vật hoặc tranh có nét vẽ bạn muốn. Ảnh mẫu giúp giữ thiết kế giữa các cảnh.' : 'Ảnh giúp AI tham khảo nét vẽ đồ vật. Chế độ SVG dùng nhân vật dựng sẵn.';
+  $('refStat').textContent = refCustom ? 'Đang dùng ảnh bạn đã tải lên.' : illustrated ? 'Đang dùng phong cách truyện tranh nét mực.' : 'Đang dùng mẫu doodle có sẵn.';
 }
 function refUpload(inp) {
   const f = inp.files && inp.files[0]; if (!f) return;
@@ -2918,7 +2964,7 @@ async function svgImage(s, blackInkOnly = false) {
     rule += '\nSTYLE: the attached reference image shows the look the user wants: simple, clean, round, friendly line art. Draw the props and buildings in that same simple, smooth, round line style (the tool paints the environment behind them) (the reference is black and white; keep the accent colors only where the story needs them) (same line feel, very simple shapes). People are NOT drawn by you: use only <person .../> tags (the tool draws consistent stick-figure people matching the reference). Do not copy the reference layout, and do not add decoration the narration does not mention (the reference is only for the line feel).' + (desc ? `\nStyle notes for props and background: ${desc}` : '');
     parts.push({ inlineData: { mimeType: refMime(), data: refB64() } });
   }
-  if (cm === 'vivid') rule += '\nCOLOR MODE (VIVID FULL COLOR, like a colorful animated explainer video): the TOOL paints the place (walls, floor, street, sky, hills, trees, skyline) behind your drawing in soft pastel colors, so do NOT draw sky, big ground areas, hills or any background; pick the right <backdrop type=.../>. Every <prop> and <person> is colored automatically. For anything you draw yourself (<path>/<rect>/<circle>) fill it with a bright saturated flat color (any hex such as #ff7a59, #ffd166, #4fb3e8, #7bd389, #b9a4f5, #f08a5d) and keep thick black outlines. Never leave a drawn shape white except faces, eyes, clouds and paper, and never fill big areas black. Make the scene rich and alive: use many props that the narration mentions, small crowds of people, and details related to the story, all placed on the ground line near y=700-860.';
+  if (cm === 'vivid') rule += '\nCOLOR MODE (VIVID FULL COLOR, like a colorful animated explainer video): the TOOL paints the place (walls, floor, street, sky, hills, trees, skyline) behind your drawing in soft pastel colors, so do NOT draw sky, big ground areas, hills or any background; pick the right <backdrop type=.../>. Every <prop> and <person> is colored automatically. For anything you draw yourself (<path>/<rect>/<circle>) fill it with a bright saturated flat color (any hex such as #ff7a59, #ffd166, #4fb3e8, #7bd389, #b9a4f5, #f08a5d) and keep thick black outlines. Never leave a drawn shape white except faces, eyes, clouds and paper, and never fill big areas black. Use quieter background colors and keep the strongest color on the main action or key prop. Leave a clear gap around that action. Use additional people only if the brief requires them, and group details on shared ground lines.';
   else if (cm === 'color') rule += '\nCOLOR MODE (FULL COLOR): this picture must be a COLORFUL illustration. Keep the thick black outlines, but fill the important things with the 5 palette colors (exact hex values only: red ' + COL.red + ', orange ' + COL.orange + ', yellow ' + COL.yellow + ', green ' + COL.green + ', blue ' + COL.blue + '): clothes, the main objects, buildings, ground, grass, sky shapes, the sun, money. Use white for faces, hands and highlights. Color about 8 to 25 shapes, spread over the whole picture, but never fill one single shape larger than a fifth of the frame and never make a dark or black background.';
   else if (cm !== 'accent' && cm !== 'bw') rule += '\nCOLOR MODE (' + cm + '): the palette is already set. Use the accent hex values on up to about 5 shapes (clothes, key objects, one emotional element) but keep thick black outlines.';
   const dl = parseDates(s.text);
@@ -3251,8 +3297,144 @@ async function aiColorImage(s, sceneNo) {
   } finally { done(); }
 }
 
-async function makeImage(s, sceneNo) {
-  const mode = $('isrc').value;
+// ===== MINH HỌA TRUYỆN VẼ TAY =====
+const ART_PALETTE = {
+  vivid: 'A coherent palette of 3 or 4 hues. One bold accent on the most important object or gesture, strong light-dark separation, and quieter secondary colors. Use warm amber or coral against petrol blue or indigo where the scene supports it. Match the mood and time of day.',
+  color: 'Use harmonious gouache colors in a limited palette, warm midtones against gently cool shadows. Give the main action the strongest contrast.',
+  accent: 'Ink and warm paper, with one deliberate accent color for the story clue. Build depth through ink values and hatching.',
+  bw: 'Work in black ink on off-white paper with a clear value hierarchy, cross-hatching, and washes of gray ink.'
+};
+const ART_STYLE = 'Original illustrated storybook panel. Expressive hand-inked contours with varied line weight, believable hands and gestures, distinct faces, subtle brush-painted gouache and lightly visible paper grain. Ground objects and characters in a coherent perspective. Use broad, simple background shapes to lead the eye to the moment. One uninterrupted illustration unless the brief calls for a memory or comparison.';
+
+function artRoles(s) {
+  return (String(s.image || '').match(/\b(?:MAIN|SECOND|THIRD|FOURTH|FIFTH|SIXTH|SEVENTH|EIGHTH)\b/g) || []).filter((role, i, roles) => roles.indexOf(role) === i);
+}
+function artPhoto(im) {
+  const k = Math.min(1, 768 / Math.max(im.width, im.height));
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(im.width * k));
+  c.height = Math.max(1, Math.round(im.height * k));
+  c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+  return { inlineData: { mimeType: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.85).split(',')[1] } };
+}
+
+class IllustrationUnavailable extends Error {}
+
+async function renderStoryArt(parts, aspectRatio) {
+  let error, availabilityOnly = true;
+  for (const model of GEM_IMG_MODELS) {
+    if (retiredModels.has(model)) continue;
+    try {
+      const response = await gem(model, {
+        contents: [{ parts }],
+        generationConfig: { responseModalities: ['TEXT', 'IMAGE'], imageConfig: { aspectRatio } }
+      }, 90000, 1);
+      const candidate = response.candidates?.[0];
+      const asset = candidate?.content?.parts?.map(part => part.inlineData).find(part => /^image\/(png|jpe?g|webp)$/i.test(part?.mimeType) && part.data);
+      if (!asset) throw new Error('Gemini không trả ảnh (' + (candidate?.finishReason || response.promptFeedback?.blockReason || 'trống') + ')');
+      return await loadImg(`data:${asset.mimeType};base64,${asset.data}`);
+    } catch (e) {
+      if (abortGen) throw e;
+      error = e;
+      availabilityOnly &&= /^(401|403|404|429)\b|^400.*API[_ ]KEY/i.test(e.message);
+    }
+  }
+  if (availabilityOnly) throw new IllustrationUnavailable(error ? error.message : 'Chưa có model Gemini hỗ trợ tạo ảnh');
+  throw error;
+}
+
+async function reviewStoryArt(s, photo, previous) {
+  const parts = previous ? [
+    { text: 'The first image shows the recurring character design. Evaluate only the second image as the current scene.' },
+    previous, photo
+  ] : [photo];
+  parts.push({ text: `Compare the current illustration to the current narration and brief below.
+Flag only a material visual error: a wrong actor or recipient, the key action or story clue missing or unreadable, an invented plot event, or an obvious character-design mismatch against the reference. Do not require passing mentions or offscreen actions. A stylized composition, implied action and a visible camera crop are valid when the main beat clearly reads. When uncertain return "pass".
+Return only JSON {"status":"pass","fix":"","note":""} or {"status":"revise","fix":"single concrete correction in English","note":"vấn đề nhìn thấy được, một câu tiếng Việt"}.
+${sceneCtx(s)}` });
+  try {
+    const response = await gemMulti(TXT_MODELS, { contents: [{ parts }], generationConfig: { responseMimeType: 'application/json' } }, 30000, 1);
+    const result = readGemJson(response);
+    if (result.status === 'pass') return result;
+    if (result.status === 'revise' && typeof result.fix === 'string' && result.fix.trim()) {
+      return { status: 'revise', fix: result.fix.trim().slice(0, 300), note: typeof result.note === 'string' ? result.note.trim().slice(0, 240) : '' };
+    }
+  } catch (e) { if (abortGen) throw e; }
+  return { status: 'unavailable' };
+}
+
+async function illustratedImage(s, sceneNo) {
+  const mode = cmodeV(), aspect = sub ? (fm.v ? '4:5' : '21:9') : fm.ar;
+  const roles = artRoles(s);
+  const previous = scenes.slice(0, sceneNo - 1).reverse().find(q => q.artRef && q.artColor === mode && q.artRoles.some(role => roles.includes(role)));
+  const parts = [];
+  if (refCustom) parts.push({
+    text: 'User reference for brushwork and character design. Match the likeness only for characters the story identifies as corresponding to the reference.',
+  }, { inlineData: { mimeType: refMime(), data: refB64() } });
+  if (previous) parts.push({
+    text: `Earlier shot reference for recurring role(s) ${previous.artRoles.filter(role => roles.includes(role)).join(', ')}. Preserve their face, hair, proportions and outfit unless the plot specifies a change. Use the present brief for their action, location and framing.`,
+  }, previous.artRef);
+  const dates = parseDates(s.text);
+  const prompt = `Draw one ${aspect} illustrated story frame.
+${ART_STYLE}
+Color direction: ${ART_PALETTE[mode] || ART_PALETTE.vivid}
+Use the shot size and exact interaction from the current brief. Show the storytelling clue at readable scale. Make faces, eyes, hands, held objects and the direction of movement unambiguous. For a close-up, frame the essential detail with room around it. In every shot keep key details about 7% in from the outer edges for camera motion. Use only the characters and objects needed by this scene. Keep recurring details consistent and render the right place, era and time of day.
+${dates.length ? 'Keep the upper-left area visually quiet for a date label added in production.' : ''}
+Artwork only. Keep the image free of captions, speech text, signatures, borders and watermarks.
+${sceneCtx(s)}`;
+  let image = await renderStoryArt([...parts, { text: prompt }], aspect);
+  let photo = artPhoto(image);
+  let review = await reviewStoryArt(s, photo, previous?.artRef);
+  if (review.status === 'revise') {
+    log(`  🎨 Cảnh ${sceneNo}: đang chỉnh lại chi tiết kể chuyện.`);
+    try {
+      const revised = await renderStoryArt([...parts, { text: 'First draft to correct:' }, photo, {
+        text: `${prompt}\nCorrect this specific error while preserving the drawing style: ${review.fix}`
+      }], aspect);
+      const revisedPhoto = artPhoto(revised);
+      const check = await reviewStoryArt(s, revisedPhoto, previous?.artRef);
+      if (check.status === 'pass') {
+        image = revised;
+        photo = revisedPhoto;
+        review = check;
+      }
+    } catch (e) { if (abortGen) throw e; }
+  }
+  const cv = document.createElement('canvas');
+  cv.width = W;
+  cv.height = H;
+  const x = cv.getContext('2d'), h = Math.min(H, fm.ah + 10);
+  const fit = Math.min(W / image.width, h / image.height);
+  const w = image.width * fit, ih = image.height * fit;
+  x.fillStyle = '#fff';
+  x.fillRect(0, 0, W, H);
+  x.save();
+  x.beginPath();
+  x.rect(0, 0, W, h);
+  x.clip();
+  x.imageSmoothingQuality = 'high';
+  if (w < W - 1 || ih < h - 1) {
+    const cover = Math.max(W / image.width, h / image.height) * 1.12;
+    const bw = image.width * cover, bh = image.height * cover;
+    x.filter = 'blur(26px)';
+    x.drawImage(image, (W - bw) / 2, (h - bh) / 2, bw, bh);
+    x.filter = 'none';
+  }
+  x.drawImage(image, (W - w) / 2, (h - ih) / 2, w, ih);
+  if (dates.length) {
+    const label = dateLabelSvg(dates).replace(' filter="url(#wob)"', '');
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${h}" viewBox="0 0 ${fm.vw} 900">${label}</svg>`;
+    x.drawImage(await loadImg('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)), 0, 0);
+  }
+  x.restore();
+  const artNote = review.status === 'revise' ? (review.note || 'Có chi tiết kể chuyện cần xem lại.') :
+    review.status === 'unavailable' ? 'Chưa đối chiếu tự động được với lời kể.' : '';
+  return { cv, ord: [], art: true, artNote, artRef: review.status === 'pass' && roles.length ? photo : null,
+    artColor: mode, artRoles: roles, bgL: null, fgL: null, bgKind: inferSetting(s), anim: false, bg: null, people: null };
+}
+
+async function makeImage(s, sceneNo, mode = $('isrc').value) {
+  if (mode === 'illustrated') return await illustratedImage(s, sceneNo);
   if (mode === 'ai3d') {
     try { return await aiColorImage(s, sceneNo); }
     catch (e) {
@@ -3262,7 +3444,7 @@ async function makeImage(s, sceneNo) {
     }
   }
   if (mode === 'svg' || mode === 'svg_ink') {
-    return await svgImage(s, mode === 'svg_ink');
+    return Object.assign(await svgImage(s, mode === 'svg_ink'), { art: false, artNote: '', artRef: null });
   }
 
   const fullPrompt = `Pure white background, black ink only, no color, no gray fill, no text, ${curStyle().img}, ${fm.v ? 'tall 9:16 portrait' : 'wide 16:9 landscape'} composition.\n${sceneCtx(s)}`;
@@ -3557,7 +3739,7 @@ async function testGemini() {
   const out = $('gtestResult');
   const ks = $('keys').value.split(/\s+/).filter(k => k.length > 20);
   if (!ks.length) { out.style.color = '#dc2626'; out.textContent = 'Chưa nhập API key Gemini.'; return; }
-  const mode = $('isrc').value, needImg = mode === 'img' || mode === 'free_img', needVoice = $('vsrc').value !== 'none';
+  const mode = $('isrc').value, needImg = mode === 'illustrated' || mode === 'img' || mode === 'free_img', needVoice = $('vsrc').value !== 'none';
   out.style.color = '#1d4ed8';
   out.textContent = 'Đang kiểm tra ' + ks.length + ' key...';
   const lines = [];
@@ -3583,7 +3765,7 @@ async function testGemini() {
         contents: [{ parts: [{ text: 'a black ink line drawing of a cat on white background' }] }],
         generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }
       }));
-      l += im.fail ? ` | ảnh AI ❌ ${im.fail.status} (chưa bật thanh toán, sẽ tự chuyển sang vẽ nét mực)` : ` | ảnh AI OK (${im.model})`;
+      l += im.fail ? ` | ảnh AI ❌ ${im.fail.status} (kiểm tra quyền tạo ảnh và hạn mức)` : im.limited ? ' | ảnh AI: hết hạn mức (429)' : ` | ảnh AI OK (${im.model})`;
     }
     lines.push(l);
     out.textContent = lines.join('\n');
@@ -3854,6 +4036,8 @@ async function tiktokToText() {
 }
 
 async function start(isRetry = false) {
+  if ($('go').disabled || scenes.some(s => s.busy) || playing) return;
+  const imageMode = $('isrc').value;
   saveSet();
   keys = $('keys').value.split(/\s+/).filter(k => k.length > 20);
   if (!keys.length) {
@@ -3890,11 +4074,15 @@ async function start(isRetry = false) {
       storyCtx = sc.story || '';
       settingCtx = sc.setting || '';
       identityCtx = sc.identity || '';
-      try { await learnCastPeople(); } catch (e) { if (abortGen) throw e; log('  ⚠ Chưa học được nhân vật nổi tiếng: ' + e.message); }
+      if (imageMode !== 'illustrated') {
+        try { await learnCastPeople(); } catch (e) { if (abortGen) throw e; log('  ⚠ Chưa học được nhân vật nổi tiếng: ' + e.message); }
+      }
       try {
         $('log').textContent = '🎬 Đang ghép hình ảnh cho khớp với lời kể...';
         const imgs = await refineImages(sc);
-        sc.scenes.forEach((x, i) => { if (imgs[i] && String(imgs[i]).trim()) x.image = String(imgs[i]).trim(); });
+        sc.scenes.forEach((x, i) => { if (imgs[i]) x.image = imgs[i]; });
+        const drafts = imgs.filter(x => !x).length;
+        if (drafts) log(`  ℹ ${drafts} cảnh dùng mô tả từ kịch bản vì chưa nhận được bố cục.`);
       } catch (e) {
         if (abortGen) throw e;
         log('  ⚠ Chưa ghép được hình theo lời kể, dùng mô tả có sẵn: ' + e.message);
@@ -3923,12 +4111,12 @@ async function start(isRetry = false) {
       log('\n🔄 Đang chạy bù các cảnh còn thiếu...');
     }
 
-    let idx = 0;
+    let idx = 0, imageUnavailable = false;
     let done = scenes.filter(s => s.cv).length;
     $('bar').style.width = (done / scenes.length * 100) + '%';
 
     const worker = async () => {
-      while (idx < scenes.length && !abortGen) {
+      while (idx < scenes.length && !abortGen && !imageUnavailable) {
         const i = idx++;
         const s = scenes[i], no = i + 1;
         const needImg = !s.cv;
@@ -3936,15 +4124,17 @@ async function start(isRetry = false) {
 
         const imgTask = (async () => {
           if (!needImg) return;
-          for (let t = 0; t < 3 && !s.cv && !abortGen; t++) {
+          const attempts = imageMode === 'illustrated' ? 1 : 3;
+          for (let t = 0; t < attempts && !s.cv && !abortGen; t++) {
             try {
-              Object.assign(s, await makeImage(s, no));
+              Object.assign(s, await makeImage(s, no, imageMode));
               updateCard(i);
               log(`  🎨 Đã vẽ xong tranh cảnh ${no}/${scenes.length}`);
             } catch (e) {
               if (abortGen) break;
-              log(`  ⚠ Cảnh ${no} (thử ${t + 1}/3) lỗi vẽ: ${e.message.slice(0, 110)}`);
-              await nap(2500 * (t + 1));
+              log(`  ⚠ Cảnh ${no} (thử ${t + 1}/${attempts}) lỗi vẽ: ${e.message.slice(0, 110)}`);
+              if (e instanceof IllustrationUnavailable) imageUnavailable = true;
+              if (t + 1 < attempts) await nap(2500 * (t + 1));
             }
           }
           if (!s.cv && !abortGen) { s.failed = true; updateCard(i); }
@@ -3961,8 +4151,13 @@ async function start(isRetry = false) {
       }
     };
 
-    await Promise.all([worker(), worker()]);
+    if (imageMode === 'illustrated') await worker();
+    else await Promise.all([worker(), worker()]);
 
+    if (imageUnavailable) {
+      log('  ⚠ Gemini tạo ảnh chưa khả dụng. Kiểm tra quyền tạo ảnh hoặc hạn mức, rồi bấm Chạy bù. Có thể chọn SVG để vẽ các cảnh còn thiếu.');
+      scenes.forEach((s, i) => { if (!s.cv) { s.failed = true; updateCard(i); } });
+    }
     const badImg = scenes.filter(s => !s.cv).length;
     if (badImg > 0) $('retryBtn').hidden = false;
     if (abortGen) {
@@ -3988,12 +4183,13 @@ function renderGallery() {
     const d = document.createElement('div');
     d.className = 'card';
     d.id = 'card' + i;
-    d.innerHTML = '<div class="thumb"><canvas></canvas><span class="ph">⏳ Chờ vẽ...</span></div><div class="cap"></div>' +
+    d.innerHTML = '<div class="thumb"><canvas></canvas><span class="ph">⏳ Chờ vẽ...</span></div><div class="cap"></div><p class="hint art-note" hidden></p>' +
       `<button type="button" class="w sm" onclick="redraw(${i})">🔄 Vẽ lại</button>` +
       `<details><summary>Sửa mô tả tranh</summary><textarea id="ed${i}" style="min-height:70px;font-size:13px"></textarea></details>`;
     g.appendChild(d);
     d.querySelector('.cap').textContent = `${i + 1}. ${s.text}`;
     $('ed' + i).value = s.image || '';
+    $('ed' + i).setAttribute('aria-label', `Mô tả tranh cảnh ${i + 1}`);
     const c = d.querySelector('canvas');
     c.width = 240; c.height = Math.round(240 * H / W);
     updateCard(i);
@@ -4002,7 +4198,9 @@ function renderGallery() {
 function updateCard(i) {
   const s = scenes[i], d = $('card' + i);
   if (!s || !d) return;
-  const c = d.querySelector('canvas'), ph = d.querySelector('.ph');
+  const c = d.querySelector('canvas'), ph = d.querySelector('.ph'), note = d.querySelector('.art-note');
+  note.textContent = s.artNote || '';
+  note.hidden = !s.artNote;
   if (s.busy) { ph.hidden = false; ph.textContent = '⏳ Đang vẽ lại...'; return; }
   if (!s.cv) { ph.hidden = false; ph.textContent = s.failed ? '⚠ Lỗi, bấm Vẽ lại' : '⏳ Chờ vẽ...'; return; }
   ph.hidden = true;
@@ -4014,26 +4212,33 @@ function updateCard(i) {
 }
 async function redraw(i) {
   const s = scenes[i];
-  if (!s || s.busy) return;
+  if (!s || s.busy || $('go').disabled || playing) return;
+  const imageMode = $('isrc').value;
   keys = $('keys').value.split(/\s+/).filter(k => k.length > 20);
   if (!keys.length) { $('set').open = true; return alert('Dán API key Gemini vào phần Cài đặt nhé.'); }
   abortGen = false;
   const ed = $('ed' + i);
+  const previousImage = s.image;
   if (ed && ed.value.trim()) s.image = ed.value.trim();
   s.busy = true; s.failed = false; updateCard(i);
   let ok = false;
-  for (let t = 0; t < 2 && !ok; t++) {
+  const attempts = imageMode === 'illustrated' ? 1 : 2;
+  for (let t = 0; t < attempts && !ok; t++) {
     try {
-      Object.assign(s, await makeImage(s, i + 1));
+      Object.assign(s, await makeImage(s, i + 1, imageMode));
       ok = true;
       log(`🔄 Đã vẽ lại tranh cảnh ${i + 1}`);
     } catch (e) {
       log(`  ⚠ Cảnh ${i + 1} lỗi khi vẽ lại: ${(e.message || '').slice(0, 110)}`);
-      await sleep(1500);
+      if (t + 1 < attempts) await sleep(1500);
     }
   }
   s.busy = false;
-  if (!ok && !s.cv) s.failed = true;
+  if (!ok) {
+    s.image = previousImage;
+    if (s.cv) s.artNote = 'Vẽ lại chưa thành công. Đang hiển thị tranh trước.';
+    else s.failed = true;
+  }
   updateCard(i);
 }
 function remakeVoices() {
@@ -4583,7 +4788,13 @@ function drawTrans(kind, x, sn, q, W, AH) {
 // nên xem thử, xuất nhanh (WebCodecs) và xuất thời gian thật (MediaRecorder) cho ra cùng một hình.
 // Khi tắt motionVid, makeRenderer không gọi tới bất kỳ hàm nào ở đây.
 function motionOn() { return !!($('motionVid') && $('motionVid').checked); }
-function mvUI() { const h = $('mvHint'); if (h) h.hidden = !($('motionVid') && $('motionVid').checked); }
+function mvUI() {
+  const h = $('mvHint');
+  h.hidden = !motionOn();
+  h.textContent = $('isrc').value === 'illustrated'
+    ? 'Camera chuyển động nhẹ và nối cảnh. Màu, ánh sáng và không khí theo tranh minh họa đã tạo.'
+    : 'Tranh hiện với camera và hiệu ứng theo lời kể. Bật trước khi tạo tranh để tách lớp nền và nhân vật cho hiệu ứng chiều sâu.';
+}
 
 const _mvSeed = str => { let h = 2166136261; str = String(str); for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
 const _mvRng = seed => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
@@ -4872,7 +5083,9 @@ function mvCreate(vs, st, x) {
   // ---- Thông tin từng cảnh (tính lười, một lần): camera, ánh sáng, hạt ----
   function info(i) {
     if (infos[i]) return infos[i];
-    const s = vs[i], R = _mvRng(_mvSeed(String(s.text || '') + '|' + i + '|' + n)), an = mvAnalyze(s), fo = mvFocus(s, AHt);
+    const s = vs[i];
+    if (s.art) return infos[i] = { cam: { z0: 1, z1: 1.10, ax: W / 2, bx: W / 2, ay: AHt / 2, by: AHt / 2 } };
+    const R = _mvRng(_mvSeed(String(s.text || '') + '|' + i + '|' + n)), an = mvAnalyze(s), fo = mvFocus(s, AHt);
     // Camera
     const mid = [W / 2, AHt / 2], m = 0.035 * W, bw = fo.x1 - fo.x0 + 2 * m, bh = fo.y1 - fo.y0 + 2 * m, zFit = Math.min(W / bw, AHt / bh);
     const clampC = (cx, cy, z) => [_mvCl(cx, W / (2 * z), W - W / (2 * z)), _mvCl(cy, AHt / (2 * z), AHt - AHt / (2 * z))];
@@ -5185,6 +5398,7 @@ function mvCreate(vs, st, x) {
   }
   // Lấy bản đã nướng của cảnh i (nướng nốt ngay nếu chưa xong)
   function bakeOf(i) {
+    if (vs[i].art) return {};
     if (BK[i] && BK[i].done) return BK[i];
     if (!GEN[i]) GEN[i] = bakeGen(i);
     let r; do { r = GEN[i].next(); } while (!r.done);
@@ -5193,6 +5407,7 @@ function mvCreate(vs, st, x) {
   }
   // Chuẩn bị trước cảnh i: mỗi khung hình chỉ làm một khối nhỏ
   function warm(i) {
+    if (vs[i].art) return;
     if (BK[i] && BK[i].done) return;
     if (!GEN[i]) GEN[i] = bakeGen(i);
     if (GEN[i].next().done) delete GEN[i];
@@ -5250,6 +5465,12 @@ function mvCreate(vs, st, x) {
     const cx = _mvCl(_mvLerp(c.ax, c.bx, e), W / (2 * z), W - W / (2 * z)), cy = _mvCl(_mvLerp(c.ay, c.by, e), AHt / (2 * z), AHt - AHt / (2 * z));
     g.save();
     g.beginPath(); g.rect(0, 0, W, AHt); g.clip();
+    if (s.art) {
+      const artZoom = 1 + (z - 1) * 0.35;
+      blit(g, s.cv, artZoom * Math.max(0.99, xz), W / 2, AHt / 2, xo * 0.35, 0);
+      g.restore();
+      return;
+    }
     const bk = bakeOf(i), bgImg = bk.bg || s.bgL || s.cv, fgImg = bk.bg ? bk.fg : s.fgL;   // bản đã phối màu (nếu nướng lỗi thì dùng ảnh gốc)
     if (bgImg && (bk.fg || (!bk.bg && s.bgL && s.fgL))) {   // có tách lớp: nền chuyển động chậm hơn, vật/người phía trước nhanh hơn một chút (parallax thật)
       const zb = 1 + (z - 1) * 0.86, bx = W / 2 + (cx - W / 2) * 0.78, by = AHt / 2 + (cy - AHt / 2) * 0.78;
@@ -5357,7 +5578,12 @@ function makeRenderer(vs, st, x) {
     x.translate(cx + dx, cy);
     x.scale(z, z);
     x.translate(-cx, -cy);
-    if (s.anim) drawAnim(x, s, lt); else {
+    if (s.art && s.cv) {
+      x.restore();
+      x.save();
+      x.globalAlpha = Math.min(1, lt / 0.28);
+      x.drawImage(s.cv, 0, 0);
+    } else if (s.anim) drawAnim(x, s, lt); else {
     const N = s.ord ? s.ord.length : 0, k = Math.min(1, lt / (s.dur * 0.7)) * N, kf = Math.floor(k);
     if (s.cv) {
       while (ptr < Math.min(kf, N)) {

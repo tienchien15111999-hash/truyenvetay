@@ -1,5 +1,12 @@
 # TÓM TẮT DỰ ÁN + LỊCH SỬ CẬP NHẬT (dành cho AI khác đọc nhanh)
 
+## Bản minh họa vẽ tay
+
+- Chọn **Minh họa truyện vẽ tay** trong **Cách vẽ tranh** để dùng Gemini tạo tranh nét mực và màu. Chế độ này cần key có quyền tạo ảnh và có thể tính phí theo lượt. Có thể tải ảnh mẫu trong **Cài đặt**. Sau khi tạo, tranh xuất hiện hoàn chỉnh trong video. Bật **Video kể chuyện chuyển động** để thêm chuyển động camera và chuyển cảnh.
+- Storyboard xác định một diễn biến chính cho mỗi cảnh, góc máy và các chi tiết cần thấy. Đối với tranh minh họa, Gemini đối chiếu ảnh với lời kể và thử sửa một lần khi phát hiện sai chi tiết quan trọng. Tranh còn vấn đề có ghi chú ở thẻ xem trước.
+- **Vẽ tay bằng SVG** vẫn dùng bàn tay vẽ từng nét. Chế độ màu mặc định của SVG có nét mặt rõ hơn, ánh nhìn có thể hướng về người hoặc vật đang tương tác, và dùng màu nhấn cho chủ thể.
+- Khi dịch vụ tạo ảnh hết hạn mức hoặc thiếu quyền, công cụ dừng các lượt ảnh còn lại và giữ tranh đã tạo. Nút **Chạy bù các tranh lỗi** dùng chế độ vẽ đang chọn. Các mục bên dưới ghi lại lịch sử của các bản trước.
+
 > **Cách đọc tiết kiệm token:** đọc file này trước. `index.html` dài ~1760 dòng, KHÔNG cần đọc hết.
 > Chỉ tìm đúng tên hàm ở mục 4 (grep `function tên`) rồi đọc quanh hàm đó.
 > Người dùng KHÔNG rành kỹ thuật: luôn trả file hoàn chỉnh (cả `index.html` đầy đủ) để họ tải lên GitHub, không bắt sửa tay từng đoạn.
