@@ -47,7 +47,27 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
 
 <details class="box" id="set" open onchange="saveSet()">
   <summary><b>⚙ Cài đặt</b> (nhập một lần, tool tự nhớ trên máy bạn)</summary>
-  <label>API key Gemini (nhiều key thì mỗi key một dòng)</label>
+  <label for="aiProvider">API chia cảnh và vẽ tranh</label>
+  <select id="aiProvider" onchange="vui()">
+    <option value="gemini">Gemini</option>
+    <option value="cloudflare">Cloudflare Workers AI</option>
+  </select>
+  <div id="cloudflareSettings" hidden>
+    <label for="cfAccountId">Cloudflare Account ID</label>
+    <input id="cfAccountId" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Account ID gồm 32 ký tự">
+    <label for="cfApiToken">Cloudflare Workers AI API Token</label>
+    <input id="cfApiToken" type="password" autocomplete="off" spellcheck="false" placeholder="Dán API Token của Cloudflare">
+    <p class="hint">Lấy hai giá trị ở Cloudflare → Workers AI → Use REST API. Trình duyệt nhớ chúng trong tab này.</p>
+    <details id="cfServerSettings">
+      <summary>Dùng cấu hình Cloudflare trên Vercel</summary>
+      <p class="hint">Để trống hai ô trên nếu dự án đã có Account ID và API Token trên Vercel.</p>
+      <label for="cfWebCode">Mã truy cập (nếu đã bật trên Vercel)</label>
+      <input id="cfWebCode" type="password" autocomplete="off">
+    </details>
+    <button type="button" class="w sm" id="cfCheck" onclick="testCloudflare()">Kiểm tra kết nối Cloudflare</button>
+    <div id="cfResult" class="hint" role="status"></div>
+  </div>
+  <label id="gemKeyLabel" for="keys">API key Gemini (nhiều key thì mỗi key một dòng)</label>
   <textarea id="keys" style="min-height:60px" placeholder="AIzaSy..."></textarea>
   <button type="button" class="w sm" onclick="testGemini()">🔍 Kiểm tra key Gemini</button>
   <div id="gtestResult" class="hint" style="white-space:pre-wrap"></div>
@@ -157,7 +177,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
     <button type="button" class="w sm" onclick="$('libFile').click()">⬆ Nạp thư viện</button>
     <button type="button" class="warn sm" onclick="libClear()">🗑 Xóa thư viện đã học</button>
     <input type="file" id="libFile" accept=".json,application/json" hidden onchange="libImport(this)">
-    <p class="hint">Mỗi đồ vật hoặc nghề mới chỉ tốn 1 lượt gọi Gemini ở lần đầu, các cảnh và truyện sau dùng lại miễn phí. Thư viện lưu trong trình duyệt này; bấm <b>Tải thư viện</b> để sao lưu hoặc chuyển sang máy khác.</p>
+    <p class="hint">Đồ vật hoặc nghề mới được AI vẽ và lưu lại để dùng cho những cảnh sau. Thư viện lưu trong trình duyệt này; bấm <b>Tải thư viện</b> để sao lưu hoặc chuyển sang máy khác.</p>
   </div>
 </details>
 
@@ -178,7 +198,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   </div>
   <div id="srcRw" class="srcbox" hidden>
     <label class="chk"><input type="checkbox" id="rewriteOn" checked> Viết lại thành truyện của tôi (không giữ nguyên câu chữ gốc)</label>
-    <p class="hint">Chép xong, văn bản hiện ở ô bên dưới để bạn sửa, độ dài video tự đặt bằng độ dài bản gốc. Chỉ lấy được video công khai; tiếng Trung được dịch sang tiếng Việt. Nên dùng nội dung của bạn hoặc được phép sử dụng.</p>
+    <p class="hint">Chép xong, văn bản hiện ở ô bên dưới để bạn sửa, độ dài video tự đặt bằng độ dài bản gốc. Chép lời từ link hoặc tệp cần key Gemini; tiếng Trung được dịch sang tiếng Việt. Nên dùng nội dung của bạn hoặc được phép sử dụng.</p>
   </div>
   <label id="ideaLbl">Câu chuyện hoặc ý tưởng</label>
   <textarea id="idea" placeholder="Ví dụ: Chuyện cậu bé nghèo nhặt được chiếc ví đầy tiền và quyết định đi tìm người đánh rơi để trả lại..."></textarea>
@@ -217,13 +237,16 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
     <option value="svg_ink">Vẽ tay bằng SVG · có bàn tay vẽ từng nét</option>
     <option value="illustrated">Minh họa truyện vẽ tay · nét mực, màu và biểu cảm</option>
   </select>
-  <p class="hint" id="artHint" hidden>Chế độ minh họa dùng Gemini tạo ảnh, cần key có quyền tạo ảnh và có thể tính phí theo lượt. Bạn có thể tải ảnh mẫu trong Cài đặt. Video hiện tranh hoàn chỉnh và chuyển động camera.</p>
+  <p class="hint" id="artHint" hidden></p>
   <label class="chk" style="margin-top:8px"><input type="checkbox" id="motionVid" onchange="mvUI();saveSet()">🎬 Video kể chuyện chuyển động (camera điện ảnh, ánh sáng, khói/bụi/mưa/tuyết, chuyển cảnh mượt)</label>
-  <p class="hint" id="mvHint" hidden></p></div>
+  <p class="hint" id="mvHint" hidden></p>
+  <label class="chk" style="margin-top:8px"><input type="checkbox" id="interaction2d" onchange="motion2DUI();saveSet()">Hoạt hình 2D theo hành động trong truyện</label>
+  <p class="hint" id="interactionHint" hidden>Bật trước khi tạo video, hoặc bật rồi bấm Vẽ lại trên cảnh muốn đổi. Có thể chọn động tác cho từng cảnh trong phần xem trước.</p></div>
   <div style="margin:10px 0"><label>🎨 Chế độ màu</label>
   <label class="chk"><input type="checkbox" id="bgOn" checked>🏞 Vẽ bối cảnh nền (văn phòng, phố, nhà, ruộng, nhà máy... tự chọn theo lời kể)</label>
     <select id="cmode" onchange="applyPalette();saveSet()"><option value="vivid" selected>Màu nổi bật theo cảnh</option><option value="bw">Đen trắng</option><option value="accent">Màu nhấn (chỉ chi tiết cần nhấn mạnh)</option><option value="color">Ảnh màu (tô màu cả tranh)</option></select></div>
   <button id="go" onclick="start(false)">Bắt đầu tạo video</button>
+  <button type="button" id="cfResume" class="w" onclick="restoreCloudDraft()" hidden>Mở lại video tạo dở</button>
   <button id="retryBtn" class="warn" onclick="start(true)" hidden>🔄 Chạy bù các tranh lỗi</button>
   <button id="stp" class="w" onclick="stopGen()" hidden>■ Dừng tạo</button>
 </div>
@@ -295,6 +318,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
 /* mp4-muxer 5.1.5 (MIT, https://github.com/Vanilagy/mp4-muxer) - ghép video/âm thanh thành file mp4 */
 "use strict";var Mp4Muxer=(()=>{var e=Object.defineProperty,t=Object.getOwnPropertyDescriptor,i=Object.getOwnPropertyNames,s=Object.prototype.hasOwnProperty,a=(e,t,i)=>{if(!t.has(e))throw TypeError("Cannot "+i)},r=(e,t,i)=>(a(e,t,"read from private field"),i?i.call(e):t.get(e)),n=(e,t,i)=>{if(t.has(e))throw TypeError("Cannot add the same private member more than once");t instanceof WeakSet?t.add(e):t.set(e,i)},o=(e,t,i,s)=>(a(e,t,"write to private field"),s?s.call(e,i):t.set(e,i),i),h=(e,t,i)=>(a(e,t,"access private method"),i),l={};((t,i)=>{for(var s in i)e(t,s,{get:i[s],enumerable:!0})})(l,{ArrayBufferTarget:()=>Me,FileSystemWritableFileStreamTarget:()=>Oe,Muxer:()=>It,StreamTarget:()=>We});var d,f,u,m,p,c,w,g,b=new Uint8Array(8),y=new DataView(b.buffer),k=e=>[(e%256+256)%256],T=e=>(y.setUint16(0,e,!1),[b[0],b[1]]),C=e=>(y.setUint32(0,e,!1),[b[1],b[2],b[3]]),v=e=>(y.setUint32(0,e,!1),[b[0],b[1],b[2],b[3]]),S=e=>(y.setUint32(0,Math.floor(e/2**32),!1),y.setUint32(4,e,!1),[b[0],b[1],b[2],b[3],b[4],b[5],b[6],b[7]]),x=e=>(y.setInt16(0,256*e,!1),[b[0],b[1]]),z=e=>(y.setInt32(0,65536*e,!1),[b[0],b[1],b[2],b[3]]),E=e=>(y.setInt32(0,2**30*e,!1),[b[0],b[1],b[2],b[3]]),A=(e,t=!1)=>{let i=Array(e.length).fill(null).map((t,i)=>e.charCodeAt(i));return t&&i.push(0),i},M=e=>e&&e[e.length-1],W=e=>{let t;for(let i of e)(!t||i.presentationTimestamp>t.presentationTimestamp)&&(t=i);return t},O=(e,t,i=!0)=>{let s=e*t;return i?Math.round(s):s},B=e=>{let t=e*(Math.PI/180),i=Math.cos(t),s=Math.sin(t);return[i,s,0,-s,i,0,0,0,1]},U=B(0),j=e=>[z(e[0]),z(e[1]),E(e[2]),z(e[3]),z(e[4]),E(e[5]),z(e[6]),z(e[7]),E(e[8])],D=e=>e?"object"!=typeof e?e:Array.isArray(e)?e.map(D):Object.fromEntries(Object.entries(e).map(([e,t])=>[e,D(t)])):e,R=e=>e>=0&&e<2**32,I=(e,t,i)=>({type:e,contents:t&&new Uint8Array(t.flat(10)),children:i}),N=(e,t,i,s,a)=>I(e,[k(t),C(i),s??[]],a),V=e=>({type:"mdat",largeSize:e}),L=(e,t,i=!1)=>I("moov",null,[F(t,e),...e.map(e=>$(e,t)),i?me(e):null]),F=(e,t)=>{let i=O(Math.max(0,...t.filter(e=>e.samples.length>0).map(e=>{const t=W(e.samples);return t.presentationTimestamp+t.duration})),Ut),s=Math.max(...t.map(e=>e.id))+1,a=!R(e)||!R(i),r=a?S:v;return N("mvhd",+a,0,[r(e),r(e),v(Ut),r(i),z(1),x(1),Array(10).fill(0),j(U),Array(24).fill(0),v(s)])},$=(e,t)=>I("trak",null,[P(e,t),H(e,t)]),P=(e,t)=>{let i,s=W(e.samples),a=O(s?s.presentationTimestamp+s.duration:0,Ut),r=!R(t)||!R(a),n=r?S:v;return i="video"===e.info.type?"number"==typeof e.info.rotation?B(e.info.rotation):e.info.rotation:U,N("tkhd",+r,3,[n(t),n(t),v(e.id),v(0),n(a),Array(8).fill(0),T(0),T(0),x("audio"===e.info.type?1:0),T(0),j(i),z("video"===e.info.type?e.info.width:0),z("video"===e.info.type?e.info.height:0)])},H=(e,t)=>I("mdia",null,[_(e,t),q("video"===e.info.type?"vide":"soun"),G(e)]),_=(e,t)=>{let i=W(e.samples),s=O(i?i.presentationTimestamp+i.duration:0,e.timescale),a=!R(t)||!R(s),r=a?S:v;return N("mdhd",+a,0,[r(t),r(t),v(e.timescale),r(s),T(21956),T(0)])},q=e=>N("hdlr",0,0,[A("mhlr"),A(e),v(0),v(0),v(0),A("mp4-muxer-hdlr",!0)]),G=e=>I("minf",null,["video"===e.info.type?J():K(),Q(),Z(e)]),J=()=>N("vmhd",0,1,[T(0),T(0),T(0),T(0)]),K=()=>N("smhd",0,0,[T(0),T(0)]),Q=()=>I("dinf",null,[X()]),X=()=>N("dref",0,0,[v(1)],[Y()]),Y=()=>N("url ",0,1),Z=e=>{const t=e.compositionTimeOffsetTable.length>1||e.compositionTimeOffsetTable.some(e=>0!==e.sampleCompositionTimeOffset);return I("stbl",null,[ee(e),oe(e),he(e),le(e),de(e),fe(e),t?ue(e):null])},ee=e=>N("stsd",0,0,[v(1)],["video"===e.info.type?te(Se[e.info.codec],e):ne(ze[e.info.codec],e)]),te=(e,t)=>{return I(e,[Array(6).fill(0),T(1),T(0),T(0),Array(12).fill(0),T(t.info.width),T(t.info.height),v(4718592),v(4718592),v(0),T(1),Array(32).fill(0),T(24),(i=65535,y.setInt16(0,i,!1),[b[0],b[1]])],[xe[t.info.codec](t),t.info.decoderConfig.colorSpace?re(t):null]);var i},ie={bt709:1,bt470bg:5,smpte170m:6},se={bt709:1,smpte170m:6,"iec61966-2-1":13},ae={rgb:0,bt709:1,bt470bg:5,smpte170m:6},re=e=>I("colr",[A("nclx"),T(ie[e.info.decoderConfig.colorSpace.primaries]),T(se[e.info.decoderConfig.colorSpace.transfer]),T(ae[e.info.decoderConfig.colorSpace.matrix]),k((e.info.decoderConfig.colorSpace.fullRange?1:0)<<7)]),ne=(e,t)=>I(e,[Array(6).fill(0),T(1),T(0),T(0),v(0),T(t.info.numberOfChannels),T(16),T(0),T(0),z(t.info.sampleRate)],[Ee[t.info.codec](t)]),oe=e=>N("stts",0,0,[v(e.timeToSampleTable.length),e.timeToSampleTable.map(e=>[v(e.sampleCount),v(e.sampleDelta)])]),he=e=>{if(e.samples.every(e=>"key"===e.type))return null;let t=[...e.samples.entries()].filter(([,e])=>"key"===e.type);return N("stss",0,0,[v(t.length),t.map(([e])=>v(e+1))])},le=e=>N("stsc",0,0,[v(e.compactlyCodedChunkTable.length),e.compactlyCodedChunkTable.map(e=>[v(e.firstChunk),v(e.samplesPerChunk),v(1)])]),de=e=>N("stsz",0,0,[v(0),v(e.samples.length),e.samples.map(e=>v(e.size))]),fe=e=>e.finalizedChunks.length>0&&M(e.finalizedChunks).offset>=2**32?N("co64",0,0,[v(e.finalizedChunks.length),e.finalizedChunks.map(e=>S(e.offset))]):N("stco",0,0,[v(e.finalizedChunks.length),e.finalizedChunks.map(e=>v(e.offset))]),ue=e=>N("ctts",0,0,[v(e.compositionTimeOffsetTable.length),e.compositionTimeOffsetTable.map(e=>[v(e.sampleCount),v(e.sampleCompositionTimeOffset)])]),me=e=>I("mvex",null,e.map(pe)),pe=e=>N("trex",0,0,[v(e.id),v(1),v(0),v(0),v(0)]),ce=(e,t)=>I("moof",null,[we(e),...t.map(be)]),we=e=>N("mfhd",0,0,[v(e)]),ge=e=>{let t=0,i=0,s="delta"===e.type;return i|=+s,t|=s?1:2,t<<24|i<<16},be=e=>I("traf",null,[ye(e),ke(e),Te(e)]),ye=e=>{let t=0;t|=8,t|=16,t|=32,t|=131072;let i=e.currentChunk.samples[1]??e.currentChunk.samples[0],s={duration:i.timescaleUnitsToNextSample,size:i.size,flags:ge(i)};return N("tfhd",0,131128,[v(e.id),v(s.duration),v(s.size),v(s.flags)])},ke=e=>N("tfdt",1,0,[S(O(e.currentChunk.startTimestamp,e.timescale))]),Te=e=>{let t=e.currentChunk.samples.map(e=>e.timescaleUnitsToNextSample),i=e.currentChunk.samples.map(e=>e.size),s=e.currentChunk.samples.map(ge),a=e.currentChunk.samples.map(t=>O(t.presentationTimestamp-t.decodeTimestamp,e.timescale)),r=new Set(t),n=new Set(i),o=new Set(s),h=new Set(a),l=2===o.size&&s[0]!==s[1],d=r.size>1,f=n.size>1,u=!l&&o.size>1,m=h.size>1||[...h].some(e=>0!==e),p=0;return p|=1,p|=4*+l,p|=256*+d,p|=512*+f,p|=1024*+u,p|=2048*+m,N("trun",1,p,[v(e.currentChunk.samples.length),v(e.currentChunk.offset-e.currentChunk.moofOffset||0),l?v(s[0]):[],e.currentChunk.samples.map((e,r)=>{return[d?v(t[r]):[],f?v(i[r]):[],u?v(s[r]):[],m?(n=a[r],y.setInt32(0,n,!1),[b[0],b[1],b[2],b[3]]):[]];var n})])},Ce=(e,t)=>N("tfra",1,0,[v(e.id),v(63),v(e.finalizedChunks.length),e.finalizedChunks.map(i=>[S(O(i.startTimestamp,e.timescale)),S(i.moofOffset),v(t+1),v(1),v(1)])]),ve=()=>N("mfro",0,0,[v(0)]),Se={avc:"avc1",hevc:"hvc1",vp9:"vp09",av1:"av01"},xe={avc:e=>e.info.decoderConfig&&I("avcC",[...new Uint8Array(e.info.decoderConfig.description)]),hevc:e=>e.info.decoderConfig&&I("hvcC",[...new Uint8Array(e.info.decoderConfig.description)]),vp9:e=>{if(!e.info.decoderConfig)return null;let t=e.info.decoderConfig;if(!t.colorSpace)throw new Error("'colorSpace' is required in the decoder config for VP9.");let i=t.codec.split("."),s=Number(i[1]),a=Number(i[2]),r=0+(Number(i[3])<<4)+Number(t.colorSpace.fullRange);return N("vpcC",1,0,[k(s),k(a),k(r),k(2),k(2),k(2),T(0)])},av1:()=>I("av1C",[129,0,0,0])},ze={aac:"mp4a",opus:"Opus"},Ee={aac:e=>{let t=new Uint8Array(e.info.decoderConfig.description);return N("esds",0,0,[v(58753152),k(32+t.byteLength),T(1),k(0),v(75530368),k(18+t.byteLength),k(64),k(21),C(0),v(130071),v(130071),v(92307584),k(t.byteLength),...t,v(109084800),k(1),k(2)])},opus:e=>{let t=3840,i=0;const s=e.info.decoderConfig?.description;if(s){if(s.byteLength<18)throw new TypeError("Invalid decoder description provided for Opus; must be at least 18 bytes long.");const e=ArrayBuffer.isView(s)?new DataView(s.buffer,s.byteOffset,s.byteLength):new DataView(s);t=e.getUint16(10,!0),i=e.getInt16(14,!0)}return I("dOps",[k(0),k(e.info.numberOfChannels),T(t),v(e.info.sampleRate),x(i),k(0)])}},Ae=(Symbol("isTarget"),class{}),Me=class extends Ae{constructor(){super(...arguments),this.buffer=null}},We=class extends Ae{constructor(e){if(super(),this.options=e,"object"!=typeof e)throw new TypeError("StreamTarget requires an options object to be passed to its constructor.");if(e.onData){if("function"!=typeof e.onData)throw new TypeError("options.onData, when provided, must be a function.");if(e.onData.length<2)throw new TypeError("options.onData, when provided, must be a function that takes in at least two arguments (data and position). Ignoring the position argument, which specifies the byte offset at which the data is to be written, can lead to broken outputs.")}if(void 0!==e.chunked&&"boolean"!=typeof e.chunked)throw new TypeError("options.chunked, when provided, must be a boolean.");if(void 0!==e.chunkSize&&(!Number.isInteger(e.chunkSize)||e.chunkSize<=0))throw new TypeError("options.chunkSize, when provided, must be a positive integer.")}},Oe=class extends Ae{constructor(e,t){if(super(),this.stream=e,this.options=t,!(e instanceof FileSystemWritableFileStream))throw new TypeError("FileSystemWritableFileStreamTarget requires a FileSystemWritableFileStream instance.");if(void 0!==t&&"object"!=typeof t)throw new TypeError("FileSystemWritableFileStreamTarget's options, when provided, must be an object.");if(t&&void 0!==t.chunkSize&&(!Number.isInteger(t.chunkSize)||t.chunkSize<=0))throw new TypeError("options.chunkSize, when provided, must be a positive integer")}},Be=class{constructor(){this.pos=0,n(this,d,new Uint8Array(8)),n(this,f,new DataView(r(this,d).buffer)),this.offsets=new WeakMap}seek(e){this.pos=e}writeU32(e){r(this,f).setUint32(0,e,!1),this.write(r(this,d).subarray(0,4))}writeU64(e){r(this,f).setUint32(0,Math.floor(e/2**32),!1),r(this,f).setUint32(4,e,!1),this.write(r(this,d).subarray(0,8))}writeAscii(e){for(let t=0;t<e.length;t++)r(this,f).setUint8(t%8,e.charCodeAt(t)),t%8==7&&this.write(r(this,d));e.length%8!=0&&this.write(r(this,d).subarray(0,e.length%8))}writeBox(e){if(this.offsets.set(e,this.pos),e.contents&&!e.children)this.writeBoxHeader(e,e.size??e.contents.byteLength+8),this.write(e.contents);else{let t=this.pos;if(this.writeBoxHeader(e,0),e.contents&&this.write(e.contents),e.children)for(let t of e.children)t&&this.writeBox(t);let i=this.pos,s=e.size??i-t;this.seek(t),this.writeBoxHeader(e,s),this.seek(i)}}writeBoxHeader(e,t){this.writeU32(e.largeSize?1:t),this.writeAscii(e.type),e.largeSize&&this.writeU64(t)}measureBoxHeader(e){return 8+(e.largeSize?8:0)}patchBox(e){let t=this.pos;this.seek(this.offsets.get(e)),this.writeBox(e),this.seek(t)}measureBox(e){if(e.contents&&!e.children){return this.measureBoxHeader(e)+e.contents.byteLength}{let t=this.measureBoxHeader(e);if(e.contents&&(t+=e.contents.byteLength),e.children)for(let i of e.children)i&&(t+=this.measureBox(i));return t}}};d=new WeakMap,f=new WeakMap;var Ue,je,De=class extends Be{constructor(e){super(),n(this,w),n(this,u,void 0),n(this,m,new ArrayBuffer(65536)),n(this,p,new Uint8Array(r(this,m))),n(this,c,0),o(this,u,e)}write(e){h(this,w,g).call(this,this.pos+e.byteLength),r(this,p).set(e,this.pos),this.pos+=e.byteLength,o(this,c,Math.max(r(this,c),this.pos))}finalize(){h(this,w,g).call(this,this.pos),r(this,u).buffer=r(this,m).slice(0,Math.max(r(this,c),this.pos))}};u=new WeakMap,m=new WeakMap,p=new WeakMap,c=new WeakMap,w=new WeakSet,g=function(e){let t=r(this,m).byteLength;for(;t<e;)t*=2;if(t===r(this,m).byteLength)return;let i=new ArrayBuffer(t),s=new Uint8Array(i);s.set(r(this,p),0),o(this,m,i),o(this,p,s)};var Re=class extends Be{constructor(e){super(),n(this,Ue,void 0),n(this,je,[]),o(this,Ue,e)}write(e){r(this,je).push({data:e.slice(),start:this.pos}),this.pos+=e.byteLength}flush(){if(0===r(this,je).length)return;let e=[],t=[...r(this,je)].sort((e,t)=>e.start-t.start);e.push({start:t[0].start,size:t[0].data.byteLength});for(let i=1;i<t.length;i++){let s=e[e.length-1],a=t[i];a.start<=s.start+s.size?s.size=Math.max(s.size,a.start+a.data.byteLength-s.start):e.push({start:a.start,size:a.data.byteLength})}for(let t of e){t.data=new Uint8Array(t.size);for(let e of r(this,je))t.start<=e.start&&e.start<t.start+t.size&&t.data.set(e.data,e.start-t.start);r(this,Ue).options.onData?.(t.data,t.start)}r(this,je).length=0}finalize(){}};Ue=new WeakMap,je=new WeakMap;var Ie,Ne,Ve,Le,Fe,$e,Pe,He,_e,qe,Ge,Je=class extends Be{constructor(e){if(super(),n(this,Le),n(this,$e),n(this,He),n(this,qe),n(this,Ie,void 0),n(this,Ne,void 0),n(this,Ve,[]),o(this,Ie,e),o(this,Ne,e.options?.chunkSize??16777216),!Number.isInteger(r(this,Ne))||r(this,Ne)<1024)throw new Error("Invalid StreamTarget options: chunkSize must be an integer not smaller than 1024.")}write(e){h(this,Le,Fe).call(this,e,this.pos),h(this,qe,Ge).call(this),this.pos+=e.byteLength}finalize(){h(this,qe,Ge).call(this,!0)}};Ie=new WeakMap,Ne=new WeakMap,Ve=new WeakMap,Le=new WeakSet,Fe=function(e,t){let i=r(this,Ve).findIndex(e=>e.start<=t&&t<e.start+r(this,Ne));-1===i&&(i=h(this,He,_e).call(this,t));let s=r(this,Ve)[i],a=t-s.start,n=e.subarray(0,Math.min(r(this,Ne)-a,e.byteLength));s.data.set(n,a);let o={start:a,end:a+n.byteLength};if(h(this,$e,Pe).call(this,s,o),0===s.written[0].start&&s.written[0].end===r(this,Ne)&&(s.shouldFlush=!0),r(this,Ve).length>2){for(let e=0;e<r(this,Ve).length-1;e++)r(this,Ve)[e].shouldFlush=!0;h(this,qe,Ge).call(this)}n.byteLength<e.byteLength&&h(this,Le,Fe).call(this,e.subarray(n.byteLength),t+n.byteLength)},$e=new WeakSet,Pe=function(e,t){let i=0,s=e.written.length-1,a=-1;for(;i<=s;){let r=Math.floor(i+(s-i+1)/2);e.written[r].start<=t.start?(i=r+1,a=r):s=r-1}for(e.written.splice(a+1,0,t),(-1===a||e.written[a].end<t.start)&&a++;a<e.written.length-1&&e.written[a].end>=e.written[a+1].start;)e.written[a].end=Math.max(e.written[a].end,e.written[a+1].end),e.written.splice(a+1,1)},He=new WeakSet,_e=function(e){let t={start:Math.floor(e/r(this,Ne))*r(this,Ne),data:new Uint8Array(r(this,Ne)),written:[],shouldFlush:!1};return r(this,Ve).push(t),r(this,Ve).sort((e,t)=>e.start-t.start),r(this,Ve).indexOf(t)},qe=new WeakSet,Ge=function(e=!1){for(let t=0;t<r(this,Ve).length;t++){let i=r(this,Ve)[t];if(i.shouldFlush||e){for(let e of i.written)r(this,Ie).options.onData?.(i.data.subarray(e.start,e.end),i.start+e.start);r(this,Ve).splice(t--,1)}}};var Ke,Qe,Xe,Ye,Ze,et,tt,it,st,at,rt,nt,ot,ht,lt,dt,ft,ut,mt,pt,ct,wt,gt,bt,yt,kt,Tt,Ct,vt,St,xt,zt,Et,At,Mt,Wt,Ot,Bt=class extends Je{constructor(e){super(new We({onData:(t,i)=>e.stream.write({type:"write",data:t,position:i}),chunkSize:e.options?.chunkSize}))}},Ut=1e3,jt=["avc","hevc","vp9","av1"],Dt=["aac","opus"],Rt=["strict","offset","cross-track-offset"],It=class{constructor(e){if(n(this,ot),n(this,lt),n(this,ft),n(this,mt),n(this,ct),n(this,gt),n(this,yt),n(this,Tt),n(this,vt),n(this,xt),n(this,Et),n(this,Mt),n(this,Ke,void 0),n(this,Qe,void 0),n(this,Xe,void 0),n(this,Ye,void 0),n(this,Ze,null),n(this,et,null),n(this,tt,Math.floor(Date.now()/1e3)+2082844800),n(this,it,[]),n(this,st,1),n(this,at,[]),n(this,rt,[]),n(this,nt,!1),h(this,ot,ht).call(this,e),e.video=D(e.video),e.audio=D(e.audio),e.fastStart=D(e.fastStart),this.target=e.target,o(this,Ke,{firstTimestampBehavior:"strict",...e}),e.target instanceof Me)o(this,Qe,new De(e.target));else if(e.target instanceof We)o(this,Qe,e.target.options?.chunked?new Je(e.target):new Re(e.target));else{if(!(e.target instanceof Oe))throw new Error(`Invalid target: ${e.target}`);o(this,Qe,new Bt(e.target))}h(this,mt,pt).call(this),h(this,lt,dt).call(this)}addVideoChunk(e,t,i,s){if(!(e instanceof EncodedVideoChunk))throw new TypeError("addVideoChunk's first argument (sample) must be of type EncodedVideoChunk.");if(t&&"object"!=typeof t)throw new TypeError("addVideoChunk's second argument (meta), when provided, must be an object.");if(void 0!==i&&(!Number.isFinite(i)||i<0))throw new TypeError("addVideoChunk's third argument (timestamp), when provided, must be a non-negative real number.");if(void 0!==s&&!Number.isFinite(s))throw new TypeError("addVideoChunk's fourth argument (compositionTimeOffset), when provided, must be a real number.");let a=new Uint8Array(e.byteLength);e.copyTo(a),this.addVideoChunkRaw(a,e.type,i??e.timestamp,e.duration,t,s)}addVideoChunkRaw(e,t,i,s,a,n){if(!(e instanceof Uint8Array))throw new TypeError("addVideoChunkRaw's first argument (data) must be an instance of Uint8Array.");if("key"!==t&&"delta"!==t)throw new TypeError("addVideoChunkRaw's second argument (type) must be either 'key' or 'delta'.");if(!Number.isFinite(i)||i<0)throw new TypeError("addVideoChunkRaw's third argument (timestamp) must be a non-negative real number.");if(!Number.isFinite(s)||s<0)throw new TypeError("addVideoChunkRaw's fourth argument (duration) must be a non-negative real number.");if(a&&"object"!=typeof a)throw new TypeError("addVideoChunkRaw's fifth argument (meta), when provided, must be an object.");if(void 0!==n&&!Number.isFinite(n))throw new TypeError("addVideoChunkRaw's sixth argument (compositionTimeOffset), when provided, must be a real number.");if(h(this,Mt,Wt).call(this),!r(this,Ke).video)throw new Error("No video track declared.");if("object"==typeof r(this,Ke).fastStart&&r(this,Ze).samples.length===r(this,Ke).fastStart.expectedVideoChunks)throw new Error(`Cannot add more video chunks than specified in 'fastStart' (${r(this,Ke).fastStart.expectedVideoChunks}).`);let o=h(this,gt,bt).call(this,r(this,Ze),e,t,i,s,a,n);if("fragmented"===r(this,Ke).fastStart&&r(this,et)){for(;r(this,rt).length>0&&r(this,rt)[0].decodeTimestamp<=o.decodeTimestamp;){let e=r(this,rt).shift();h(this,yt,kt).call(this,r(this,et),e)}o.decodeTimestamp<=r(this,et).lastDecodeTimestamp?h(this,yt,kt).call(this,r(this,Ze),o):r(this,at).push(o)}else h(this,yt,kt).call(this,r(this,Ze),o)}addAudioChunk(e,t,i){if(!(e instanceof EncodedAudioChunk))throw new TypeError("addAudioChunk's first argument (sample) must be of type EncodedAudioChunk.");if(t&&"object"!=typeof t)throw new TypeError("addAudioChunk's second argument (meta), when provided, must be an object.");if(void 0!==i&&(!Number.isFinite(i)||i<0))throw new TypeError("addAudioChunk's third argument (timestamp), when provided, must be a non-negative real number.");let s=new Uint8Array(e.byteLength);e.copyTo(s),this.addAudioChunkRaw(s,e.type,i??e.timestamp,e.duration,t)}addAudioChunkRaw(e,t,i,s,a){if(!(e instanceof Uint8Array))throw new TypeError("addAudioChunkRaw's first argument (data) must be an instance of Uint8Array.");if("key"!==t&&"delta"!==t)throw new TypeError("addAudioChunkRaw's second argument (type) must be either 'key' or 'delta'.");if(!Number.isFinite(i)||i<0)throw new TypeError("addAudioChunkRaw's third argument (timestamp) must be a non-negative real number.");if(!Number.isFinite(s)||s<0)throw new TypeError("addAudioChunkRaw's fourth argument (duration) must be a non-negative real number.");if(a&&"object"!=typeof a)throw new TypeError("addAudioChunkRaw's fifth argument (meta), when provided, must be an object.");if(h(this,Mt,Wt).call(this),!r(this,Ke).audio)throw new Error("No audio track declared.");if("object"==typeof r(this,Ke).fastStart&&r(this,et).samples.length===r(this,Ke).fastStart.expectedAudioChunks)throw new Error(`Cannot add more audio chunks than specified in 'fastStart' (${r(this,Ke).fastStart.expectedAudioChunks}).`);let n=h(this,gt,bt).call(this,r(this,et),e,t,i,s,a);if("fragmented"===r(this,Ke).fastStart&&r(this,Ze)){for(;r(this,at).length>0&&r(this,at)[0].decodeTimestamp<=n.decodeTimestamp;){let e=r(this,at).shift();h(this,yt,kt).call(this,r(this,Ze),e)}n.decodeTimestamp<=r(this,Ze).lastDecodeTimestamp?h(this,yt,kt).call(this,r(this,et),n):r(this,rt).push(n)}else h(this,yt,kt).call(this,r(this,et),n)}finalize(){if(r(this,nt))throw new Error("Cannot finalize a muxer more than once.");if("fragmented"===r(this,Ke).fastStart){for(let e of r(this,at))h(this,yt,kt).call(this,r(this,Ze),e);for(let e of r(this,rt))h(this,yt,kt).call(this,r(this,et),e);h(this,xt,zt).call(this,!1)}else r(this,Ze)&&h(this,vt,St).call(this,r(this,Ze)),r(this,et)&&h(this,vt,St).call(this,r(this,et));let e=[r(this,Ze),r(this,et)].filter(Boolean);if("in-memory"===r(this,Ke).fastStart){let t;for(let i=0;i<2;i++){let i=L(e,r(this,tt)),s=r(this,Qe).measureBox(i);t=r(this,Qe).measureBox(r(this,Ye));let a=r(this,Qe).pos+s+t;for(let e of r(this,it)){e.offset=a;for(let{data:i}of e.samples)a+=i.byteLength,t+=i.byteLength}if(a<2**32)break;t>=2**32&&(r(this,Ye).largeSize=!0)}let i=L(e,r(this,tt));r(this,Qe).writeBox(i),r(this,Ye).size=t,r(this,Qe).writeBox(r(this,Ye));for(let e of r(this,it))for(let t of e.samples)r(this,Qe).write(t.data),t.data=null}else if("fragmented"===r(this,Ke).fastStart){let t=r(this,Qe).pos,i=(e=>I("mfra",null,[...e.map(Ce),ve()]))(e);r(this,Qe).writeBox(i);let s=r(this,Qe).pos-t;r(this,Qe).seek(r(this,Qe).pos-4),r(this,Qe).writeU32(s)}else{let t=r(this,Qe).offsets.get(r(this,Ye)),i=r(this,Qe).pos-t;r(this,Ye).size=i,r(this,Ye).largeSize=i>=2**32,r(this,Qe).patchBox(r(this,Ye));let s=L(e,r(this,tt));if("object"==typeof r(this,Ke).fastStart){r(this,Qe).seek(r(this,Xe)),r(this,Qe).writeBox(s);let e=t-r(this,Qe).pos;r(this,Qe).writeBox({type:"free",size:e})}else r(this,Qe).writeBox(s)}h(this,Et,At).call(this),r(this,Qe).finalize(),o(this,nt,!0)}};return Ke=new WeakMap,Qe=new WeakMap,Xe=new WeakMap,Ye=new WeakMap,Ze=new WeakMap,et=new WeakMap,tt=new WeakMap,it=new WeakMap,st=new WeakMap,at=new WeakMap,rt=new WeakMap,nt=new WeakMap,ot=new WeakSet,ht=function(e){if("object"!=typeof e)throw new TypeError("The muxer requires an options object to be passed to its constructor.");if(!(e.target instanceof Ae))throw new TypeError("The target must be provided and an instance of Target.");if(e.video){if(!jt.includes(e.video.codec))throw new TypeError(`Unsupported video codec: ${e.video.codec}`);if(!Number.isInteger(e.video.width)||e.video.width<=0)throw new TypeError(`Invalid video width: ${e.video.width}. Must be a positive integer.`);if(!Number.isInteger(e.video.height)||e.video.height<=0)throw new TypeError(`Invalid video height: ${e.video.height}. Must be a positive integer.`);const t=e.video.rotation;if("number"==typeof t&&![0,90,180,270].includes(t))throw new TypeError(`Invalid video rotation: ${t}. Has to be 0, 90, 180 or 270.`);if(Array.isArray(t)&&(9!==t.length||t.some(e=>"number"!=typeof e)))throw new TypeError(`Invalid video transformation matrix: ${t.join()}`);if(void 0!==e.video.frameRate&&(!Number.isInteger(e.video.frameRate)||e.video.frameRate<=0))throw new TypeError(`Invalid video frame rate: ${e.video.frameRate}. Must be a positive integer.`)}if(e.audio){if(!Dt.includes(e.audio.codec))throw new TypeError(`Unsupported audio codec: ${e.audio.codec}`);if(!Number.isInteger(e.audio.numberOfChannels)||e.audio.numberOfChannels<=0)throw new TypeError(`Invalid number of audio channels: ${e.audio.numberOfChannels}. Must be a positive integer.`);if(!Number.isInteger(e.audio.sampleRate)||e.audio.sampleRate<=0)throw new TypeError(`Invalid audio sample rate: ${e.audio.sampleRate}. Must be a positive integer.`)}if(e.firstTimestampBehavior&&!Rt.includes(e.firstTimestampBehavior))throw new TypeError(`Invalid first timestamp behavior: ${e.firstTimestampBehavior}`);if("object"==typeof e.fastStart){if(e.video){if(void 0===e.fastStart.expectedVideoChunks)throw new TypeError("'fastStart' is an object but is missing property 'expectedVideoChunks'.");if(!Number.isInteger(e.fastStart.expectedVideoChunks)||e.fastStart.expectedVideoChunks<0)throw new TypeError("'expectedVideoChunks' must be a non-negative integer.")}if(e.audio){if(void 0===e.fastStart.expectedAudioChunks)throw new TypeError("'fastStart' is an object but is missing property 'expectedAudioChunks'.");if(!Number.isInteger(e.fastStart.expectedAudioChunks)||e.fastStart.expectedAudioChunks<0)throw new TypeError("'expectedAudioChunks' must be a non-negative integer.")}}else if(![!1,"in-memory","fragmented"].includes(e.fastStart))throw new TypeError("'fastStart' option must be false, 'in-memory', 'fragmented' or an object.")},lt=new WeakSet,dt=function(){var e;if(r(this,Qe).writeBox((e={holdsAvc:"avc"===r(this,Ke).video?.codec,fragmented:"fragmented"===r(this,Ke).fastStart}).fragmented?I("ftyp",[A("iso5"),v(512),A("iso5"),A("iso6"),A("mp41")]):I("ftyp",[A("isom"),v(512),A("isom"),e.holdsAvc?A("avc1"):[],A("mp41")])),o(this,Xe,r(this,Qe).pos),"in-memory"===r(this,Ke).fastStart)o(this,Ye,V(!1));else if("fragmented"===r(this,Ke).fastStart);else{if("object"==typeof r(this,Ke).fastStart){let e=h(this,ft,ut).call(this);r(this,Qe).seek(r(this,Qe).pos+e)}o(this,Ye,V(!0)),r(this,Qe).writeBox(r(this,Ye))}h(this,Et,At).call(this)},ft=new WeakSet,ut=function(){if("object"!=typeof r(this,Ke).fastStart)return;let e=0,t=[r(this,Ke).fastStart.expectedVideoChunks,r(this,Ke).fastStart.expectedAudioChunks];for(let i of t)i&&(e+=8*Math.ceil(2/3*i),e+=4*i,e+=12*Math.ceil(2/3*i),e+=4*i,e+=8*i);return e+=4096,e},mt=new WeakSet,pt=function(){if(r(this,Ke).video&&o(this,Ze,{id:1,info:{type:"video",codec:r(this,Ke).video.codec,width:r(this,Ke).video.width,height:r(this,Ke).video.height,rotation:r(this,Ke).video.rotation??0,decoderConfig:null},timescale:r(this,Ke).video.frameRate??57600,samples:[],finalizedChunks:[],currentChunk:null,firstDecodeTimestamp:void 0,lastDecodeTimestamp:-1,timeToSampleTable:[],compositionTimeOffsetTable:[],lastTimescaleUnits:null,lastSample:null,compactlyCodedChunkTable:[]}),r(this,Ke).audio&&(o(this,et,{id:r(this,Ke).video?2:1,info:{type:"audio",codec:r(this,Ke).audio.codec,numberOfChannels:r(this,Ke).audio.numberOfChannels,sampleRate:r(this,Ke).audio.sampleRate,decoderConfig:null},timescale:r(this,Ke).audio.sampleRate,samples:[],finalizedChunks:[],currentChunk:null,firstDecodeTimestamp:void 0,lastDecodeTimestamp:-1,timeToSampleTable:[],compositionTimeOffsetTable:[],lastTimescaleUnits:null,lastSample:null,compactlyCodedChunkTable:[]}),"aac"===r(this,Ke).audio.codec)){let e=h(this,ct,wt).call(this,2,r(this,Ke).audio.sampleRate,r(this,Ke).audio.numberOfChannels);r(this,et).info.decoderConfig={codec:r(this,Ke).audio.codec,description:e,numberOfChannels:r(this,Ke).audio.numberOfChannels,sampleRate:r(this,Ke).audio.sampleRate}}},ct=new WeakSet,wt=function(e,t,i){let s=[96e3,88200,64e3,48e3,44100,32e3,24e3,22050,16e3,12e3,11025,8e3,7350].indexOf(t),a=i,r="";r+=e.toString(2).padStart(5,"0"),r+=s.toString(2).padStart(4,"0"),15===s&&(r+=t.toString(2).padStart(24,"0")),r+=a.toString(2).padStart(4,"0");let n=8*Math.ceil(r.length/8);r=r.padEnd(n,"0");let o=new Uint8Array(r.length/8);for(let e=0;e<r.length;e+=8)o[e/8]=parseInt(r.slice(e,e+8),2);return o},gt=new WeakSet,bt=function(e,t,i,s,a,r,n){let o=s/1e6,l=(s-(n??0))/1e6,d=a/1e6,f=h(this,Tt,Ct).call(this,o,l,e);return o=f.presentationTimestamp,l=f.decodeTimestamp,r?.decoderConfig&&(null===e.info.decoderConfig?e.info.decoderConfig=r.decoderConfig:Object.assign(e.info.decoderConfig,r.decoderConfig)),{presentationTimestamp:o,decodeTimestamp:l,duration:d,data:t,size:t.byteLength,type:i,timescaleUnitsToNextSample:O(d,e.timescale)}},yt=new WeakSet,kt=function(e,t){"fragmented"!==r(this,Ke).fastStart&&e.samples.push(t);const i=O(t.presentationTimestamp-t.decodeTimestamp,e.timescale);if(null!==e.lastTimescaleUnits){let s=O(t.decodeTimestamp,e.timescale,!1),a=Math.round(s-e.lastTimescaleUnits);if(e.lastTimescaleUnits+=a,e.lastSample.timescaleUnitsToNextSample=a,"fragmented"!==r(this,Ke).fastStart){let t=M(e.timeToSampleTable);1===t.sampleCount?(t.sampleDelta=a,t.sampleCount++):t.sampleDelta===a?t.sampleCount++:(t.sampleCount--,e.timeToSampleTable.push({sampleCount:2,sampleDelta:a}));const s=M(e.compositionTimeOffsetTable);s.sampleCompositionTimeOffset===i?s.sampleCount++:e.compositionTimeOffsetTable.push({sampleCount:1,sampleCompositionTimeOffset:i})}}else e.lastTimescaleUnits=0,"fragmented"!==r(this,Ke).fastStart&&(e.timeToSampleTable.push({sampleCount:1,sampleDelta:O(t.duration,e.timescale)}),e.compositionTimeOffsetTable.push({sampleCount:1,sampleCompositionTimeOffset:i}));e.lastSample=t;let s=!1;if(e.currentChunk){let i=t.presentationTimestamp-e.currentChunk.startTimestamp;if("fragmented"===r(this,Ke).fastStart){e===(r(this,Ze)??r(this,et))&&"key"===t.type&&i>=1&&(s=!0,h(this,xt,zt).call(this))}else s=i>=.5}else s=!0;s&&(e.currentChunk&&h(this,vt,St).call(this,e),e.currentChunk={startTimestamp:t.presentationTimestamp,samples:[]}),e.currentChunk.samples.push(t)},Tt=new WeakSet,Ct=function(e,t,i){const s="strict"===r(this,Ke).firstTimestampBehavior,a=-1===i.lastDecodeTimestamp;if(s&&a&&0!==t)throw new Error(`The first chunk for your media track must have a timestamp of 0 (received DTS=${t}).Non-zero first timestamps are often caused by directly piping frames or audio data from a MediaStreamTrack into the encoder. Their timestamps are typically relative to the age of thedocument, which is probably what you want.\n\nIf you want to offset all timestamps of a track such that the first one is zero, set firstTimestampBehavior: 'offset' in the options.\n`);if("offset"===r(this,Ke).firstTimestampBehavior||"cross-track-offset"===r(this,Ke).firstTimestampBehavior){let s;void 0===i.firstDecodeTimestamp&&(i.firstDecodeTimestamp=t),s="offset"===r(this,Ke).firstTimestampBehavior?i.firstDecodeTimestamp:Math.min(r(this,Ze)?.firstDecodeTimestamp??1/0,r(this,et)?.firstDecodeTimestamp??1/0),t-=s,e-=s}if(t<i.lastDecodeTimestamp)throw new Error(`Timestamps must be monotonically increasing (DTS went from ${1e6*i.lastDecodeTimestamp} to ${1e6*t}).`);return i.lastDecodeTimestamp=t,{presentationTimestamp:e,decodeTimestamp:t}},vt=new WeakSet,St=function(e){if("fragmented"===r(this,Ke).fastStart)throw new Error("Can't finalize individual chunks if 'fastStart' is set to 'fragmented'.");if(e.currentChunk)if(e.finalizedChunks.push(e.currentChunk),r(this,it).push(e.currentChunk),0!==e.compactlyCodedChunkTable.length&&M(e.compactlyCodedChunkTable).samplesPerChunk===e.currentChunk.samples.length||e.compactlyCodedChunkTable.push({firstChunk:e.finalizedChunks.length,samplesPerChunk:e.currentChunk.samples.length}),"in-memory"!==r(this,Ke).fastStart){e.currentChunk.offset=r(this,Qe).pos;for(let t of e.currentChunk.samples)r(this,Qe).write(t.data),t.data=null;h(this,Et,At).call(this)}else e.currentChunk.offset=0},xt=new WeakSet,zt=function(e=!0){if("fragmented"!==r(this,Ke).fastStart)throw new Error("Can't finalize a fragment unless 'fastStart' is set to 'fragmented'.");let t=[r(this,Ze),r(this,et)].filter(e=>e&&e.currentChunk);if(0===t.length)return;let i=(s=this,a=st,{set _(e){o(s,a,e,n)},get _(){return r(s,a,l)}})._++;var s,a,n,l;if(1===i){let e=L(t,r(this,tt),!0);r(this,Qe).writeBox(e)}let d=r(this,Qe).pos,f=ce(i,t);r(this,Qe).writeBox(f);{let e=V(!1),i=0;for(let e of t)for(let t of e.currentChunk.samples)i+=t.size;let s=r(this,Qe).measureBox(e)+i;s>=2**32&&(e.largeSize=!0,s=r(this,Qe).measureBox(e)+i),e.size=s,r(this,Qe).writeBox(e)}for(let e of t){e.currentChunk.offset=r(this,Qe).pos,e.currentChunk.moofOffset=d;for(let t of e.currentChunk.samples)r(this,Qe).write(t.data),t.data=null}let u=r(this,Qe).pos;r(this,Qe).seek(r(this,Qe).offsets.get(f));let m=ce(i,t);r(this,Qe).writeBox(m),r(this,Qe).seek(u);for(let e of t)e.finalizedChunks.push(e.currentChunk),r(this,it).push(e.currentChunk),e.currentChunk=null;e&&h(this,Et,At).call(this)},Et=new WeakSet,At=function(){r(this,Qe)instanceof Re&&r(this,Qe).flush()},Mt=new WeakSet,Wt=function(){if(r(this,nt))throw new Error("Cannot add new video or audio chunks after the file has been finalized.")},Ot=l,((a,r,n,o)=>{if(r&&"object"==typeof r||"function"==typeof r)for(let h of i(r))s.call(a,h)||h===n||e(a,h,{get:()=>r[h],enumerable:!(o=t(r,h))||o.enumerable});return a})(e({},"__esModule",{value:!0}),Ot)})();"object"==typeof module&&"object"==typeof module.exports&&Object.assign(module.exports,Mp4Muxer);
 </script>
+<script src="./interaction-2d.js"></script>
 <script>
 let W = 1280, H = 720, fm = {};
 const C = 16;
@@ -334,7 +358,7 @@ const log = m => {
 };
 const A = () => ctxA || (ctxA = new (window.AudioContext || window.webkitAudioContext)());
 
-const CF = ['fmt', 'nimg', 'keys', 'isrc', 'style', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'musicOn', 'musicVol', 'musicMood', 'cmode', 'vmode', 'charStyle', 'trans', 'bgOn', 'motionVid', 'mvTrans'];
+const CF = ['aiProvider', 'fmt', 'nimg', 'keys', 'isrc', 'style', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'musicOn', 'musicVol', 'musicMood', 'cmode', 'vmode', 'charStyle', 'trans', 'bgOn', 'motionVid', 'mvTrans', 'interaction2d'];
 function setFmt() {
   const v = $('fmt').value === 'v';
   W = v ? 720 : 1280; H = v ? 1280 : 720;
@@ -364,7 +388,7 @@ function updStat() {
   try { o = JSON.parse(localStorage.getItem('cfg_v3') || '{}'); } catch (e) {}
   const n = (o.keys || '').split(/\s+/).filter(k => k.length > 20).length;
   const parts = [];
-  parts.push(n ? `${n} key Gemini` : 'chưa có key Gemini');
+  parts.push(o.aiProvider === 'cloudflare' ? 'Cloudflare Workers AI' : (n ? `${n} key Gemini` : 'chưa có key Gemini'));
   if (o.vapp && o.vtok) parts.push('Vbee (App ID + Token)');
   if (o.hftok) parts.push('token Hugging Face');
   const t = o._t ? new Date(o._t).toLocaleString('vi-VN') : null;
@@ -394,7 +418,7 @@ function importSet(inp) {
       if (!d || typeof d !== 'object') throw new Error('sai định dạng');
       let n = 0;
       CF.forEach(i => {
-        if (d[i] != null && $(i)) {
+        if (d[i] != null && $(i) && !(['aiProvider', 'interaction2d'].includes(i) && $(i).disabled)) {
           if ($(i).type === 'checkbox') $(i).checked = !!d[i]; else $(i).value = d[i];
           n++;
         }
@@ -408,12 +432,42 @@ function importSet(inp) {
   };
   r.readAsText(f);
 }
+// Cloudflare chỉ nhớ thông tin trong phiên của tab, tách khỏi file sao lưu cài đặt.
+const cfSessionFields = { cfAccountId: 'cf_account_id', cfApiToken: 'cf_api_token', cfWebCode: 'cf_web_code' };
+for (const [id, key] of Object.entries(cfSessionFields)) {
+  const field = $(id);
+  try { field.value = sessionStorage.getItem(key) || ''; } catch (e) {}
+  field.addEventListener('input', () => {
+    try {
+      if (field.value) sessionStorage.setItem(key, field.value);
+      else sessionStorage.removeItem(key);
+    } catch (e) {}
+    $('cfResult').textContent = '';
+    cloudflareBlocked = null;
+  });
+}
+if ($('cfWebCode').value) $('cfServerSettings').open = true;
+
 function clearKeys() {
-  if (!confirm('Xóa toàn bộ key/token đã lưu (Gemini, Vbee, Hugging Face) khỏi trình duyệt này?')) return;
-  ['keys', 'vapp', 'vtok', 'hftok'].forEach(i => { if ($(i)) $(i).value = ''; });
+  if (!confirm('Xóa toàn bộ key/token đã lưu (Gemini, Cloudflare, Vbee, Hugging Face) khỏi trình duyệt này?')) return;
+  for (const id of ['keys', 'vapp', 'vtok', 'hftok', ...Object.keys(cfSessionFields)]) $(id).value = '';
+  for (const key of Object.values(cfSessionFields)) {
+    try { sessionStorage.removeItem(key); } catch (e) {}
+  }
+  $('cfResult').textContent = '';
+  cloudflareBlocked = null;
   saveSet();
 }
+function storyProvider() { return $('aiProvider').value === 'cloudflare' ? 'cloudflare' : 'gemini'; }
 function vui() {
+  const cloud = storyProvider() === 'cloudflare';
+  $('cloudflareSettings').hidden = !cloud;
+  $('gemKeyLabel').textContent = cloud
+    ? 'API key Gemini (chỉ cần nếu dùng giọng Gemini hoặc chép lời từ clip)'
+    : 'API key Gemini (nhiều key thì mỗi key một dòng)';
+  $('artHint').textContent = cloud
+    ? 'FLUX trên Cloudflare tạo tranh. Có thể thêm ảnh mẫu trong Cài đặt để giữ nét vẽ và nhân vật. Video hiện tranh hoàn chỉnh với chuyển động camera.'
+    : 'Gemini tạo tranh, cần key có quyền tạo ảnh và có thể tính phí theo lượt. Có thể tải ảnh mẫu trong Cài đặt. Video hiện tranh hoàn chỉnh với chuyển động camera.';
   const v = $('vsrc').value;
   $('vb').hidden = v !== 'vbee';
   const mode = $('isrc').value;
@@ -426,6 +480,7 @@ function vui() {
   $('bgOn').closest('label').hidden = mode === 'illustrated';
   try { refUI(); } catch (e) { /* chưa khởi tạo xong, lát nữa styleUI sẽ gọi */ }
   try { mvUI(); } catch (e) { /* ô motionVid chưa có */ }
+  motion2DUI();
 }
 try {
   const o = JSON.parse(localStorage.getItem('cfg_v3') || localStorage.getItem('cfg') || '{}');
@@ -435,7 +490,7 @@ try {
       else $(i).value = o[i];
     }
   });
-  if (o.keys) $('set').open = false;
+  if (o.keys || o.aiProvider === 'cloudflare') $('set').open = false;
 } catch (e) {}
 if ($('isrc').value !== 'illustrated') $('isrc').value = 'svg_ink'; $('style').value = 'ref';
 if (!['bw', 'accent', 'color', 'vivid'].includes($('cmode').value)) $('cmode').value = 'vivid'; // chế độ tự động: luôn dùng cách vẽ có nhân vật dựng sẵn + bong bóng + chia khung
@@ -517,6 +572,82 @@ async function gemMulti(models, body, timeout = 80000, rounds = 2) {
   throw new Error(lastErr || 'Không kết nối được các model Gemini');
 }
 
+class CloudflareUnavailable extends Error {}
+let cloudflareBlocked = null, cloudDraftActive = false;
+const CF_BLOCKING_CODES = ['CF_CONFIG', 'CF_INPUT_CONFIG', 'CF_WEB_CODE', 'CF_UNAUTHORIZED', 'CF_UNAVAILABLE', 'CF_DAILY_LIMIT', 'CF_RATE_LIMIT'];
+
+async function cfCall(payload, timeout = 95000) {
+  if (!payload.probe && cloudflareBlocked) throw cloudflareBlocked;
+  if (!payload.probe && abortGen) throw new Error('Đã dừng');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  if (!payload.probe) ctl.add(controller);
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    const accountId = $('cfAccountId').value.trim();
+    const token = $('cfApiToken').value.trim();
+    if (accountId || token) {
+      if (!/^[a-f0-9]{32}$/i.test(accountId) || !/^[!-~]{1,512}$/.test(token)) {
+        throw new CloudflareUnavailable('Điền đủ Account ID gồm 32 ký tự và API Token của Cloudflare.');
+      }
+      headers['X-Cloudflare-Account-Id'] = accountId;
+      headers.Authorization = 'Bearer ' + token;
+    } else {
+      const code = $('cfWebCode').value.trim();
+      if (code) headers['X-Cloudflare-Web-Code'] = code;
+    }
+    const response = await fetch('/api/cloudflare-ai', {
+      method: 'POST', headers, body: JSON.stringify(payload), signal: controller.signal
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.error) {
+      const msg = data.error?.message || 'Không gọi được /api/cloudflare-ai. Hãy mở bản web đã triển khai trên Vercel.';
+      if (CF_BLOCKING_CODES.includes(data.error?.code) || response.status === 429 || response.status === 404) {
+        const e = new CloudflareUnavailable(msg);
+        if (!payload.probe) cloudflareBlocked = e;
+        throw e;
+      }
+      throw new Error(msg);
+    }
+    return data;
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error(!payload.probe && abortGen ? 'Đã dừng' : 'Cloudflare xử lý quá thời gian.');
+    throw e;
+  } finally {
+    clearTimeout(timer);
+    ctl.delete(controller);
+  }
+}
+
+async function storyAI(body, timeout, rounds) {
+  if (storyProvider() === 'gemini') return await gemMulti(TXT_MODELS, body, timeout, rounds);
+  const data = await cfCall({
+    kind: 'text',
+    parts: body.contents.flatMap(content => content.parts),
+    json: body.generationConfig?.responseMimeType === 'application/json'
+  }, timeout);
+  if (typeof data.text !== 'string' || !data.text.trim()) throw new Error('Cloudflare không trả nội dung văn bản.');
+  return { candidates: [{ content: { parts: [{ text: data.text }] } }] };
+}
+
+async function testCloudflare() {
+  const button = $('cfCheck'), out = $('cfResult');
+  button.disabled = true;
+  out.textContent = 'Đang kiểm tra kết nối và model chia cảnh…';
+  out.style.color = '#555';
+  try {
+    const data = await cfCall({ kind: 'text', parts: [{ text: 'Reply only with OK.' }], probe: true }, 45000);
+    if (!data.text) throw new Error('Cloudflare không trả văn bản.');
+    out.textContent = 'Kết nối Cloudflare thành công. Chọn Minh họa truyện vẽ tay để thử FLUX.';
+    out.style.color = '#15803d';
+  } catch (e) {
+    out.textContent = e.message;
+    out.style.color = '#b91c1c';
+  } finally {
+    button.disabled = false;
+  }
+}
+
 async function makeScriptPart(idea, min, opt) {
   const n = opt.n, total = opt.total;
   const rw = $('rewriteOn') && $('rewriteOn').checked && srcMode !== 'text';
@@ -525,7 +656,7 @@ async function makeScriptPart(idea, min, opt) {
 Chỉ trả về JSON: {"story":"tóm tắt cốt truyện 1-2 câu, tiếng Anh","setting":"bối cảnh chung (thời gian, địa điểm, không khí), tiếng Anh","identity":"BỘ NHẬN DIỆN bối cảnh, tiếng Anh: quốc gia / tổ chức / thời đại mà truyện nói về và 3-6 dấu hiệu nhìn là nhận ra ngay, viết bằng tên đồ vật cụ thể, ví dụ China: flag_china, greatwall, tiananmen, redstar, officers in red-star caps. Dấu hiệu quốc gia: cờ nước đó (flag_china, flag_vietnam, flag_usa, flag_russia, flag_japan, hoặc flag_<tên nước> cho nước khác), địa danh, biểu tượng, đồng phục đặc trưng. Truyện không gắn với nơi hay tổ chức cụ thể thì để chuỗi rỗng","characters":"BẢNG NHÂN VẬT CỐ ĐỊNH cho cả truyện, tiếng Anh, mỗi người một mục ngăn bằng dấu chấm phẩy, dạng 'MAIN = tên (who=tên viết liền không dấu bằng chữ Latin nếu là người nổi tiếng thật, ví dụ trump, einstein, jobs, bacho, napoleon, lincoln, xijinping, putin, obama (người nào cũng được, tool tự thiết kế nét đặc trưng); job=nghề hoặc chức vụ nếu biết, chọn một trong doctor/nurse/police/soldier/chef/worker/farmer/teacher/judge/king/firefighter/pilot/businessman/president/artist/student/monk/scientist, hoặc MỘT từ tiếng Anh khác nếu nghề/chức vụ không có trong danh sách, ví dụ general, official, spy, reporter): ngoại hình ổn định: độ tuổi, dáng người, khuôn mặt, kiểu và màu tóc, màu da, trang phục và một dấu hiệu nhận ra ngay'. MỌI người được nhắc TÊN trong truyện (tối đa 8 người, quan trọng nhất xếp trước) đều phải có một mục và MỘT vai riêng (MAIN, SECOND, THIRD, FOURTH, FIFTH, SIXTH, SEVENTH, EIGHTH), giữ vai đó mãi mãi, không ai dùng chung vai; chỉ những người không có tên mới là CROWD. Tên đầy đủ chữ Latin viết ngay sau dấu '=' (ví dụ 'MAIN = Donald Trump (who=trump, job=president): ...'); người nổi tiếng thật BẮT BUỘC có who=. Mỗi nhân vật PHẢI khác tất cả những người còn lại ít nhất một nét nhìn thấy được","scenes":[{"text":"lời kể tiếng Việt của cảnh","image":"mô tả cảnh để vẽ tranh, tiếng Anh, 2 câu. BẮT ĐẦU bằng đúng một nhãn loại cảnh: [OBJECT] nếu lời kể nói về một vật/tiền/giấy tờ/sự việc/con số/ý tưởng (cận cảnh đồ vật, KHÔNG có người), [PERSON] nếu có người đang làm gì đó (nêu rõ họ cầm/đưa/đếm/mang vật gì, ví dụ người đàn ông cầm tiền thì phải ghi cash stack), [PLACE] nếu lời kể tả một nơi chốn/hành trình/thời điểm. Sau nhãn: vẽ đúng khoảnh khắc cụ thể nhìn thấy được, nêu ai làm gì với ai hoặc với vật gì, chọn những vật và dấu hiệu nơi chốn cần để người xem hiểu diễn biến chính, KHÔNG thêm cảnh vật trang trí mà lời kể không nhắc (mặt trời, mây, cây, nhà...). Chỉ ghi vai trò MAIN/SECOND/THIRD/FOURTH/FIFTH/SIXTH/SEVENTH/EIGHTH/CROWD và cảm xúc khi cảnh thật sự có người","mood":"tâm trạng của cảnh để chọn nhạc nền, chỉ chọn MỘT trong: calm, sad, tense, mystery, happy, epic, hopeful"}]}
 Nội dung: ${idea}`;
 
-  const d = await gemMulti(TXT_MODELS, {
+  const d = await storyAI({
     contents: [{ parts: [{ text: p }] }],
     generationConfig: { responseMimeType: 'application/json' }
   }, 95000);
@@ -604,7 +735,7 @@ async function makeScript(idea, min) {
     let r = null;
     for (let t = 0; t < 2 && !r; t++) {
       try { r = await makeScriptPart(slice ? pieces[i] : idea, Math.round(min * cnt / n * 10) / 10, { n: cnt, total: Math.round(total * cnt / n), note }); }
-      catch (e) { if (abortGen || t) throw e; }
+      catch (e) { if (abortGen || e instanceof CloudflareUnavailable || t) throw e; }
     }
     if (!res) res = r; else if (r.characters && r.characters.length >= (res.characters || '').length * 0.8) res.characters = r.characters;
     scenes.push(...r.scenes);
@@ -650,8 +781,17 @@ function storyboardBrief(entry) {
   ].filter(Boolean).join('\n');
 }
 
+function interactionOn() {
+  return !!($('interaction2d')?.checked && globalThis.StoryMotion);
+}
+function motion2DUI() {
+  if ($('interactionHint')) $('interactionHint').hidden = !interactionOn();
+  document.querySelectorAll('.motion-choice').forEach(select => { select.closest('label').hidden = !interactionOn(); });
+}
+
 async function refineBatch(sc, part, from) {
   const list = part.map((x, i) => `${from + i + 1}. ${x.text}`).join('\n');
+  const motionRule = interactionOn() ? `- Với cảnh có hành động diễn ra trực tiếp trong câu kể, có thể thêm motion vào mục JSON của cảnh. Dạng motion: {"action":"drink","actor":"MAIN","target":"SECOND","item":"cup","pose":"sit","cue":"nguyên văn 2 đến 6 từ tiếng Việt từ lời kể ở đúng lúc có động tác"}. action chỉ được là: ${Object.keys(StoryMotion.labels).join(', ')}. give là đưa đồ trực tiếp giữa hai người, actor là người đưa, target là người nhận. pick là nhặt đồ từ mặt đất. openDoor là mở cửa, openBox là mở nắp hộp/rương. launch và separate chỉ dùng cho tên lửa đang phóng hoặc đang tách tầng thật sự. item chỉ được là cup, bottle, key, book, phone, letter, box, bag, spoon, food hoặc để trống. pose dùng sit hoặc stand. Không thêm motion nếu hành động chỉ là ý định, được nhắc trong lời thoại mà không diễn ra, hoặc cần tay chân hay đạo cụ không phù hợp.` : '';
   const p = `Bạn là đạo diễn storyboard cho video minh họa truyện vẽ tay. Mỗi cảnh cần giúp người xem hiểu đúng diễn biến ngay cả khi tắt tiếng.
 - Với mỗi lời kể, chọn một khoảnh khắc có ý nghĩa kể chuyện nhất. Viết rõ ai đang làm gì, với ai hoặc với vật nào, và chi tiết nhìn thấy nào giúp người xem hiểu kết quả hoặc cảm xúc. Ví dụ “Qua nhiều ngày thất bại, Lan tìm được hạt giống cuối cùng” → cận tay Lan nhặt đúng một hạt còn lại từ túi trống, nét mặt nhẹ nhõm. Đừng vẽ cả chuỗi sự kiện hoặc chen các vật chỉ được nhắc thoáng qua.
 - action (tiếng Anh): một hành động hoặc trạng thái cụ thể. Dùng đúng vai MAIN, SECOND, THIRD, FOURTH, FIFTH, SIXTH, SEVENTH, EIGHTH cho người có trong bảng. Người phụ vô danh là CROWD. Nêu đúng người làm, người nhận, biểu cảm, hướng nhìn và tương tác tay khi có. Không ép nhân vật chính xuất hiện. Động vật/xe: đúng loài/loại và hành động. Giấc mơ, hồi tưởng, suy nghĩ và dự định phải được phân biệt rõ với hiện tại bằng khung nhỏ, bong bóng hoặc ánh sáng khác khi cần. Không thêm sự kiện, người, số liệu, đồ vật hay cờ không có căn cứ. Cờ chỉ xuất hiện khi liên quan trực tiếp đến lời kể của cảnh.
@@ -660,6 +800,7 @@ async function refineBatch(sc, part, from) {
 - staging (tiếng Anh): nêu vị trí chủ thể, điểm nhìn và ánh sáng/thời điểm khi liên quan. Dùng một điểm nhấn rõ, chừa khoảng trống quanh nó, đặt chi tiết phụ phía sau. Nếu lời kể nhắc ngày tháng, chừa góc trên trái cho nhãn do phần mềm chèn.
 - set: chọn một từ trong ${SET_KEYS.join(', ')}. continuity (tiếng Anh): chi tiết cần giữ từ cảnh trước, như vị trí, quần áo hoặc đạo cụ đang cầm, hoặc mô tả rõ chỗ đổi thời gian/địa điểm. Để trống nếu không có gì phải giữ. Không bê hành động cảnh trước vào cảnh hiện tại.
 - must: 1-4 chi tiết thiết yếu trực tiếp chứng minh diễn biến (hành động/đồ vật/bằng chứng nhìn thấy, tiếng Anh). Giữ đúng số lượng khi nó quan trọng. Mọi thông tin còn lại vẫn nằm trong lời kể.
+${motionRule}
 Trả duy nhất JSON {"shots":[{"id":${from + 1},"type":"PERSON","shot":"MEDIUM","action":"...","staging":"...","set":"home","continuity":"","must":["..."]}]} gồm ${part.length} mục, ID là số đứng trước lời kể, không đổi thứ tự.
 Cốt truyện: ${sc.story || ''}
 Bối cảnh: ${sc.setting || ''}
@@ -667,7 +808,7 @@ Dấu hiệu văn hóa/thời đại: ${sc.identity || ''}
 Bảng nhân vật: ${sc.characters || ''}
 ${from ? 'Lời kể ngay trước nhóm này: ' + sc.scenes[from - 1].text + '\n' : ''}Danh sách cảnh:
 ${list}`;
-  const d = await gemMulti(TXT_MODELS, {
+  const d = await storyAI({
     contents: [{ parts: [{ text: p }] }],
     generationConfig: { responseMimeType: 'application/json' }
   }, 95000);
@@ -677,9 +818,14 @@ ${list}`;
   for (const shot of shots) {
     const id = shot?.id;
     if (!Number.isInteger(id) || id <= from || id > from + part.length) continue;
-    briefs.set(id, briefs.has(id) ? null : storyboardBrief(shot));
+    const brief = storyboardBrief(shot);
+    briefs.set(id, briefs.has(id) || !brief ? null : { brief, motion: shot.motion });
   }
-  return part.map((_, i) => briefs.get(from + i + 1) || null);
+  return part.map((scene, i) => {
+    const result = briefs.get(from + i + 1);
+    scene.motionHint = result?.motion || null;
+    return result?.brief || null;
+  });
 }
 async function refineImages(sc) {
   const B = 14, out = [];
@@ -688,7 +834,7 @@ async function refineImages(sc) {
     if (sc.scenes.length > B) log(`🎬 Đang soạn bố cục cảnh ${from + 1}-${from + part.length}/${sc.scenes.length}...`);
     let r = null;
     for (let t = 0; t < 2 && !r; t++) {
-      try { r = await refineBatch(sc, part, from); } catch (e) { if (abortGen) throw e; }
+      try { r = await refineBatch(sc, part, from); } catch (e) { if (abortGen || e instanceof CloudflareUnavailable) throw e; }
     }
     out.push(...(r || part.map(() => null)));
   }
@@ -1781,7 +1927,7 @@ function libBox(inner) { // đo khung bao của hình bằng DOM ẩn
   sv.remove(); return b;
 }
 async function libAsk(prompt, extra = []) {
-  const d = await gemMulti(TXT_MODELS, { contents: [{ parts: [{ text: prompt }].concat(extra) }], generationConfig: { responseMimeType: 'application/json' } }, 60000);
+  const d = await storyAI({ contents: [{ parts: [{ text: prompt }].concat(extra) }], generationConfig: { responseMimeType: 'application/json' } }, 60000);
   const t = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('');
   const a = t.indexOf('{'), b = t.lastIndexOf('}');
   return JSON.parse(a >= 0 && b > a ? t.slice(a, b + 1) : t);
@@ -2073,7 +2219,7 @@ const loadImg = s => new Promise((ok, no) => {
 
 // ===== PHONG CÁCH THEO ẢNH MẪU CỦA NGƯỜI DÙNG =====
 const REF_DEFAULT = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAIqAioDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD6pooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKoXmpWVn/wAfd3bwf77gfzoAv0Vg/wDCWeHt/l/23pm70+0J/jV6z1Swu+LS9tpv9yVG/kaANCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiionkWP7zKtAEtFQefD/z2X8xU9ABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFACV5x48+J+neHr2PR9Nhm1rxHNxFptnywPrI38A/Wsn4keLdYvNei8E+BJF/t6dd17f9RYQ+vsT+meOcV0/w9+H2keCrVvsQa41CYbrnULgZmnb3Pp7U7AcYnhv4neMv33iPxBF4W05/wDly0pMz7PQyE8H35+gq/Y/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Bvfs7N5ngG4nPW41W8l+oMzc16pXmv7PllPZfCjRYriOSOYq0jbxgncxOfxr0qhgUtWi87S7yH+/E6/mDXn/AOzrKG+EWhKzDdCskJ+qSMD/ACr0mVdyMv8AeGK+VdP1vxl8Pb2Twvf6lYeGtN+0TS299d6e00Um+VmH7xflA574x0prVWCx9XUV4pY3/wAUHt1vNH17wd4ntWTIRMwlvTBGQc+5FdV8NPHU3iqbVNM1TSZtI13S2QXdo8okGHzhlccEcGlYD0KiiikAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAYPinw1pHinTxYa9p8N9bffCSJ91vUHsazPCnw68LeFbgz6Fottb3HTzdm58exNdhRTAWiiikAlef6r8JvA+qaq1/e+HbR52+Z8KQGPuBwa9BooAp2VpBp9pFbWkKw2sSBY40GAoHQAVcoooAKKKKACiiigAooooATbRtpaKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAK5jx74Zt/GPhS/0K9mkhgu1GZI/vKVYMCPXkDiunooA8etfh746FvDZTfEYw2MSCMLZ6akcmxeg3FiBx7Vr6B8I/DemX66lqP2zXdWX/AJe9Ul85gfZT8g69hXpNFO7AT7tOoopAFUr6xtNQtzBfW8NzC3VJEBH5GrtFAHmWofBTwRczmaDS5LGU9TY3EkOfrg10PgnwTovg23uItDt2SS5IM00shlklK5xuY8nGT+ddXRRqAtFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQB/9k=';
-let refData = REF_DEFAULT, refCustom = false, refStyleP = null;
+let refData = REF_DEFAULT, refCustom = false, refStyleP = null, refStyleProvider = '';
 try {
   const r = localStorage.getItem('refimg_v1');
   if (r && r.startsWith('data:image/')) { refData = r; refCustom = true; }
@@ -2114,10 +2260,12 @@ function refReset() {
 }
 // Nhờ Gemini mô tả phong cách của ảnh mẫu 1 lần, dùng lại cho mọi cảnh (lỗi thì vẫn chạy chỉ với ảnh)
 function refStyleText() {
-  if (refStyleP) return refStyleP;
+  const provider = storyProvider();
+  if (refStyleP && refStyleProvider === provider) return refStyleP;
+  refStyleProvider = provider;
   const mine = refStyleP = (async () => {
     try {
-      const d = await gemMulti(TXT_MODELS, { contents: [{ parts: [
+      const d = await storyAI({ contents: [{ parts: [
         { inlineData: { mimeType: refMime(), data: refB64() } },
         { text: 'Describe the DRAWING STYLE of this image as short instructions for an SVG illustrator who draws objects, props and backgrounds in the same style, in English, max 80 words, no preamble. Cover: line weight and quality (smooth or wobbly), how simple or detailed shapes are, fills (white or black), shading. Output only the description.' }
       ] }] }, 60000);
@@ -2970,7 +3118,7 @@ async function svgImage(s, blackInkOnly = false) {
   const dl = parseDates(s.text);
   if (dl.length) rule += '\nDATE LABEL: the narration of this scene contains a date. The tool will draw a calendar / date label in the TOP-LEFT corner (about 30% of the width and 30% of the height). Keep that corner EMPTY (put nothing there) and do NOT write any date or text yourself.';
   parts.push({ text: `${rule}\n${sceneCtx(s)}` });
-  const d = await gemMulti(TXT_MODELS, { contents: [{ parts }] }, 75000);
+  const d = await storyAI({ contents: [{ parts }] }, 75000);
   let aiBd = '';
   const t = stripFlags((d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join(''), s.text).replace(/<backdrop\b([^>]*?)\/?>(\s*<\/backdrop>)?/gi, (m, at) => { try { aiBd = aiBd || figAttrs(at).type || ''; } catch (e) { /* bỏ qua */ } return ''; });
   const wantBg = !$('bgOn') || $('bgOn').checked;
@@ -3157,7 +3305,7 @@ setTimeout(async () => {
 async function analyzeCharRef() {
   const files = [...$('charRef').files].slice(0, 3), st = $('charRefStat');
   if (!files.length) return;
-  if (!keysOk()) return;
+  if (storyProvider() === 'gemini' && !keysOk()) return;
   st.textContent = '⏳ Đang xem ảnh mẫu...';
   try {
     const parts = [];
@@ -3170,7 +3318,7 @@ async function analyzeCharRef() {
     parts.push({ text: 'Describe the reference image(s) for an AI image generator, in English, under 130 words total, in exactly this format:\nSTYLE: art style, rendering, lighting, color palette, texture, camera feel.\nCHARACTERS: for each visible character: gender, apparent age, hair (color, length, style), skin tone, face shape, eyes and eyebrows, glasses or accessories, clothing with colors and patterns, body proportions.\nDescribe only what is visible. Do not name real people or film characters.' });
     charRefParts = parts.filter(x => x.inlineData).map(x => ({ inlineData: { mimeType: x.inlineData.mimeType, data: x.inlineData.data } }));
     idb.set('charref', charRefParts);
-    const d = await gemMulti(TXT_MODELS, { contents: [{ parts }] }, 90000);
+    const d = await storyAI({ contents: [{ parts }] }, 90000);
     const t = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('').trim();
     if (!t) throw new Error('Gemini không trả về mô tả');
     $('charStyle').value = t; saveSet();
@@ -3309,8 +3457,8 @@ const ART_STYLE = 'Original illustrated storybook panel. Expressive hand-inked c
 function artRoles(s) {
   return (String(s.image || '').match(/\b(?:MAIN|SECOND|THIRD|FOURTH|FIFTH|SIXTH|SEVENTH|EIGHTH)\b/g) || []).filter((role, i, roles) => roles.indexOf(role) === i);
 }
-function artPhoto(im) {
-  const k = Math.min(1, 768 / Math.max(im.width, im.height));
+function artPhoto(im, maxSize = 768) {
+  const k = Math.min(1, maxSize / Math.max(im.width, im.height));
   const c = document.createElement('canvas');
   c.width = Math.max(1, Math.round(im.width * k));
   c.height = Math.max(1, Math.round(im.height * k));
@@ -3321,6 +3469,21 @@ function artPhoto(im) {
 class IllustrationUnavailable extends Error {}
 
 async function renderStoryArt(parts, aspectRatio) {
+  if (storyProvider() === 'cloudflare') {
+    const inputs = [];
+    for (const part of parts) {
+      if (part.inlineData) {
+        const { mimeType, data } = part.inlineData;
+        const refImage = await loadImg(`data:${mimeType};base64,${data}`);
+        inputs.push(artPhoto(refImage, 496));
+      } else inputs.push(part);
+    }
+    const data = await cfCall({ kind: 'image', parts: inputs, aspect: aspectRatio });
+    if (!data.image?.data || !/^image\/(png|jpeg|webp)$/i.test(data.image?.mimeType)) {
+      throw new Error('Cloudflare không trả ảnh hợp lệ.');
+    }
+    return await loadImg(`data:${data.image.mimeType};base64,${data.image.data}`);
+  }
   let error, availabilityOnly = true;
   for (const model of GEM_IMG_MODELS) {
     if (retiredModels.has(model)) continue;
@@ -3353,7 +3516,7 @@ Flag only a material visual error: a wrong actor or recipient, the key action or
 Return only JSON {"status":"pass","fix":"","note":""} or {"status":"revise","fix":"single concrete correction in English","note":"vấn đề nhìn thấy được, một câu tiếng Việt"}.
 ${sceneCtx(s)}` });
   try {
-    const response = await gemMulti(TXT_MODELS, { contents: [{ parts }], generationConfig: { responseMimeType: 'application/json' } }, 30000, 1);
+    const response = await storyAI({ contents: [{ parts }], generationConfig: { responseMimeType: 'application/json' } }, 30000, 1);
     const result = readGemJson(response);
     if (result.status === 'pass') return result;
     if (result.status === 'revise' && typeof result.fix === 'string' && result.fix.trim()) {
@@ -3433,7 +3596,78 @@ ${sceneCtx(s)}`;
     artColor: mode, artRoles: roles, bgL: null, fgL: null, bgKind: inferSetting(s), anim: false, bg: null, people: null };
 }
 
+async function makeMotionScene(s, plan, mode) {
+  const width = W, height = Math.min(H, fm.ah + 10);
+  const h = H;
+  const base = document.createElement('canvas');
+  base.width = width;
+  base.height = height;
+  const g = base.getContext('2d');
+  g.fillStyle = '#f5eedf';
+  g.fillRect(0, 0, width, height);
+  const atmosphere = inferSetting(s);
+  const rocket = plan.action === 'launch' || plan.action === 'separate';
+  const colors = cmodeV(), useBackdrop = mode === 'illustrated' || $('bgOn')?.checked !== false;
+  let aiBackdrop = false;
+  if (mode === 'illustrated' && useBackdrop) {
+    const aspect = sub ? (fm.v ? '4:5' : '21:9') : fm.ar;
+    const setting = plan.action === 'separate' ? 'upper atmosphere, blue sky darkening above the curvature of Earth' :
+      rocket ? 'remote island by the sea, distant shore and sky around a launch facility' :
+      atmosphere === 'plain' ? (plan.seated ? 'a quiet cafe or living room' : 'the immediate setting of the scene') : atmosphere;
+    const place = String(settingCtx || '').slice(0, 420);
+    const reserve = rocket
+      ? 'The sky needs ample open space in the center. Keep a narrow band of distant ground near the bottom.'
+      : 'Empty floor across the lower third, with the focal furniture area and middle of the frame unobstructed. Light and shadows should be soft so the overlaid characters are readable.';
+    const prompt = `Paint a background layer for a ${aspect} hand-inked storybook scene. Environment: ${setting}. Story setting for era or light only: ${place}.
+${reserve}
+${ART_PALETTE[colors] || ART_PALETTE.vivid}
+Only the environment. No people, silhouettes, animals, rockets, vehicles, doors in the foreground, foreground furniture, tables, chairs or loose objects. No lettering, border or watermark. The editor adds every moving object afterwards.`;
+    try {
+      const image = await renderStoryArt([{ text: prompt }], aspect);
+      const scale = Math.max(width / image.width, height / image.height);
+      const w = scale * image.width, bh = scale * image.height;
+      g.imageSmoothingQuality = 'high';
+      g.drawImage(image, (width - w) / 2, (height - bh) / 2, w, bh);
+      aiBackdrop = true;
+    } catch (e) {
+      if (abortGen) throw e;
+      log('  ℹ Dùng nền vẽ sẵn cho cảnh 2D: ' + String(e.message || e).slice(0, 100));
+    }
+  }
+  if (useBackdrop && !aiBackdrop) {
+    try {
+      const background = await bdCanvas(s, rocket ? 'beach' : atmosphere, []);
+      g.drawImage(background, 0, 0, width, height);
+    } catch (e) { log('  ℹ Dùng nền giấy cho cảnh 2D.'); }
+  }
+  const dates = parseDates(s.text);
+  if (dates.length) {
+    const label = dateLabelSvg(dates).replace(' filter="url(#wob)"', '');
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${fm.vw} 900">${label}</svg>`;
+    g.drawImage(await loadImg('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)), 0, 0);
+  }
+  const motionScene = { ...plan, colors };
+  const cv = document.createElement('canvas');
+  cv.width = width;
+  cv.height = h;
+  const x = cv.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, width, h);
+  const poster = { motionScene: { ...motionScene, cueFraction: 0.4 }, motionBase: base, dur: 5 };
+  StoryMotion.paint(x, poster, plan.action === 'launch' ? 2.55 : 1.9, width, height);
+  return {
+    cv, ord: [], art: true, artNote: useBackdrop && !aiBackdrop && mode === 'illustrated' ? 'Cảnh 2D dùng nền vẽ sẵn.' : '',
+    artRef: null, artRoles: [], anim: false, bg: null, people: null, bgL: null, fgL: null, bgKind: atmosphere,
+    motionScene, motionBase: base
+  };
+}
+
 async function makeImage(s, sceneNo, mode = $('isrc').value) {
+  const plan = interactionOn() ? StoryMotion.plan(s.motionHint, s.text, s.image, chars, s.motionChoice) : null;
+  if (plan) return await makeMotionScene(s, plan, mode);
+  return { ...await makeStillImage(s, sceneNo, mode), motionScene: null, motionBase: null };
+}
+
+async function makeStillImage(s, sceneNo, mode) {
   if (mode === 'illustrated') return await illustratedImage(s, sceneNo);
   if (mode === 'ai3d') {
     try { return await aiColorImage(s, sceneNo); }
@@ -3739,7 +3973,7 @@ async function testGemini() {
   const out = $('gtestResult');
   const ks = $('keys').value.split(/\s+/).filter(k => k.length > 20);
   if (!ks.length) { out.style.color = '#dc2626'; out.textContent = 'Chưa nhập API key Gemini.'; return; }
-  const mode = $('isrc').value, needImg = mode === 'illustrated' || mode === 'img' || mode === 'free_img', needVoice = $('vsrc').value !== 'none';
+  const mode = $('isrc').value, needImg = mode === 'illustrated' || mode === 'img' || mode === 'free_img', needVoice = $('vsrc').value === 'gem';
   out.style.color = '#1d4ed8';
   out.textContent = 'Đang kiểm tra ' + ks.length + ' key...';
   const lines = [];
@@ -4036,14 +4270,11 @@ async function tiktokToText() {
 }
 
 async function start(isRetry = false) {
-  if ($('go').disabled || scenes.some(s => s.busy) || playing) return;
-  const imageMode = $('isrc').value;
+  if ($('go').disabled || $('mkBtn').disabled || scenes.some(s => s.busy) || playing) return;
+  const provider = storyProvider(), imageMode = $('isrc').value;
   saveSet();
   keys = $('keys').value.split(/\s+/).filter(k => k.length > 20);
-  if (!keys.length) {
-    $('set').open = true;
-    return alert('Dán API key Gemini vào phần Cài đặt nhé.');
-  }
+  if (provider === 'gemini' && !keys.length) return keysOk();
   if ($('vsrc').value === 'vbee' && !($('vapp').value.trim() && $('vtok').value.trim() && $('vcode').value.trim())) {
     $('set').open = true;
     return alert('Điền đủ App ID, Token và mã giọng Vbee trong phần Cài đặt nhé.');
@@ -4052,16 +4283,19 @@ async function start(isRetry = false) {
   if (!isRetry && !idea) return alert('Nhập câu chuyện hoặc ý tưởng nhé.');
 
   abortGen = false;
+  cloudflareBlocked = null;
   vbeeDeadInSession = false;
   gemImgDeadInSession = false;
   $('stp').hidden = false;
   $('go').disabled = true;
+  $('aiProvider').disabled = true;
+  if ($('interaction2d')) $('interaction2d').disabled = true;
   $('retryBtn').hidden = true;
-  sub = $('sub').checked;
-  if (isRetry && scenes.length && fm.ar) $('fmt').value = fm.v ? 'v' : 'h';
+  if (isRetry && scenes.length && fm.ar) {
+    $('fmt').value = fm.v ? 'v' : 'h';
+    $('sub').checked = sub;
+  } else sub = $('sub').checked;
   setFmt();
-  const wantVoice = $('vsrc').value !== 'none';
-  A();
 
   try {
     if (!isRetry || !scenes.length) {
@@ -4088,11 +4322,14 @@ async function start(isRetry = false) {
         log('  ⚠ Chưa ghép được hình theo lời kể, dùng mô tả có sẵn: ' + e.message);
       }
       sc.scenes.forEach((x, i) => { x.prev = i ? (sc.scenes[i - 1].image || '') : ''; });
+      cloudDraftActive = provider === 'cloudflare';
       scenes = sc.scenes.map(s => ({
         prev: s.prev || '',
         text: s.text || '',
         image: s.image || s.text,
         mood: s.mood || '',
+        motionHint: s.motionHint || null,
+        motionChoice: 'auto',
         ord: [],
         cv: null,
         buf: null,
@@ -4133,7 +4370,10 @@ async function start(isRetry = false) {
             } catch (e) {
               if (abortGen) break;
               log(`  ⚠ Cảnh ${no} (thử ${t + 1}/${attempts}) lỗi vẽ: ${e.message.slice(0, 110)}`);
-              if (e instanceof IllustrationUnavailable) imageUnavailable = true;
+              if (e instanceof IllustrationUnavailable || e instanceof CloudflareUnavailable) {
+                imageUnavailable = true;
+                break;
+              }
               if (t + 1 < attempts) await nap(2500 * (t + 1));
             }
           }
@@ -4142,6 +4382,7 @@ async function start(isRetry = false) {
 
         await imgTask;
         if (abortGen) break;
+        if (!s.cv) continue;
 
         s.dur = s.buf ? s.buf.duration + 0.9 : Math.max(5, s.text.split(/\s+/).length / 2.6 + 1.5);
         s.ok = true;
@@ -4155,7 +4396,9 @@ async function start(isRetry = false) {
     else await Promise.all([worker(), worker()]);
 
     if (imageUnavailable) {
-      log('  ⚠ Gemini tạo ảnh chưa khả dụng. Kiểm tra quyền tạo ảnh hoặc hạn mức, rồi bấm Chạy bù. Có thể chọn SVG để vẽ các cảnh còn thiếu.');
+      log(provider === 'cloudflare'
+        ? '  ⚠ ' + (cloudflareBlocked?.message || 'Cloudflare chưa tạo được tranh.') + ' Tranh đã có được giữ lại.'
+        : '  ⚠ Gemini tạo ảnh chưa khả dụng. Kiểm tra quyền tạo ảnh hoặc hạn mức, rồi bấm Chạy bù. Có thể chọn SVG để vẽ các cảnh còn thiếu.');
       scenes.forEach((s, i) => { if (!s.cv) { s.failed = true; updateCard(i); } });
     }
     const badImg = scenes.filter(s => !s.cv).length;
@@ -4171,7 +4414,10 @@ async function start(isRetry = false) {
   } catch (e) {
     log(abortGen ? '⏹ Đã dừng.' : '❌ LỖI: ' + e.message);
   }
+  if (cloudDraftActive && scenes.length) await storeCloudDraft(imageMode);
   $('go').disabled = false;
+  $('aiProvider').disabled = false;
+  if ($('interaction2d')) $('interaction2d').disabled = false;
   $('stp').hidden = true;
 }
 
@@ -4189,6 +4435,29 @@ function renderGallery() {
     g.appendChild(d);
     d.querySelector('.cap').textContent = `${i + 1}. ${s.text}`;
     $('ed' + i).value = s.image || '';
+    if (globalThis.StoryMotion) {
+      const label = document.createElement('label');
+      label.hidden = !interactionOn();
+      label.textContent = 'Động tác (áp dụng khi bấm Vẽ lại)';
+      const select = document.createElement('select');
+      select.className = 'motion-choice';
+      select.id = 'motionChoice' + i;
+      [['auto', 'Tự nhận diện'], ['off', 'Tranh thường'], ...Object.entries(StoryMotion.labels)].forEach(([value, title]) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = title;
+        select.appendChild(option);
+      });
+      select.value = s.motionChoice || 'auto';
+      label.appendChild(select);
+      d.appendChild(label);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'w sm motion-preview';
+      button.hidden = true;
+      button.onclick = () => previewMotion(i);
+      d.appendChild(button);
+    }
     $('ed' + i).setAttribute('aria-label', `Mô tả tranh cảnh ${i + 1}`);
     const c = d.querySelector('canvas');
     c.width = 240; c.height = Math.round(240 * H / W);
@@ -4199,6 +4468,12 @@ function updateCard(i) {
   const s = scenes[i], d = $('card' + i);
   if (!s || !d) return;
   const c = d.querySelector('canvas'), ph = d.querySelector('.ph'), note = d.querySelector('.art-note');
+  const button = d.querySelector('.motion-preview');
+  if (button) {
+    button.hidden = !s.motionScene;
+    button.disabled = !!s.busy;
+    if (s.motionScene && globalThis.StoryMotion) button.textContent = 'Xem động tác · ' + StoryMotion.labels[s.motionScene.action];
+  }
   note.textContent = s.artNote || '';
   note.hidden = !s.artNote;
   if (s.busy) { ph.hidden = false; ph.textContent = '⏳ Đang vẽ lại...'; return; }
@@ -4210,15 +4485,48 @@ function updateCard(i) {
   x.fillStyle = '#fff'; x.fillRect(0, 0, tw, th);
   x.drawImage(s.cv, 0, 0, tw, th);
 }
+let motionPreview = null;
+function previewMotion(i) {
+  const s = scenes[i], d = $('card' + i);
+  if (!s?.motionScene || !d || s.busy || playing) return;
+  if (motionPreview) {
+    cancelAnimationFrame(motionPreview.frame);
+    const prior = motionPreview.i;
+    motionPreview = null;
+    updateCard(prior);
+    if (i === prior) return;
+  }
+  const button = d.querySelector('.motion-preview'), cv = d.querySelector('canvas');
+  const x = cv.getContext('2d'), start = performance.now();
+  const duration = Math.min(5, s.dur || 5);
+  const stageH = Math.min(H, fm.ah + 10) * cv.height / H;
+  const draw = time => {
+    if (!motionPreview || motionPreview.i !== i) return;
+    if (!d.isConnected || s.busy || playing || time - start >= duration * 1000) {
+      motionPreview = null;
+      updateCard(i);
+      return;
+    }
+    x.fillStyle = '#fff'; x.fillRect(0, 0, cv.width, cv.height);
+    StoryMotion.paint(x, s, (time - start) / 1000 * (s.dur || duration) / duration, cv.width, stageH);
+    motionPreview.frame = requestAnimationFrame(draw);
+  };
+  button.textContent = 'Dừng xem động tác';
+  motionPreview = { i, frame: requestAnimationFrame(draw) };
+}
 async function redraw(i) {
   const s = scenes[i];
-  if (!s || s.busy || $('go').disabled || playing) return;
+  if (!s || s.busy || $('go').disabled || $('mkBtn').disabled || playing) return;
   const imageMode = $('isrc').value;
   keys = $('keys').value.split(/\s+/).filter(k => k.length > 20);
-  if (!keys.length) { $('set').open = true; return alert('Dán API key Gemini vào phần Cài đặt nhé.'); }
+  if (storyProvider() === 'gemini' && !keys.length) return keysOk();
+  if (!scenes.some(q => q.busy)) cloudflareBlocked = null;
   abortGen = false;
+  $('aiProvider').disabled = true;
+  if ($('interaction2d')) $('interaction2d').disabled = true;
   const ed = $('ed' + i);
-  const previousImage = s.image;
+  const previousImage = s.image, previousMotion = s.motionChoice;
+  s.motionChoice = $('motionChoice' + i)?.value || 'auto';
   if (ed && ed.value.trim()) s.image = ed.value.trim();
   s.busy = true; s.failed = false; updateCard(i);
   let ok = false;
@@ -4230,15 +4538,23 @@ async function redraw(i) {
       log(`🔄 Đã vẽ lại tranh cảnh ${i + 1}`);
     } catch (e) {
       log(`  ⚠ Cảnh ${i + 1} lỗi khi vẽ lại: ${(e.message || '').slice(0, 110)}`);
+      if (e instanceof CloudflareUnavailable) break;
       if (t + 1 < attempts) await sleep(1500);
     }
   }
-  s.busy = false;
   if (!ok) {
     s.image = previousImage;
+    s.motionChoice = previousMotion;
     if (s.cv) s.artNote = 'Vẽ lại chưa thành công. Đang hiển thị tranh trước.';
     else s.failed = true;
   }
+  if (ok && cloudDraftActive) await storeCloudDraft(imageMode);
+  s.busy = false;
+  if (!scenes.some(q => q.busy)) {
+    $('aiProvider').disabled = false;
+    if ($('interaction2d')) $('interaction2d').disabled = false;
+  }
+  if (scenes.every(q => q.cv)) $('retryBtn').hidden = true;
   updateCard(i);
 }
 function remakeVoices() {
@@ -4250,13 +4566,13 @@ function remakeVoices() {
 }
 
 async function makeVideo() {
-  if (!scenes.length) return;
+  if (!scenes.length || $('go').disabled || $('mkBtn').disabled) return;
   const miss = scenes.filter(s => !s.cv).length;
   if (miss) return alert(`Còn ${miss} cảnh chưa có tranh. Bấm 🔄 Vẽ lại ở các cảnh đó trước nhé.`);
   if (scenes.some(s => s.busy)) return alert('Đang vẽ lại một tranh, đợi vẽ xong rồi bấm nhé.');
   saveSet();
   keys = $('keys').value.split(/\s+/).filter(k => k.length > 20);
-  if (!keys.length) { $('set').open = true; return alert('Dán API key Gemini vào phần Cài đặt nhé.'); }
+  if ($('vsrc').value === 'gem' && !keys.length) return keysOk();
   if ($('vsrc').value === 'vbee' && !($('vapp').value.trim() && $('vtok').value.trim() && $('vcode').value.trim())) {
     $('set').open = true;
     return alert('Điền đủ App ID, Token và mã giọng Vbee trong phần Cài đặt nhé.');
@@ -4369,8 +4685,109 @@ const idb = {
   open() { return this._db || (this._db = new Promise((ok, no) => { const r = indexedDB.open('truyenvetay', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); })); },
   async set(k, v) { try { const d = await this.open(); await new Promise((ok, no) => { const t = d.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = ok; t.onerror = () => no(t.error); }); return true; } catch (e) { return false; } },
   async get(k) { try { const d = await this.open(); return await new Promise((ok, no) => { const q = d.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => ok(q.result); q.onerror = () => no(q.error); }); } catch (e) { return null; } },
+  async has(k) { try { const d = await this.open(); return await new Promise((ok, no) => { const q = d.transaction('kv').objectStore('kv').getKey(k); q.onsuccess = () => ok(q.result !== undefined); q.onerror = () => no(q.error); }); } catch (e) { return false; } },
   async del(k) { try { const d = await this.open(); await new Promise(ok => { const t = d.transaction('kv', 'readwrite'); t.objectStore('kv').delete(k); t.oncomplete = ok; t.onerror = ok; }); } catch (e) {} }
 };
+
+// Một bản tạo dở được lưu trên trình duyệt khi Cloudflare tạm ngừng tạo ảnh.
+const CLOUD_DRAFT_KEY = 'cloudflare-story-draft-v1';
+let cloudDraftWrite = Promise.resolve();
+const canvasBlob = cv => cv ? new Promise(resolve => cv.toBlob(resolve, 'image/png')) : null;
+
+function storeCloudDraft(imageMode) {
+  const pending = scenes.some(s => !s.cv);
+  const settings = { fmt: fm.v ? 'v' : 'h', sub, imageMode, colors: cmodeV(), interaction2d: interactionOn(), idea: $('idea').value,
+    chars, storyCtx, settingCtx, identityCtx };
+  const entries = scenes.map(({ text, image, prev, mood, cv, ord, bgL, fgL, bgKind, art, artRef, artRoles, artColor, artNote, dur,
+    motionHint, motionChoice, motionScene, motionBase }) =>
+    ({ text, image, prev, mood, cv, ord, bgL, fgL, bgKind, art, artRef, artRoles, artColor, artNote, dur,
+      motionHint, motionChoice, motionScene, motionBase }));
+  cloudDraftWrite = cloudDraftWrite.then(async () => {
+    if (!pending) {
+      await idb.del(CLOUD_DRAFT_KEY);
+      $('cfResume').hidden = true;
+      cloudDraftActive = false;
+      return;
+    }
+    const saved = [];
+    for (const scene of entries) {
+      const cv = await canvasBlob(scene.cv);
+      if (scene.cv && !cv) throw new Error('Không lưu được tranh');
+      const motionBase = await canvasBlob(scene.motionBase);
+      if (scene.motionBase && !motionBase) throw new Error('Không lưu được nền chuyển động');
+      saved.push({ ...scene, cv, motionBase, bgL: await canvasBlob(scene.bgL), fgL: await canvasBlob(scene.fgL) });
+    }
+    if (!await idb.set(CLOUD_DRAFT_KEY, { ...settings, scenes: saved })) throw new Error('Không ghi được bản tạo dở');
+    $('cfResume').hidden = false;
+    log('💾 Đã lưu video tạo dở. Bạn có thể mở lại trên trình duyệt này rồi bấm Chạy bù.');
+  }).catch(() => log('⚠ Trình duyệt chưa lưu được bản tạo dở. Giữ trang này mở để bấm Chạy bù.'));
+  return cloudDraftWrite;
+}
+
+async function restoreCanvas(blob) {
+  if (!blob) return null;
+  const bitmap = await createImageBitmap(blob);
+  try {
+    const cv = document.createElement('canvas');
+    cv.width = bitmap.width;
+    cv.height = bitmap.height;
+    cv.getContext('2d').drawImage(bitmap, 0, 0);
+    return cv;
+  } finally { bitmap.close(); }
+}
+
+async function restoreCloudDraft() {
+  if ($('go').disabled || $('mkBtn').disabled || playing || scenes.some(s => s.busy)) return;
+  $('go').disabled = true;
+  $('cfResume').disabled = true;
+  $('aiProvider').disabled = true;
+  if ($('interaction2d')) $('interaction2d').disabled = true;
+  try {
+    const d = await idb.get(CLOUD_DRAFT_KEY);
+    if (!d?.scenes?.length) { $('cfResume').hidden = true; return alert('Không tìm thấy video tạo dở.'); }
+    const restored = [];
+    for (const stored of d.scenes) {
+      const cv = await restoreCanvas(stored.cv);
+      restored.push({ ...stored, cv, motionBase: await restoreCanvas(stored.motionBase), bgL: await restoreCanvas(stored.bgL), fgL: await restoreCanvas(stored.fgL),
+        ok: !!cv, failed: !cv, buf: null });
+    }
+    $('fmt').value = d.fmt;
+    $('sub').checked = sub = !!d.sub;
+    $('isrc').value = d.imageMode;
+    $('cmode').value = d.colors;
+    if ($('interaction2d')) $('interaction2d').checked = !!d.interaction2d;
+    $('idea').value = d.idea;
+    $('aiProvider').value = 'cloudflare';
+    chars = d.chars;
+    parseCast(chars);
+    storyCtx = d.storyCtx;
+    settingCtx = d.settingCtx;
+    identityCtx = d.identityCtx;
+    scenes = restored;
+    cloudDraftActive = true;
+    setFmt();
+    vui();
+    saveSet();
+    $('out').innerHTML = '';
+    $('thumbBox').innerHTML = '';
+    TH = null;
+    $('pl').hidden = true;
+    renderGallery();
+    $('galBox').hidden = false;
+    $('retryBtn').hidden = !scenes.some(s => !s.cv);
+    const total = scenes.filter(s => s.cv).length;
+    $('bar').style.width = `${100 * total / scenes.length}%`;
+    log(`Đã mở lại video có ${total}/${scenes.length} tranh. Bấm Chạy bù để vẽ các cảnh còn thiếu.`);
+  } catch (e) {
+    log('⚠ Chưa mở được video tạo dở: ' + e.message);
+  } finally {
+    $('go').disabled = false;
+    $('cfResume').disabled = false;
+    $('aiProvider').disabled = false;
+    if ($('interaction2d')) $('interaction2d').disabled = false;
+  }
+}
+idb.has(CLOUD_DRAFT_KEY).then(found => { if (found) $('cfResume').hidden = false; });
 
 // ===== NHÂN VẬT CHÍNH TỪ ẢNH CỦA BẠN (thay người que MAIN, không cần dịch vụ ảnh nào) =====
 let spriteImg = null; const _spr = [];
@@ -5465,6 +5882,11 @@ function mvCreate(vs, st, x) {
     const cx = _mvCl(_mvLerp(c.ax, c.bx, e), W / (2 * z), W - W / (2 * z)), cy = _mvCl(_mvLerp(c.ay, c.by, e), AHt / (2 * z), AHt - AHt / (2 * z));
     g.save();
     g.beginPath(); g.rect(0, 0, W, AHt); g.clip();
+    if (s.motionScene && globalThis.StoryMotion) {
+      StoryMotion.paint(g, s, lt, W, AHt);
+      g.restore();
+      return;
+    }
     if (s.art) {
       const artZoom = 1 + (z - 1) * 0.35;
       blit(g, s.cv, artZoom * Math.max(0.99, xz), W / 2, AHt / 2, xo * 0.35, 0);
@@ -5578,7 +6000,11 @@ function makeRenderer(vs, st, x) {
     x.translate(cx + dx, cy);
     x.scale(z, z);
     x.translate(-cx, -cy);
-    if (s.art && s.cv) {
+    if (s.motionScene && globalThis.StoryMotion) {
+      x.restore();
+      x.save();
+      StoryMotion.paint(x, s, lt, W, AHt);
+    } else if (s.art && s.cv) {
       x.restore();
       x.save();
       x.globalAlpha = Math.min(1, lt / 0.28);
@@ -6027,13 +6453,14 @@ function thDownload() {
 async function thGenCopy() {
   const st = $('thStat'), btn = $('thRegen');
   keys = $('keys').value.split(/\s+/).filter(k => k.length > 20);
-  if (!keys.length) {
+  if (storyProvider() === 'gemini' && !keys.length) {
     $('set').open = true;
     st.style.color = '#dc2626';
     st.textContent = '⚠ Dán API key Gemini vào phần Cài đặt rồi bấm "Gợi ý hook khác" nhé. Trong lúc đó bạn vẫn tự gõ chữ và tải thumbnail được.';
     return;
   }
   abortGen = false;
+  if (!$('go').disabled && !scenes.some(q => q.busy)) cloudflareBlocked = null;
   if (btn) btn.disabled = true;
   st.style.color = '#555';
   st.textContent = '⏳ Đang nghĩ câu hook, tiêu đề và chọn cảnh đẹp nhất...';
@@ -6054,7 +6481,7 @@ Chỉ trả về JSON đúng dạng: {"titles":["..."],"texts":["..."],"scene":1
 Kịch bản:
 ${story}`;
   try {
-    const d = await gemMulti(TXT_MODELS, { contents: [{ parts: [{ text: p }] }], generationConfig: { responseMimeType: 'application/json' } }, 70000);
+    const d = await storyAI({ contents: [{ parts: [{ text: p }] }], generationConfig: { responseMimeType: 'application/json' } }, 70000);
     const raw = (d.candidates?.[0]?.content?.parts || []).map(q => q.text || '').join('').replace(/```json|```/g, '').trim();
     const a = raw.indexOf('{'), b = raw.lastIndexOf('}');
     const j = JSON.parse(a >= 0 && b > a ? raw.slice(a, b + 1) : raw);

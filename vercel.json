@@ -1,1 +1,7 @@
-{ "regions": ["sin1"] }
+{
+  "regions": ["sin1"],
+  "fluid": true,
+  "functions": {
+    "api/cloudflare-ai.js": { "maxDuration": 100 }
+  }
+}

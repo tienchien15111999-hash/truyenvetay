@@ -1,5 +1,22 @@
 # TÓM TẮT DỰ ÁN + LỊCH SỬ CẬP NHẬT (dành cho AI khác đọc nhanh)
 
+## Hoạt hình 2D theo lời kể
+
+- Bật **Hoạt hình 2D theo hành động trong truyện** trước khi tạo video. Cảnh nào có hành động phù hợp sẽ có nút **Xem động tác**. Có thể đổi mục **Động tác** trong thẻ cảnh và bấm **Vẽ lại**. Dùng **Tranh thường** để bỏ chuyển động của một cảnh.
+- Các động tác có sẵn gồm uống nước, hút thuốc, ăn, nghe điện thoại, đưa nhận đồ, nhặt đồ, chỉ tay, mở cửa, mở hộp hoặc rương, phóng và tách tầng tên lửa. Chuyển động tay, đồ vật, nắp hộp và khói được vẽ thành các lớp riêng. Khi dùng tranh minh họa, API tạo nền và nhân vật được vẽ theo mô tả vai trong kịch bản. Cảnh chưa có động tác phù hợp vẫn dùng cách vẽ đang chọn.
+- Hoạt hình dựng trong trình duyệt và dùng chung hàm khung hình cho xem trước và xuất video. Thời điểm động tác ước lượng theo vị trí cụm từ trong lời kể và độ dài giọng đọc. Giọng Vbee giữ cách dùng cũ.
+- Khi cập nhật một bản đã triển khai, đưa **`index.html`** và **`interaction-2d.js`** lên cùng thư mục gốc của repo. Các file API ở trong thư mục **`api/`**.
+
+## Bản Cloudflare Workers AI
+
+1. Trong Cloudflare, mở **Workers AI → Use REST API** để lấy **Account ID** và tạo **Workers AI API Token**. Gói **Workers Free** dùng hạn mức theo ngày.
+2. Cập nhật các file trong ZIP vào repo hiện tại để Vercel triển khai bản mới.
+3. Mở web → **Cài đặt → API chia cảnh và vẽ tranh → Cloudflare Workers AI**. Nhập **Account ID** và **API Token**, rồi bấm **Kiểm tra kết nối Cloudflare**. Trình duyệt nhớ hai giá trị trong phiên của tab và giữ chúng ngoài file sao lưu cài đặt.
+4. Chọn **Cách vẽ tranh → Minh họa truyện vẽ tay** để tạo tranh màu bằng FLUX. Giọng Vbee dùng App ID, token và mã giọng đang cài. Chép lời từ TikTok/video/MP3 và giọng Gemini dùng key Gemini.
+5. Khi tạo ảnh bị gián đoạn, bấm **Chạy bù** hoặc mở lại web, bấm **Mở lại video tạo dở**, rồi bấm **Chạy bù**. Trình duyệt lưu một video đang tạo dở.
+
+Nếu đã đặt `CLOUDFLARE_ACCOUNT_ID` và `CLOUDFLARE_API_TOKEN` trên Vercel, có thể để trống hai ô trong web và mở **Dùng cấu hình Cloudflare trên Vercel** để nhập mã nếu đã bật `CLOUDFLARE_WEB_CODE`. Thông tin nhập trực tiếp trong web được ưu tiên khi có đủ Account ID và API Token. Các cuộc gọi Cloudflare đi qua `api/cloudflare-ai.js`. Model dùng là Gemma 4 26B và FLUX.2 Klein 4B.
+
 ## Bản minh họa vẽ tay
 
 - Chọn **Minh họa truyện vẽ tay** trong **Cách vẽ tranh** để dùng Gemini tạo tranh nét mực và màu. Chế độ này cần key có quyền tạo ảnh và có thể tính phí theo lượt. Có thể tải ảnh mẫu trong **Cài đặt**. Sau khi tạo, tranh xuất hiện hoàn chỉnh trong video. Bật **Video kể chuyện chuyển động** để thêm chuyển động camera và chuyển cảnh.
