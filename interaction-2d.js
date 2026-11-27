@@ -5,11 +5,12 @@
   const labels = Object.freeze({
     drink: 'Uống nước', smoke: 'Hút thuốc', eat: 'Ăn', phone: 'Nghe điện thoại',
     give: 'Đưa – nhận đồ', point: 'Chỉ tay', pick: 'Nhặt đồ', openDoor: 'Mở cửa',
-    openBox: 'Mở hộp hoặc rương', launch: 'Tên lửa cất cánh', separate: 'Tên lửa tách tầng'
+    openBox: 'Mở hộp hoặc rương', wave: 'Vẫy tay', write: 'Viết trên giấy',
+    launch: 'Tên lửa cất cánh', separate: 'Tên lửa tách tầng'
   });
   const roles = ['MAIN', 'SECOND', 'THIRD', 'FOURTH', 'FIFTH', 'SIXTH', 'SEVENTH', 'EIGHTH'];
   const items = {
-    key: /chìa khóa|\bkey\b/u, bottle: /\bchai\b|\bbottle\b/u, cup: /\b(?:cốc|ly|tách|cup|mug|glass)\b/u,
+    key: /chìa khóa|\bkey\b/u, bottle: /\bchai\b|\bbottle\b/u, cup: /(?<!\p{L})(?:cốc|ly|tách|cup|mug|glass)(?!\p{L})/u,
     letter: /lá thư|phong bì|tờ giấy|letter|envelope|paper/u, book: /quyển sách|cuốn sách|\bbooks?\b/u,
     phone: /điện thoại|\bphone\b/u, bag: /túi xách|túi giấy|cái túi|\bbag\b/u,
     spoon: /muỗng|thìa|spoon/u, food: /miếng bánh|bánh mì|bread|sandwich/u, box: /hộp|rương|hòm|chest|box/u
@@ -23,9 +24,11 @@
     phone: /nghe điện thoại|áp điện thoại lên tai|đưa điện thoại lên tai|answers? the phone/u,
     openDoor: /mở (?:cánh |chiếc )?cửa|đẩy cửa ra|opens? (?:the |a )?door/u,
     openBox: /mở (?:nắp |chiếc |cái )?(?:hộp|rương|hòm)|mở nắp|opens? (?:the |a )?(?:box|chest)/u,
-    give: /(?:đưa|trao|chuyền|chuyển|dúi)\s+[^.!?]{1,72}?\s+(?:cho|vào tay|sang tay)\s+|hands? .{1,72} to /u,
+    give: /(?:đưa|trao|chuyền|chuyển|dúi)\s+(?:[^.,!?;]{1,72}?\s+)?(?:cho|vào tay|sang tay)\s+|hands? .{1,72} to /u,
     pick: /nhặt(?: lên| được| lấy)?\s+|cúi xuống nhặt|picks? up/u,
-    point: /chỉ tay|giơ tay chỉ|trỏ tay|points? (?:at|toward)/u
+    point: /chỉ tay|giơ tay chỉ|trỏ tay|points? (?:at|toward)/u,
+    wave: /vẫy tay|vẫy chào|vẫy tay chào|waves? (?:hello|goodbye|at|to)/u,
+    write: /(?:viết|ghi) (?:thư|một lá thư|chữ|tên|lên giấy|vào [^.!?]{0,20}sổ|vài dòng|trên giấy)|đặt bút viết|writes? (?:a letter|on (?:the )?paper|in (?:a |the )?notebook)/u
   };
 
   const norm = value => String(value || '').toLowerCase().normalize('NFC').replace(/\s+/g, ' ').trim();
@@ -60,15 +63,29 @@
     };
   }
 
-  const negated = (text, i) => /(?:^|\s)(?:không|chưa|đừng|cấm|muốn|định)\s*$/u.test(text.slice(0, i));
+  const negated = (text, i) => {
+    const lead = text.slice(0, i).split(/[.!?;,:…]|\s(?:rồi|nhưng|sau đó|then|but)\s/u).at(-1);
+    return /(?:^|\s)(?:không|chưa|đừng|cấm|muốn|định|sắp|ước|giả vờ|tưởng tượng)(?:\s+[\p{L}\p{M}]+){0,3}\s*$/u.test(lead);
+  };
   function inferAction(text, rocket) {
+    let first = null;
     for (const [action, pattern] of Object.entries(triggers)) {
-      const result = pattern.exec(text);
-      if (!result || (['launch', 'separate'].includes(action) && !rocket)) continue;
-      if (negated(text, result.index)) continue;
-      return { action, cue: result[0].trim().split(/\s+/u).slice(0, 5).join(' ') };
+      if (['launch', 'separate'].includes(action) && !rocket) continue;
+      const match = [...text.matchAll(new RegExp(pattern, 'gu'))].find(result => !negated(text, result.index));
+      if (match && (!first || match.index < first.index)) {
+        first = { action, index: match.index, cue: match[0].trim().split(/\s+/u).slice(0, 5).join(' ') };
+      }
     }
-    return null;
+    return first;
+  }
+
+  function nameMentions(text, people) {
+    return people.flatMap(person => {
+      if (!person.name) return [];
+      const name = norm(person.name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${name}(?![\\p{L}\\p{N}])`, 'gu');
+      return [...text.matchAll(pattern)].map(match => ({ role: person.role, index: match.index }));
+    }).sort((a, b) => a.index - b.index);
   }
 
   function plan(raw, narration, brief, cast, override = 'auto') {
@@ -76,7 +93,8 @@
     const text = norm(narration), rocket = isRocket.test(text + ' ' + norm(brief));
     const fallback = inferAction(text, rocket);
     const rawCue = norm(raw?.cue), rawIndex = rawCue ? text.indexOf(rawCue) : -1;
-    const cueMatches = rawIndex >= 0 && !negated(text, rawIndex) && !/(?:^|\s)(?:không|chưa|đừng|cấm|muốn|định)\s/u.test(rawCue);
+    const cueMatches = rawIndex >= 0 && !negated(text, rawIndex) &&
+      !/(?:^|\s)(?:không|chưa|đừng|cấm|muốn|định|sắp|ước|giả vờ|tưởng tượng)\s/u.test(rawCue);
     const accepted = raw && own(labels, raw.action) && (!['launch', 'separate'].includes(raw.action) || rocket) &&
       (cueMatches || fallback?.action === raw.action);
     const action = override === 'auto' ? (accepted ? raw.action : fallback?.action) : override;
@@ -84,37 +102,47 @@
     const useRaw = accepted && raw.action === action;
     const mentionedRoles = String(brief || '').match(/\b(?:MAIN|SECOND|THIRD|FOURTH|FIFTH|SIXTH|SEVENTH|EIGHTH)\b/g) || [];
     const castPeople = roles.map(role => castStyle(role, cast));
-    const named = castPeople.filter(p => p.name && text.includes(norm(p.name))).sort((a, b) => text.indexOf(norm(a.name)) - text.indexOf(norm(b.name)));
-    const actor = useRaw && roles.includes(raw.actor) ? raw.actor : (named[0]?.role || mentionedRoles[0] || 'MAIN');
+    const cue = useRaw && cueMatches ? rawCue : (fallback?.action === action ? fallback.cue : '');
+    const cueIndex = useRaw && cueMatches ? rawIndex : (fallback?.action === action ? fallback.index : 0);
+    const named = nameMentions(text, castPeople);
+    const clauseStart = Math.max(...['.', '!', '?', ';', ','].map(mark => text.lastIndexOf(mark, Math.max(0, cueIndex - 1)))) + 1;
+    const namedActor = named.findLast(person => person.index >= clauseStart && person.index <= cueIndex);
+    const actor = useRaw && roles.includes(raw.actor) ? raw.actor : (namedActor?.role || named[0]?.role || mentionedRoles[0] || 'MAIN');
     const target = useRaw && roles.includes(raw.target) && raw.target !== actor ? raw.target :
-      (named.find(p => p.role !== actor)?.role || mentionedRoles.find(r => r !== actor) || roles.find(r => r !== actor));
+      (named.find(p => p.index > cueIndex && p.role !== actor)?.role || mentionedRoles.find(r => r !== actor) ||
+        named.find(p => p.role !== actor)?.role || roles.find(r => r !== actor));
     const main = castPeople.find(p => p.role === actor);
     const other = action === 'give' ? castPeople.find(p => p.role === target) : null;
-    const foundItem = Object.keys(items).find(name => items[name].test(text));
-    const preset = { drink: 'cup', smoke: 'cigarette', phone: 'phone', eat: 'spoon', openBox: 'box' }[action];
+    const preset = { drink: 'cup', smoke: 'cigarette', phone: 'phone', eat: 'spoon', openBox: 'box', write: 'pen' }[action];
     const allowed = {
       drink: ['cup', 'bottle'], eat: ['spoon', 'food'],
       give: Object.keys(items), pick: Object.keys(items)
     }[action] || [];
-    const item = allowed.includes(raw?.item) && useRaw ? raw.item : (allowed.includes(foundItem) ? foundItem : preset || 'box');
+    const nextClause = text.slice(cueIndex).split(/[.!?;,:…]/u)[0];
+    const foundItem = allowed.map(name => ({ name, index: nextClause.search(items[name]) }))
+      .filter(match => match.index >= 0).sort((a, b) => a.index - b.index)[0]?.name;
+    const item = allowed.includes(raw?.item) && useRaw ? raw.item : (foundItem || preset || 'box');
     // Nếu câu kể không xác định được đạo cụ đưa/nhặt, giữ tranh minh họa để tránh vẽ sai đồ vật.
-    if (override === 'auto' && ['give', 'pick'].includes(action) && !allowed.includes(foundItem) &&
+    if (override === 'auto' && ['give', 'pick'].includes(action) && !foundItem &&
         !(useRaw && allowed.includes(raw?.item))) return null;
     const seated = useRaw && ['sit','stand'].includes(raw.pose) ? raw.pose === 'sit' :
-      /\bngồi\b|sitting/u.test(text) || (['drink', 'eat'].includes(action) && !/đứng|standing/u.test(text));
-    const cue = useRaw && cueMatches ? rawCue : (fallback?.action === action ? fallback.cue : '');
-    const before = cue ? text.slice(0, text.indexOf(cue)).split(' ').filter(Boolean).length : 0;
+      /(?<!\p{L})ngồi(?!\p{L})|\bsitting\b/u.test(text) || (['drink', 'eat', 'write'].includes(action) && !/đứng|standing/u.test(text));
+    const before = cue ? text.slice(0, cueIndex).split(' ').filter(Boolean).length : 0;
     const cueFraction = cue ? (before + 0.5) / Math.max(1, text.split(' ').length) : 0.38;
     const unlock = (action === 'openBox' || action === 'openDoor') && items.key.test(text);
     return { action, main, other, seated, item, unlock, cueFraction };
   }
 
-  function progress(scene, seconds) {
+  function timing(scene) {
     const voice = scene.buf?.duration;
     const duration = Math.max(0.4, voice || scene.dur || 5);
-    const span = clamp(duration * 0.72, Math.min(0.75, duration), Math.min(6, duration));
-    const start = clamp(duration * (scene.motionScene.cueFraction ?? 0.38) - 0.45 * span, 0, duration - span);
-    return clamp((seconds - (voice ? 0.3 : 0) - start) / span);
+    const span = clamp(duration * 0.65, Math.min(0.8, duration), Math.min(4.8, duration));
+    const cue = duration * (scene.motionScene.cueFraction ?? 0.38), lead = voice ? 0.3 : 0;
+    return { start: lead + clamp(cue - 0.48 * span, 0, duration - span), span };
+  }
+  function progress(scene, seconds) {
+    const { start, span } = timing(scene);
+    return clamp((seconds - start) / span);
   }
 
   function fillStroke(g, fill, edge = '#282b37', width = 2.8) {
@@ -146,7 +174,7 @@
     const distance = Math.max(1, Math.hypot(dx, dy));
     const upper = Math.max(48, distance * 0.53), lower = Math.max(46, distance * 0.49);
     const axis = clamp((upper * upper - lower * lower + distance * distance) / (2 * distance), 0, distance);
-    const bend = Math.sqrt(Math.max(0, upper * upper - axis * axis)) * (dx < -5 ? -1 : 1);
+    const bend = Math.sqrt(Math.max(0, upper * upper - axis * axis)) * clamp((dx + 9) / 22, -1, 1);
     const elbow = [shoulder[0] + (dx * axis - dy * bend) / distance,
       shoulder[1] + (dy * axis + dx * bend) / distance];
     const wrist = move(elbow, hand, 0.92);
@@ -155,7 +183,7 @@
     shape(g, [[hand[0]-4,hand[1]+1],[hand[0]+2,hand[1]+4]], null, '#7c584b', 1);
   }
 
-  function person(g, a, colorMode, u) {
+  function person(g, a, colorMode, u, time) {
     g.save();
     g.translate(a.x, 0);
     g.scale(a.facing, 1);
@@ -202,7 +230,8 @@
       g.beginPath(); g.moveTo(2,23); g.quadraticCurveTo(23,25,29,18); g.lineTo(29,31);
       g.quadraticCurveTo(7,42,2,23); fillStroke(g,style.hair,ink,1.4);
     }
-    oval(g,16,-6,3.2,4.8,ink);
+    const blink = pulse((Math.max(0, time) + 0.7 + style.variant * 0.4) % 3.7, 0, 0.045, 0.065, 0.16);
+    oval(g,16,-6,3.2,mix(4.8,0.8,blink),ink);
     shape(g,[[9,-15],[17,-17],[23,-15]],null,ink,1.6);
     if (style.glasses) {
       oval(g,17,-5,11,8,null,ink,2.2); shape(g,[[-17,-7],[5,-8]],null,ink,1.8);
@@ -247,6 +276,9 @@
         shape(g,[[-3,0],[22,-3]],null,'#7e8a93',4.5);
         oval(g,26,-4,8,5,'#d2d9d9',ink,1.3);
         oval(g,26,-5,4,2,accent);
+        break;
+      case 'pen':
+        shape(g,[[-15,-2],[12,-2],[16,0],[12,2],[-15,2]],accent,ink,1.5);
         break;
       case 'food':
         oval(g,5,-3,13,9,'#d0a56c',ink,2);
@@ -355,7 +387,7 @@
     const bw = p.colors === 'bw';
     const action = p.action;
     const flight = action === 'launch' || action === 'separate';
-    const scale = Math.min(width / 380, height / (flight ? 370 : 294));
+    const scale = Math.min(width / 380, height / (flight ? 395 : 325));
     const ground = height * 0.84;
 
     g.save();
@@ -386,9 +418,9 @@
     }
 
     const give = action === 'give';
-    const ax = give ? -105 : ['drink', 'eat', 'openDoor', 'openBox', 'pick'].includes(action) ? -65 : -22;
+    const ax = give ? -105 : ['drink', 'eat', 'openDoor', 'openBox', 'pick', 'write'].includes(action) ? -65 : -22;
     const bx = 105;
-    const seated = p.seated && ['drink','eat','give','phone','point','smoke'].includes(action);
+    const seated = p.seated && ['drink','eat','give','phone','point','smoke','wave','write'].includes(action);
     const torsoY = seated ? -155 : -197;
     const armRest = [ax+40, seated ? -74 : -95];
     const cupRest = [ax+77,-68];
@@ -417,6 +449,23 @@
     } else if (action === 'point') {
       hand = move(armRest,[ax+123,torsoY+38],pulse(u,0.08,0.43,0.7,0.99));
       furniture(g,ax,seated,null,false,bw);
+    } else if (action === 'wave') {
+      const raised = pulse(u,0.08,0.31,0.74,0.98);
+      const swing = 18 * Math.sin(step(u,0.28,0.76) * Math.PI * 6);
+      hand = move(armRest,[ax+58+swing,torsoY-10],raised);
+      tilt = -4 * raised;
+      furniture(g,ax,seated,null,false,bw);
+    } else if (action === 'write') {
+      const table = ax + 84, stroke = step(u,0.32,0.74);
+      const point = fraction => [table - 13 + fraction * 29, -59 + Math.sin(fraction * 21) * 1.6];
+      const tip = point(stroke), down = pulse(u,0.1,0.32,0.76,0.97);
+      furniture(g,ax,seated,table,false,bw);
+      shape(g,[[table-20,-65],[table+19,-65],[table+25,-53],[table-24,-53]],'#f5ebd2','#726357',1.4);
+      if (stroke) shape(g,Array.from({length: 20}, (_, i) => point(stroke * i / 19)),null,'#3d4660',1.25);
+      hand = move(armRest,[tip[0]-8,tip[1]-14],down);
+      itemPos = hand;
+      itemAngle = 60;
+      tilt = 12 * down;
     } else if (action === 'pick') {
       const p0 = [ax+71,-16], lift = step(u,0.5,0.91);
       bend = pulse(u,0.08,0.42,0.50,0.9);
@@ -442,8 +491,8 @@
 
     oval(g,ax+13,0,seated?49:47,8,'#33334530');
     if (give) oval(g,bx,0,47,8,'#33334530');
-    person(g,{ x:ax,facing:1,seated,hand,tilt,bend,holdingMouth:mouth,style:p.main },p.colors,u);
-    if (give) person(g,{ x:bx,facing:-1,seated:false,hand:handB,tilt:0,bend:0,style:p.other },p.colors,u);
+    person(g,{ x:ax,facing:1,seated,hand,tilt,bend,holdingMouth:mouth,style:p.main },p.colors,u,t);
+    if (give) person(g,{ x:bx,facing:-1,seated:false,hand:handB,tilt:0,bend:0,style:p.other },p.colors,u,t);
     if (itemPos) prop(g,drawnItem,...itemPos,itemAngle,bw,action==='smoke' && mouth ? 0.9 : 0);
     if (action==='smoke') {
       const tip = [itemPos[0]+22,itemPos[1]-3.5];
@@ -453,5 +502,5 @@
     g.restore();
   }
 
-  globalThis.StoryMotion = Object.freeze({ labels, plan, paint, progress });
+  globalThis.StoryMotion = Object.freeze({ labels, plan, paint, progress, timing });
 })();

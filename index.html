@@ -237,7 +237,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
     <option value="svg_ink">Vẽ tay bằng SVG · có bàn tay vẽ từng nét</option>
     <option value="illustrated">Minh họa truyện vẽ tay · nét mực, màu và biểu cảm</option>
   </select>
-  <p class="hint" id="artHint" hidden></p>
+  <p class="hint" id="artHint" hidden>Tool dùng lại tranh tham chiếu theo từng vai khi có, giúp giữ khuôn mặt, trang phục và đạo cụ nhất quán giữa các cảnh.</p>
   <label class="chk" style="margin-top:8px"><input type="checkbox" id="motionVid" onchange="mvUI();saveSet()">🎬 Video kể chuyện chuyển động (camera điện ảnh, ánh sáng, khói/bụi/mưa/tuyết, chuyển cảnh mượt)</label>
   <p class="hint" id="mvHint" hidden></p>
   <label class="chk" style="margin-top:8px"><input type="checkbox" id="interaction2d" onchange="motion2DUI();saveSet()">Hoạt hình 2D theo hành động trong truyện</label>
@@ -268,6 +268,17 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   <canvas id="cv" width="1280" height="720"></canvas>
   <button onclick="play(0)">▶ Xem thử</button>
   <button class="w" onclick="stopFlag=true">■ Dừng xem / xuất</button>
+  <label for="exportSpeed" style="display:inline-block;margin:0 8px">Tốc độ video xuất
+    <select id="exportSpeed" style="width:auto" onchange="saveSet()">
+      <option value="0.75">0,75×</option>
+      <option value="1" selected>1× (bình thường)</option>
+      <option value="1.1">1,1×</option>
+      <option value="1.2">1,2×</option>
+      <option value="1.25">1,25×</option>
+      <option value="1.5">1,5×</option>
+      <option value="2">2×</option>
+    </select>
+  </label>
   <button onclick="play(1)">🎬 Xuất video</button>
   <div style="margin:10px 0;display:flex;flex-wrap:wrap;gap:12px;align-items:center">
     <label><input type="checkbox" id="musicOn" checked onchange="saveSet()"> 🎵 Nhạc nền tự tạo</label>
@@ -293,6 +304,14 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
         <option value="iris">4. Thu vòng tròn</option>
         <option value="tiles">5. Mảnh ghép rơi</option>
         <option value="fade">Mờ trắng (kiểu cũ)</option>
+        <option value="cut">Cắt thẳng</option>
+      </select>
+    </label>
+    <label>Camera (video chuyển động)
+      <select id="mvCam" onchange="saveSet()">
+        <option value="auto">Tự động theo bố cục</option>
+        <option value="gentle">Chuyển động nhẹ</option>
+        <option value="off">Khung hình cố định</option>
       </select>
     </label>
     <label>🎬 Chuyển cảnh (video chuyển động)
@@ -304,9 +323,11 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
         <option value="light">Chuyển bằng ánh sáng</option>
         <option value="dip">Tối dần rồi sáng lên</option>
         <option value="slide">Trượt nhẹ</option>
+        <option value="cut">Cắt thẳng</option>
       </select>
     </label>
   </div>
+  <p class="hint">Tốc độ xuất áp dụng cho hình, phụ đề, giọng đọc và nhạc nền. Nút "Xem thử" phát ở tốc độ 1×.</p>
   <p class="hint">Nhạc nền do tool tự tạo (không cần file nhạc, không dính bản quyền), tự hạ nhỏ khi có giọng đọc. Bấm "Xem thử" để nghe trước, chỉnh âm lượng rồi hãy xuất video.</p>
   <p class="hint">Xuất video chạy nhanh (video 4 phút xuất xong trong khoảng 1 đến 2 phút), không cần xem hết video. Xuất xong sẽ có nút tải về. Nếu trình duyệt không hỗ trợ xuất nhanh, tool tự chuyển sang xuất theo thời gian thật.</p>
   <div id="out"></div>
@@ -318,7 +339,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
 /* mp4-muxer 5.1.5 (MIT, https://github.com/Vanilagy/mp4-muxer) - ghép video/âm thanh thành file mp4 */
 "use strict";var Mp4Muxer=(()=>{var e=Object.defineProperty,t=Object.getOwnPropertyDescriptor,i=Object.getOwnPropertyNames,s=Object.prototype.hasOwnProperty,a=(e,t,i)=>{if(!t.has(e))throw TypeError("Cannot "+i)},r=(e,t,i)=>(a(e,t,"read from private field"),i?i.call(e):t.get(e)),n=(e,t,i)=>{if(t.has(e))throw TypeError("Cannot add the same private member more than once");t instanceof WeakSet?t.add(e):t.set(e,i)},o=(e,t,i,s)=>(a(e,t,"write to private field"),s?s.call(e,i):t.set(e,i),i),h=(e,t,i)=>(a(e,t,"access private method"),i),l={};((t,i)=>{for(var s in i)e(t,s,{get:i[s],enumerable:!0})})(l,{ArrayBufferTarget:()=>Me,FileSystemWritableFileStreamTarget:()=>Oe,Muxer:()=>It,StreamTarget:()=>We});var d,f,u,m,p,c,w,g,b=new Uint8Array(8),y=new DataView(b.buffer),k=e=>[(e%256+256)%256],T=e=>(y.setUint16(0,e,!1),[b[0],b[1]]),C=e=>(y.setUint32(0,e,!1),[b[1],b[2],b[3]]),v=e=>(y.setUint32(0,e,!1),[b[0],b[1],b[2],b[3]]),S=e=>(y.setUint32(0,Math.floor(e/2**32),!1),y.setUint32(4,e,!1),[b[0],b[1],b[2],b[3],b[4],b[5],b[6],b[7]]),x=e=>(y.setInt16(0,256*e,!1),[b[0],b[1]]),z=e=>(y.setInt32(0,65536*e,!1),[b[0],b[1],b[2],b[3]]),E=e=>(y.setInt32(0,2**30*e,!1),[b[0],b[1],b[2],b[3]]),A=(e,t=!1)=>{let i=Array(e.length).fill(null).map((t,i)=>e.charCodeAt(i));return t&&i.push(0),i},M=e=>e&&e[e.length-1],W=e=>{let t;for(let i of e)(!t||i.presentationTimestamp>t.presentationTimestamp)&&(t=i);return t},O=(e,t,i=!0)=>{let s=e*t;return i?Math.round(s):s},B=e=>{let t=e*(Math.PI/180),i=Math.cos(t),s=Math.sin(t);return[i,s,0,-s,i,0,0,0,1]},U=B(0),j=e=>[z(e[0]),z(e[1]),E(e[2]),z(e[3]),z(e[4]),E(e[5]),z(e[6]),z(e[7]),E(e[8])],D=e=>e?"object"!=typeof e?e:Array.isArray(e)?e.map(D):Object.fromEntries(Object.entries(e).map(([e,t])=>[e,D(t)])):e,R=e=>e>=0&&e<2**32,I=(e,t,i)=>({type:e,contents:t&&new Uint8Array(t.flat(10)),children:i}),N=(e,t,i,s,a)=>I(e,[k(t),C(i),s??[]],a),V=e=>({type:"mdat",largeSize:e}),L=(e,t,i=!1)=>I("moov",null,[F(t,e),...e.map(e=>$(e,t)),i?me(e):null]),F=(e,t)=>{let i=O(Math.max(0,...t.filter(e=>e.samples.length>0).map(e=>{const t=W(e.samples);return t.presentationTimestamp+t.duration})),Ut),s=Math.max(...t.map(e=>e.id))+1,a=!R(e)||!R(i),r=a?S:v;return N("mvhd",+a,0,[r(e),r(e),v(Ut),r(i),z(1),x(1),Array(10).fill(0),j(U),Array(24).fill(0),v(s)])},$=(e,t)=>I("trak",null,[P(e,t),H(e,t)]),P=(e,t)=>{let i,s=W(e.samples),a=O(s?s.presentationTimestamp+s.duration:0,Ut),r=!R(t)||!R(a),n=r?S:v;return i="video"===e.info.type?"number"==typeof e.info.rotation?B(e.info.rotation):e.info.rotation:U,N("tkhd",+r,3,[n(t),n(t),v(e.id),v(0),n(a),Array(8).fill(0),T(0),T(0),x("audio"===e.info.type?1:0),T(0),j(i),z("video"===e.info.type?e.info.width:0),z("video"===e.info.type?e.info.height:0)])},H=(e,t)=>I("mdia",null,[_(e,t),q("video"===e.info.type?"vide":"soun"),G(e)]),_=(e,t)=>{let i=W(e.samples),s=O(i?i.presentationTimestamp+i.duration:0,e.timescale),a=!R(t)||!R(s),r=a?S:v;return N("mdhd",+a,0,[r(t),r(t),v(e.timescale),r(s),T(21956),T(0)])},q=e=>N("hdlr",0,0,[A("mhlr"),A(e),v(0),v(0),v(0),A("mp4-muxer-hdlr",!0)]),G=e=>I("minf",null,["video"===e.info.type?J():K(),Q(),Z(e)]),J=()=>N("vmhd",0,1,[T(0),T(0),T(0),T(0)]),K=()=>N("smhd",0,0,[T(0),T(0)]),Q=()=>I("dinf",null,[X()]),X=()=>N("dref",0,0,[v(1)],[Y()]),Y=()=>N("url ",0,1),Z=e=>{const t=e.compositionTimeOffsetTable.length>1||e.compositionTimeOffsetTable.some(e=>0!==e.sampleCompositionTimeOffset);return I("stbl",null,[ee(e),oe(e),he(e),le(e),de(e),fe(e),t?ue(e):null])},ee=e=>N("stsd",0,0,[v(1)],["video"===e.info.type?te(Se[e.info.codec],e):ne(ze[e.info.codec],e)]),te=(e,t)=>{return I(e,[Array(6).fill(0),T(1),T(0),T(0),Array(12).fill(0),T(t.info.width),T(t.info.height),v(4718592),v(4718592),v(0),T(1),Array(32).fill(0),T(24),(i=65535,y.setInt16(0,i,!1),[b[0],b[1]])],[xe[t.info.codec](t),t.info.decoderConfig.colorSpace?re(t):null]);var i},ie={bt709:1,bt470bg:5,smpte170m:6},se={bt709:1,smpte170m:6,"iec61966-2-1":13},ae={rgb:0,bt709:1,bt470bg:5,smpte170m:6},re=e=>I("colr",[A("nclx"),T(ie[e.info.decoderConfig.colorSpace.primaries]),T(se[e.info.decoderConfig.colorSpace.transfer]),T(ae[e.info.decoderConfig.colorSpace.matrix]),k((e.info.decoderConfig.colorSpace.fullRange?1:0)<<7)]),ne=(e,t)=>I(e,[Array(6).fill(0),T(1),T(0),T(0),v(0),T(t.info.numberOfChannels),T(16),T(0),T(0),z(t.info.sampleRate)],[Ee[t.info.codec](t)]),oe=e=>N("stts",0,0,[v(e.timeToSampleTable.length),e.timeToSampleTable.map(e=>[v(e.sampleCount),v(e.sampleDelta)])]),he=e=>{if(e.samples.every(e=>"key"===e.type))return null;let t=[...e.samples.entries()].filter(([,e])=>"key"===e.type);return N("stss",0,0,[v(t.length),t.map(([e])=>v(e+1))])},le=e=>N("stsc",0,0,[v(e.compactlyCodedChunkTable.length),e.compactlyCodedChunkTable.map(e=>[v(e.firstChunk),v(e.samplesPerChunk),v(1)])]),de=e=>N("stsz",0,0,[v(0),v(e.samples.length),e.samples.map(e=>v(e.size))]),fe=e=>e.finalizedChunks.length>0&&M(e.finalizedChunks).offset>=2**32?N("co64",0,0,[v(e.finalizedChunks.length),e.finalizedChunks.map(e=>S(e.offset))]):N("stco",0,0,[v(e.finalizedChunks.length),e.finalizedChunks.map(e=>v(e.offset))]),ue=e=>N("ctts",0,0,[v(e.compositionTimeOffsetTable.length),e.compositionTimeOffsetTable.map(e=>[v(e.sampleCount),v(e.sampleCompositionTimeOffset)])]),me=e=>I("mvex",null,e.map(pe)),pe=e=>N("trex",0,0,[v(e.id),v(1),v(0),v(0),v(0)]),ce=(e,t)=>I("moof",null,[we(e),...t.map(be)]),we=e=>N("mfhd",0,0,[v(e)]),ge=e=>{let t=0,i=0,s="delta"===e.type;return i|=+s,t|=s?1:2,t<<24|i<<16},be=e=>I("traf",null,[ye(e),ke(e),Te(e)]),ye=e=>{let t=0;t|=8,t|=16,t|=32,t|=131072;let i=e.currentChunk.samples[1]??e.currentChunk.samples[0],s={duration:i.timescaleUnitsToNextSample,size:i.size,flags:ge(i)};return N("tfhd",0,131128,[v(e.id),v(s.duration),v(s.size),v(s.flags)])},ke=e=>N("tfdt",1,0,[S(O(e.currentChunk.startTimestamp,e.timescale))]),Te=e=>{let t=e.currentChunk.samples.map(e=>e.timescaleUnitsToNextSample),i=e.currentChunk.samples.map(e=>e.size),s=e.currentChunk.samples.map(ge),a=e.currentChunk.samples.map(t=>O(t.presentationTimestamp-t.decodeTimestamp,e.timescale)),r=new Set(t),n=new Set(i),o=new Set(s),h=new Set(a),l=2===o.size&&s[0]!==s[1],d=r.size>1,f=n.size>1,u=!l&&o.size>1,m=h.size>1||[...h].some(e=>0!==e),p=0;return p|=1,p|=4*+l,p|=256*+d,p|=512*+f,p|=1024*+u,p|=2048*+m,N("trun",1,p,[v(e.currentChunk.samples.length),v(e.currentChunk.offset-e.currentChunk.moofOffset||0),l?v(s[0]):[],e.currentChunk.samples.map((e,r)=>{return[d?v(t[r]):[],f?v(i[r]):[],u?v(s[r]):[],m?(n=a[r],y.setInt32(0,n,!1),[b[0],b[1],b[2],b[3]]):[]];var n})])},Ce=(e,t)=>N("tfra",1,0,[v(e.id),v(63),v(e.finalizedChunks.length),e.finalizedChunks.map(i=>[S(O(i.startTimestamp,e.timescale)),S(i.moofOffset),v(t+1),v(1),v(1)])]),ve=()=>N("mfro",0,0,[v(0)]),Se={avc:"avc1",hevc:"hvc1",vp9:"vp09",av1:"av01"},xe={avc:e=>e.info.decoderConfig&&I("avcC",[...new Uint8Array(e.info.decoderConfig.description)]),hevc:e=>e.info.decoderConfig&&I("hvcC",[...new Uint8Array(e.info.decoderConfig.description)]),vp9:e=>{if(!e.info.decoderConfig)return null;let t=e.info.decoderConfig;if(!t.colorSpace)throw new Error("'colorSpace' is required in the decoder config for VP9.");let i=t.codec.split("."),s=Number(i[1]),a=Number(i[2]),r=0+(Number(i[3])<<4)+Number(t.colorSpace.fullRange);return N("vpcC",1,0,[k(s),k(a),k(r),k(2),k(2),k(2),T(0)])},av1:()=>I("av1C",[129,0,0,0])},ze={aac:"mp4a",opus:"Opus"},Ee={aac:e=>{let t=new Uint8Array(e.info.decoderConfig.description);return N("esds",0,0,[v(58753152),k(32+t.byteLength),T(1),k(0),v(75530368),k(18+t.byteLength),k(64),k(21),C(0),v(130071),v(130071),v(92307584),k(t.byteLength),...t,v(109084800),k(1),k(2)])},opus:e=>{let t=3840,i=0;const s=e.info.decoderConfig?.description;if(s){if(s.byteLength<18)throw new TypeError("Invalid decoder description provided for Opus; must be at least 18 bytes long.");const e=ArrayBuffer.isView(s)?new DataView(s.buffer,s.byteOffset,s.byteLength):new DataView(s);t=e.getUint16(10,!0),i=e.getInt16(14,!0)}return I("dOps",[k(0),k(e.info.numberOfChannels),T(t),v(e.info.sampleRate),x(i),k(0)])}},Ae=(Symbol("isTarget"),class{}),Me=class extends Ae{constructor(){super(...arguments),this.buffer=null}},We=class extends Ae{constructor(e){if(super(),this.options=e,"object"!=typeof e)throw new TypeError("StreamTarget requires an options object to be passed to its constructor.");if(e.onData){if("function"!=typeof e.onData)throw new TypeError("options.onData, when provided, must be a function.");if(e.onData.length<2)throw new TypeError("options.onData, when provided, must be a function that takes in at least two arguments (data and position). Ignoring the position argument, which specifies the byte offset at which the data is to be written, can lead to broken outputs.")}if(void 0!==e.chunked&&"boolean"!=typeof e.chunked)throw new TypeError("options.chunked, when provided, must be a boolean.");if(void 0!==e.chunkSize&&(!Number.isInteger(e.chunkSize)||e.chunkSize<=0))throw new TypeError("options.chunkSize, when provided, must be a positive integer.")}},Oe=class extends Ae{constructor(e,t){if(super(),this.stream=e,this.options=t,!(e instanceof FileSystemWritableFileStream))throw new TypeError("FileSystemWritableFileStreamTarget requires a FileSystemWritableFileStream instance.");if(void 0!==t&&"object"!=typeof t)throw new TypeError("FileSystemWritableFileStreamTarget's options, when provided, must be an object.");if(t&&void 0!==t.chunkSize&&(!Number.isInteger(t.chunkSize)||t.chunkSize<=0))throw new TypeError("options.chunkSize, when provided, must be a positive integer")}},Be=class{constructor(){this.pos=0,n(this,d,new Uint8Array(8)),n(this,f,new DataView(r(this,d).buffer)),this.offsets=new WeakMap}seek(e){this.pos=e}writeU32(e){r(this,f).setUint32(0,e,!1),this.write(r(this,d).subarray(0,4))}writeU64(e){r(this,f).setUint32(0,Math.floor(e/2**32),!1),r(this,f).setUint32(4,e,!1),this.write(r(this,d).subarray(0,8))}writeAscii(e){for(let t=0;t<e.length;t++)r(this,f).setUint8(t%8,e.charCodeAt(t)),t%8==7&&this.write(r(this,d));e.length%8!=0&&this.write(r(this,d).subarray(0,e.length%8))}writeBox(e){if(this.offsets.set(e,this.pos),e.contents&&!e.children)this.writeBoxHeader(e,e.size??e.contents.byteLength+8),this.write(e.contents);else{let t=this.pos;if(this.writeBoxHeader(e,0),e.contents&&this.write(e.contents),e.children)for(let t of e.children)t&&this.writeBox(t);let i=this.pos,s=e.size??i-t;this.seek(t),this.writeBoxHeader(e,s),this.seek(i)}}writeBoxHeader(e,t){this.writeU32(e.largeSize?1:t),this.writeAscii(e.type),e.largeSize&&this.writeU64(t)}measureBoxHeader(e){return 8+(e.largeSize?8:0)}patchBox(e){let t=this.pos;this.seek(this.offsets.get(e)),this.writeBox(e),this.seek(t)}measureBox(e){if(e.contents&&!e.children){return this.measureBoxHeader(e)+e.contents.byteLength}{let t=this.measureBoxHeader(e);if(e.contents&&(t+=e.contents.byteLength),e.children)for(let i of e.children)i&&(t+=this.measureBox(i));return t}}};d=new WeakMap,f=new WeakMap;var Ue,je,De=class extends Be{constructor(e){super(),n(this,w),n(this,u,void 0),n(this,m,new ArrayBuffer(65536)),n(this,p,new Uint8Array(r(this,m))),n(this,c,0),o(this,u,e)}write(e){h(this,w,g).call(this,this.pos+e.byteLength),r(this,p).set(e,this.pos),this.pos+=e.byteLength,o(this,c,Math.max(r(this,c),this.pos))}finalize(){h(this,w,g).call(this,this.pos),r(this,u).buffer=r(this,m).slice(0,Math.max(r(this,c),this.pos))}};u=new WeakMap,m=new WeakMap,p=new WeakMap,c=new WeakMap,w=new WeakSet,g=function(e){let t=r(this,m).byteLength;for(;t<e;)t*=2;if(t===r(this,m).byteLength)return;let i=new ArrayBuffer(t),s=new Uint8Array(i);s.set(r(this,p),0),o(this,m,i),o(this,p,s)};var Re=class extends Be{constructor(e){super(),n(this,Ue,void 0),n(this,je,[]),o(this,Ue,e)}write(e){r(this,je).push({data:e.slice(),start:this.pos}),this.pos+=e.byteLength}flush(){if(0===r(this,je).length)return;let e=[],t=[...r(this,je)].sort((e,t)=>e.start-t.start);e.push({start:t[0].start,size:t[0].data.byteLength});for(let i=1;i<t.length;i++){let s=e[e.length-1],a=t[i];a.start<=s.start+s.size?s.size=Math.max(s.size,a.start+a.data.byteLength-s.start):e.push({start:a.start,size:a.data.byteLength})}for(let t of e){t.data=new Uint8Array(t.size);for(let e of r(this,je))t.start<=e.start&&e.start<t.start+t.size&&t.data.set(e.data,e.start-t.start);r(this,Ue).options.onData?.(t.data,t.start)}r(this,je).length=0}finalize(){}};Ue=new WeakMap,je=new WeakMap;var Ie,Ne,Ve,Le,Fe,$e,Pe,He,_e,qe,Ge,Je=class extends Be{constructor(e){if(super(),n(this,Le),n(this,$e),n(this,He),n(this,qe),n(this,Ie,void 0),n(this,Ne,void 0),n(this,Ve,[]),o(this,Ie,e),o(this,Ne,e.options?.chunkSize??16777216),!Number.isInteger(r(this,Ne))||r(this,Ne)<1024)throw new Error("Invalid StreamTarget options: chunkSize must be an integer not smaller than 1024.")}write(e){h(this,Le,Fe).call(this,e,this.pos),h(this,qe,Ge).call(this),this.pos+=e.byteLength}finalize(){h(this,qe,Ge).call(this,!0)}};Ie=new WeakMap,Ne=new WeakMap,Ve=new WeakMap,Le=new WeakSet,Fe=function(e,t){let i=r(this,Ve).findIndex(e=>e.start<=t&&t<e.start+r(this,Ne));-1===i&&(i=h(this,He,_e).call(this,t));let s=r(this,Ve)[i],a=t-s.start,n=e.subarray(0,Math.min(r(this,Ne)-a,e.byteLength));s.data.set(n,a);let o={start:a,end:a+n.byteLength};if(h(this,$e,Pe).call(this,s,o),0===s.written[0].start&&s.written[0].end===r(this,Ne)&&(s.shouldFlush=!0),r(this,Ve).length>2){for(let e=0;e<r(this,Ve).length-1;e++)r(this,Ve)[e].shouldFlush=!0;h(this,qe,Ge).call(this)}n.byteLength<e.byteLength&&h(this,Le,Fe).call(this,e.subarray(n.byteLength),t+n.byteLength)},$e=new WeakSet,Pe=function(e,t){let i=0,s=e.written.length-1,a=-1;for(;i<=s;){let r=Math.floor(i+(s-i+1)/2);e.written[r].start<=t.start?(i=r+1,a=r):s=r-1}for(e.written.splice(a+1,0,t),(-1===a||e.written[a].end<t.start)&&a++;a<e.written.length-1&&e.written[a].end>=e.written[a+1].start;)e.written[a].end=Math.max(e.written[a].end,e.written[a+1].end),e.written.splice(a+1,1)},He=new WeakSet,_e=function(e){let t={start:Math.floor(e/r(this,Ne))*r(this,Ne),data:new Uint8Array(r(this,Ne)),written:[],shouldFlush:!1};return r(this,Ve).push(t),r(this,Ve).sort((e,t)=>e.start-t.start),r(this,Ve).indexOf(t)},qe=new WeakSet,Ge=function(e=!1){for(let t=0;t<r(this,Ve).length;t++){let i=r(this,Ve)[t];if(i.shouldFlush||e){for(let e of i.written)r(this,Ie).options.onData?.(i.data.subarray(e.start,e.end),i.start+e.start);r(this,Ve).splice(t--,1)}}};var Ke,Qe,Xe,Ye,Ze,et,tt,it,st,at,rt,nt,ot,ht,lt,dt,ft,ut,mt,pt,ct,wt,gt,bt,yt,kt,Tt,Ct,vt,St,xt,zt,Et,At,Mt,Wt,Ot,Bt=class extends Je{constructor(e){super(new We({onData:(t,i)=>e.stream.write({type:"write",data:t,position:i}),chunkSize:e.options?.chunkSize}))}},Ut=1e3,jt=["avc","hevc","vp9","av1"],Dt=["aac","opus"],Rt=["strict","offset","cross-track-offset"],It=class{constructor(e){if(n(this,ot),n(this,lt),n(this,ft),n(this,mt),n(this,ct),n(this,gt),n(this,yt),n(this,Tt),n(this,vt),n(this,xt),n(this,Et),n(this,Mt),n(this,Ke,void 0),n(this,Qe,void 0),n(this,Xe,void 0),n(this,Ye,void 0),n(this,Ze,null),n(this,et,null),n(this,tt,Math.floor(Date.now()/1e3)+2082844800),n(this,it,[]),n(this,st,1),n(this,at,[]),n(this,rt,[]),n(this,nt,!1),h(this,ot,ht).call(this,e),e.video=D(e.video),e.audio=D(e.audio),e.fastStart=D(e.fastStart),this.target=e.target,o(this,Ke,{firstTimestampBehavior:"strict",...e}),e.target instanceof Me)o(this,Qe,new De(e.target));else if(e.target instanceof We)o(this,Qe,e.target.options?.chunked?new Je(e.target):new Re(e.target));else{if(!(e.target instanceof Oe))throw new Error(`Invalid target: ${e.target}`);o(this,Qe,new Bt(e.target))}h(this,mt,pt).call(this),h(this,lt,dt).call(this)}addVideoChunk(e,t,i,s){if(!(e instanceof EncodedVideoChunk))throw new TypeError("addVideoChunk's first argument (sample) must be of type EncodedVideoChunk.");if(t&&"object"!=typeof t)throw new TypeError("addVideoChunk's second argument (meta), when provided, must be an object.");if(void 0!==i&&(!Number.isFinite(i)||i<0))throw new TypeError("addVideoChunk's third argument (timestamp), when provided, must be a non-negative real number.");if(void 0!==s&&!Number.isFinite(s))throw new TypeError("addVideoChunk's fourth argument (compositionTimeOffset), when provided, must be a real number.");let a=new Uint8Array(e.byteLength);e.copyTo(a),this.addVideoChunkRaw(a,e.type,i??e.timestamp,e.duration,t,s)}addVideoChunkRaw(e,t,i,s,a,n){if(!(e instanceof Uint8Array))throw new TypeError("addVideoChunkRaw's first argument (data) must be an instance of Uint8Array.");if("key"!==t&&"delta"!==t)throw new TypeError("addVideoChunkRaw's second argument (type) must be either 'key' or 'delta'.");if(!Number.isFinite(i)||i<0)throw new TypeError("addVideoChunkRaw's third argument (timestamp) must be a non-negative real number.");if(!Number.isFinite(s)||s<0)throw new TypeError("addVideoChunkRaw's fourth argument (duration) must be a non-negative real number.");if(a&&"object"!=typeof a)throw new TypeError("addVideoChunkRaw's fifth argument (meta), when provided, must be an object.");if(void 0!==n&&!Number.isFinite(n))throw new TypeError("addVideoChunkRaw's sixth argument (compositionTimeOffset), when provided, must be a real number.");if(h(this,Mt,Wt).call(this),!r(this,Ke).video)throw new Error("No video track declared.");if("object"==typeof r(this,Ke).fastStart&&r(this,Ze).samples.length===r(this,Ke).fastStart.expectedVideoChunks)throw new Error(`Cannot add more video chunks than specified in 'fastStart' (${r(this,Ke).fastStart.expectedVideoChunks}).`);let o=h(this,gt,bt).call(this,r(this,Ze),e,t,i,s,a,n);if("fragmented"===r(this,Ke).fastStart&&r(this,et)){for(;r(this,rt).length>0&&r(this,rt)[0].decodeTimestamp<=o.decodeTimestamp;){let e=r(this,rt).shift();h(this,yt,kt).call(this,r(this,et),e)}o.decodeTimestamp<=r(this,et).lastDecodeTimestamp?h(this,yt,kt).call(this,r(this,Ze),o):r(this,at).push(o)}else h(this,yt,kt).call(this,r(this,Ze),o)}addAudioChunk(e,t,i){if(!(e instanceof EncodedAudioChunk))throw new TypeError("addAudioChunk's first argument (sample) must be of type EncodedAudioChunk.");if(t&&"object"!=typeof t)throw new TypeError("addAudioChunk's second argument (meta), when provided, must be an object.");if(void 0!==i&&(!Number.isFinite(i)||i<0))throw new TypeError("addAudioChunk's third argument (timestamp), when provided, must be a non-negative real number.");let s=new Uint8Array(e.byteLength);e.copyTo(s),this.addAudioChunkRaw(s,e.type,i??e.timestamp,e.duration,t)}addAudioChunkRaw(e,t,i,s,a){if(!(e instanceof Uint8Array))throw new TypeError("addAudioChunkRaw's first argument (data) must be an instance of Uint8Array.");if("key"!==t&&"delta"!==t)throw new TypeError("addAudioChunkRaw's second argument (type) must be either 'key' or 'delta'.");if(!Number.isFinite(i)||i<0)throw new TypeError("addAudioChunkRaw's third argument (timestamp) must be a non-negative real number.");if(!Number.isFinite(s)||s<0)throw new TypeError("addAudioChunkRaw's fourth argument (duration) must be a non-negative real number.");if(a&&"object"!=typeof a)throw new TypeError("addAudioChunkRaw's fifth argument (meta), when provided, must be an object.");if(h(this,Mt,Wt).call(this),!r(this,Ke).audio)throw new Error("No audio track declared.");if("object"==typeof r(this,Ke).fastStart&&r(this,et).samples.length===r(this,Ke).fastStart.expectedAudioChunks)throw new Error(`Cannot add more audio chunks than specified in 'fastStart' (${r(this,Ke).fastStart.expectedAudioChunks}).`);let n=h(this,gt,bt).call(this,r(this,et),e,t,i,s,a);if("fragmented"===r(this,Ke).fastStart&&r(this,Ze)){for(;r(this,at).length>0&&r(this,at)[0].decodeTimestamp<=n.decodeTimestamp;){let e=r(this,at).shift();h(this,yt,kt).call(this,r(this,Ze),e)}n.decodeTimestamp<=r(this,Ze).lastDecodeTimestamp?h(this,yt,kt).call(this,r(this,et),n):r(this,rt).push(n)}else h(this,yt,kt).call(this,r(this,et),n)}finalize(){if(r(this,nt))throw new Error("Cannot finalize a muxer more than once.");if("fragmented"===r(this,Ke).fastStart){for(let e of r(this,at))h(this,yt,kt).call(this,r(this,Ze),e);for(let e of r(this,rt))h(this,yt,kt).call(this,r(this,et),e);h(this,xt,zt).call(this,!1)}else r(this,Ze)&&h(this,vt,St).call(this,r(this,Ze)),r(this,et)&&h(this,vt,St).call(this,r(this,et));let e=[r(this,Ze),r(this,et)].filter(Boolean);if("in-memory"===r(this,Ke).fastStart){let t;for(let i=0;i<2;i++){let i=L(e,r(this,tt)),s=r(this,Qe).measureBox(i);t=r(this,Qe).measureBox(r(this,Ye));let a=r(this,Qe).pos+s+t;for(let e of r(this,it)){e.offset=a;for(let{data:i}of e.samples)a+=i.byteLength,t+=i.byteLength}if(a<2**32)break;t>=2**32&&(r(this,Ye).largeSize=!0)}let i=L(e,r(this,tt));r(this,Qe).writeBox(i),r(this,Ye).size=t,r(this,Qe).writeBox(r(this,Ye));for(let e of r(this,it))for(let t of e.samples)r(this,Qe).write(t.data),t.data=null}else if("fragmented"===r(this,Ke).fastStart){let t=r(this,Qe).pos,i=(e=>I("mfra",null,[...e.map(Ce),ve()]))(e);r(this,Qe).writeBox(i);let s=r(this,Qe).pos-t;r(this,Qe).seek(r(this,Qe).pos-4),r(this,Qe).writeU32(s)}else{let t=r(this,Qe).offsets.get(r(this,Ye)),i=r(this,Qe).pos-t;r(this,Ye).size=i,r(this,Ye).largeSize=i>=2**32,r(this,Qe).patchBox(r(this,Ye));let s=L(e,r(this,tt));if("object"==typeof r(this,Ke).fastStart){r(this,Qe).seek(r(this,Xe)),r(this,Qe).writeBox(s);let e=t-r(this,Qe).pos;r(this,Qe).writeBox({type:"free",size:e})}else r(this,Qe).writeBox(s)}h(this,Et,At).call(this),r(this,Qe).finalize(),o(this,nt,!0)}};return Ke=new WeakMap,Qe=new WeakMap,Xe=new WeakMap,Ye=new WeakMap,Ze=new WeakMap,et=new WeakMap,tt=new WeakMap,it=new WeakMap,st=new WeakMap,at=new WeakMap,rt=new WeakMap,nt=new WeakMap,ot=new WeakSet,ht=function(e){if("object"!=typeof e)throw new TypeError("The muxer requires an options object to be passed to its constructor.");if(!(e.target instanceof Ae))throw new TypeError("The target must be provided and an instance of Target.");if(e.video){if(!jt.includes(e.video.codec))throw new TypeError(`Unsupported video codec: ${e.video.codec}`);if(!Number.isInteger(e.video.width)||e.video.width<=0)throw new TypeError(`Invalid video width: ${e.video.width}. Must be a positive integer.`);if(!Number.isInteger(e.video.height)||e.video.height<=0)throw new TypeError(`Invalid video height: ${e.video.height}. Must be a positive integer.`);const t=e.video.rotation;if("number"==typeof t&&![0,90,180,270].includes(t))throw new TypeError(`Invalid video rotation: ${t}. Has to be 0, 90, 180 or 270.`);if(Array.isArray(t)&&(9!==t.length||t.some(e=>"number"!=typeof e)))throw new TypeError(`Invalid video transformation matrix: ${t.join()}`);if(void 0!==e.video.frameRate&&(!Number.isInteger(e.video.frameRate)||e.video.frameRate<=0))throw new TypeError(`Invalid video frame rate: ${e.video.frameRate}. Must be a positive integer.`)}if(e.audio){if(!Dt.includes(e.audio.codec))throw new TypeError(`Unsupported audio codec: ${e.audio.codec}`);if(!Number.isInteger(e.audio.numberOfChannels)||e.audio.numberOfChannels<=0)throw new TypeError(`Invalid number of audio channels: ${e.audio.numberOfChannels}. Must be a positive integer.`);if(!Number.isInteger(e.audio.sampleRate)||e.audio.sampleRate<=0)throw new TypeError(`Invalid audio sample rate: ${e.audio.sampleRate}. Must be a positive integer.`)}if(e.firstTimestampBehavior&&!Rt.includes(e.firstTimestampBehavior))throw new TypeError(`Invalid first timestamp behavior: ${e.firstTimestampBehavior}`);if("object"==typeof e.fastStart){if(e.video){if(void 0===e.fastStart.expectedVideoChunks)throw new TypeError("'fastStart' is an object but is missing property 'expectedVideoChunks'.");if(!Number.isInteger(e.fastStart.expectedVideoChunks)||e.fastStart.expectedVideoChunks<0)throw new TypeError("'expectedVideoChunks' must be a non-negative integer.")}if(e.audio){if(void 0===e.fastStart.expectedAudioChunks)throw new TypeError("'fastStart' is an object but is missing property 'expectedAudioChunks'.");if(!Number.isInteger(e.fastStart.expectedAudioChunks)||e.fastStart.expectedAudioChunks<0)throw new TypeError("'expectedAudioChunks' must be a non-negative integer.")}}else if(![!1,"in-memory","fragmented"].includes(e.fastStart))throw new TypeError("'fastStart' option must be false, 'in-memory', 'fragmented' or an object.")},lt=new WeakSet,dt=function(){var e;if(r(this,Qe).writeBox((e={holdsAvc:"avc"===r(this,Ke).video?.codec,fragmented:"fragmented"===r(this,Ke).fastStart}).fragmented?I("ftyp",[A("iso5"),v(512),A("iso5"),A("iso6"),A("mp41")]):I("ftyp",[A("isom"),v(512),A("isom"),e.holdsAvc?A("avc1"):[],A("mp41")])),o(this,Xe,r(this,Qe).pos),"in-memory"===r(this,Ke).fastStart)o(this,Ye,V(!1));else if("fragmented"===r(this,Ke).fastStart);else{if("object"==typeof r(this,Ke).fastStart){let e=h(this,ft,ut).call(this);r(this,Qe).seek(r(this,Qe).pos+e)}o(this,Ye,V(!0)),r(this,Qe).writeBox(r(this,Ye))}h(this,Et,At).call(this)},ft=new WeakSet,ut=function(){if("object"!=typeof r(this,Ke).fastStart)return;let e=0,t=[r(this,Ke).fastStart.expectedVideoChunks,r(this,Ke).fastStart.expectedAudioChunks];for(let i of t)i&&(e+=8*Math.ceil(2/3*i),e+=4*i,e+=12*Math.ceil(2/3*i),e+=4*i,e+=8*i);return e+=4096,e},mt=new WeakSet,pt=function(){if(r(this,Ke).video&&o(this,Ze,{id:1,info:{type:"video",codec:r(this,Ke).video.codec,width:r(this,Ke).video.width,height:r(this,Ke).video.height,rotation:r(this,Ke).video.rotation??0,decoderConfig:null},timescale:r(this,Ke).video.frameRate??57600,samples:[],finalizedChunks:[],currentChunk:null,firstDecodeTimestamp:void 0,lastDecodeTimestamp:-1,timeToSampleTable:[],compositionTimeOffsetTable:[],lastTimescaleUnits:null,lastSample:null,compactlyCodedChunkTable:[]}),r(this,Ke).audio&&(o(this,et,{id:r(this,Ke).video?2:1,info:{type:"audio",codec:r(this,Ke).audio.codec,numberOfChannels:r(this,Ke).audio.numberOfChannels,sampleRate:r(this,Ke).audio.sampleRate,decoderConfig:null},timescale:r(this,Ke).audio.sampleRate,samples:[],finalizedChunks:[],currentChunk:null,firstDecodeTimestamp:void 0,lastDecodeTimestamp:-1,timeToSampleTable:[],compositionTimeOffsetTable:[],lastTimescaleUnits:null,lastSample:null,compactlyCodedChunkTable:[]}),"aac"===r(this,Ke).audio.codec)){let e=h(this,ct,wt).call(this,2,r(this,Ke).audio.sampleRate,r(this,Ke).audio.numberOfChannels);r(this,et).info.decoderConfig={codec:r(this,Ke).audio.codec,description:e,numberOfChannels:r(this,Ke).audio.numberOfChannels,sampleRate:r(this,Ke).audio.sampleRate}}},ct=new WeakSet,wt=function(e,t,i){let s=[96e3,88200,64e3,48e3,44100,32e3,24e3,22050,16e3,12e3,11025,8e3,7350].indexOf(t),a=i,r="";r+=e.toString(2).padStart(5,"0"),r+=s.toString(2).padStart(4,"0"),15===s&&(r+=t.toString(2).padStart(24,"0")),r+=a.toString(2).padStart(4,"0");let n=8*Math.ceil(r.length/8);r=r.padEnd(n,"0");let o=new Uint8Array(r.length/8);for(let e=0;e<r.length;e+=8)o[e/8]=parseInt(r.slice(e,e+8),2);return o},gt=new WeakSet,bt=function(e,t,i,s,a,r,n){let o=s/1e6,l=(s-(n??0))/1e6,d=a/1e6,f=h(this,Tt,Ct).call(this,o,l,e);return o=f.presentationTimestamp,l=f.decodeTimestamp,r?.decoderConfig&&(null===e.info.decoderConfig?e.info.decoderConfig=r.decoderConfig:Object.assign(e.info.decoderConfig,r.decoderConfig)),{presentationTimestamp:o,decodeTimestamp:l,duration:d,data:t,size:t.byteLength,type:i,timescaleUnitsToNextSample:O(d,e.timescale)}},yt=new WeakSet,kt=function(e,t){"fragmented"!==r(this,Ke).fastStart&&e.samples.push(t);const i=O(t.presentationTimestamp-t.decodeTimestamp,e.timescale);if(null!==e.lastTimescaleUnits){let s=O(t.decodeTimestamp,e.timescale,!1),a=Math.round(s-e.lastTimescaleUnits);if(e.lastTimescaleUnits+=a,e.lastSample.timescaleUnitsToNextSample=a,"fragmented"!==r(this,Ke).fastStart){let t=M(e.timeToSampleTable);1===t.sampleCount?(t.sampleDelta=a,t.sampleCount++):t.sampleDelta===a?t.sampleCount++:(t.sampleCount--,e.timeToSampleTable.push({sampleCount:2,sampleDelta:a}));const s=M(e.compositionTimeOffsetTable);s.sampleCompositionTimeOffset===i?s.sampleCount++:e.compositionTimeOffsetTable.push({sampleCount:1,sampleCompositionTimeOffset:i})}}else e.lastTimescaleUnits=0,"fragmented"!==r(this,Ke).fastStart&&(e.timeToSampleTable.push({sampleCount:1,sampleDelta:O(t.duration,e.timescale)}),e.compositionTimeOffsetTable.push({sampleCount:1,sampleCompositionTimeOffset:i}));e.lastSample=t;let s=!1;if(e.currentChunk){let i=t.presentationTimestamp-e.currentChunk.startTimestamp;if("fragmented"===r(this,Ke).fastStart){e===(r(this,Ze)??r(this,et))&&"key"===t.type&&i>=1&&(s=!0,h(this,xt,zt).call(this))}else s=i>=.5}else s=!0;s&&(e.currentChunk&&h(this,vt,St).call(this,e),e.currentChunk={startTimestamp:t.presentationTimestamp,samples:[]}),e.currentChunk.samples.push(t)},Tt=new WeakSet,Ct=function(e,t,i){const s="strict"===r(this,Ke).firstTimestampBehavior,a=-1===i.lastDecodeTimestamp;if(s&&a&&0!==t)throw new Error(`The first chunk for your media track must have a timestamp of 0 (received DTS=${t}).Non-zero first timestamps are often caused by directly piping frames or audio data from a MediaStreamTrack into the encoder. Their timestamps are typically relative to the age of thedocument, which is probably what you want.\n\nIf you want to offset all timestamps of a track such that the first one is zero, set firstTimestampBehavior: 'offset' in the options.\n`);if("offset"===r(this,Ke).firstTimestampBehavior||"cross-track-offset"===r(this,Ke).firstTimestampBehavior){let s;void 0===i.firstDecodeTimestamp&&(i.firstDecodeTimestamp=t),s="offset"===r(this,Ke).firstTimestampBehavior?i.firstDecodeTimestamp:Math.min(r(this,Ze)?.firstDecodeTimestamp??1/0,r(this,et)?.firstDecodeTimestamp??1/0),t-=s,e-=s}if(t<i.lastDecodeTimestamp)throw new Error(`Timestamps must be monotonically increasing (DTS went from ${1e6*i.lastDecodeTimestamp} to ${1e6*t}).`);return i.lastDecodeTimestamp=t,{presentationTimestamp:e,decodeTimestamp:t}},vt=new WeakSet,St=function(e){if("fragmented"===r(this,Ke).fastStart)throw new Error("Can't finalize individual chunks if 'fastStart' is set to 'fragmented'.");if(e.currentChunk)if(e.finalizedChunks.push(e.currentChunk),r(this,it).push(e.currentChunk),0!==e.compactlyCodedChunkTable.length&&M(e.compactlyCodedChunkTable).samplesPerChunk===e.currentChunk.samples.length||e.compactlyCodedChunkTable.push({firstChunk:e.finalizedChunks.length,samplesPerChunk:e.currentChunk.samples.length}),"in-memory"!==r(this,Ke).fastStart){e.currentChunk.offset=r(this,Qe).pos;for(let t of e.currentChunk.samples)r(this,Qe).write(t.data),t.data=null;h(this,Et,At).call(this)}else e.currentChunk.offset=0},xt=new WeakSet,zt=function(e=!0){if("fragmented"!==r(this,Ke).fastStart)throw new Error("Can't finalize a fragment unless 'fastStart' is set to 'fragmented'.");let t=[r(this,Ze),r(this,et)].filter(e=>e&&e.currentChunk);if(0===t.length)return;let i=(s=this,a=st,{set _(e){o(s,a,e,n)},get _(){return r(s,a,l)}})._++;var s,a,n,l;if(1===i){let e=L(t,r(this,tt),!0);r(this,Qe).writeBox(e)}let d=r(this,Qe).pos,f=ce(i,t);r(this,Qe).writeBox(f);{let e=V(!1),i=0;for(let e of t)for(let t of e.currentChunk.samples)i+=t.size;let s=r(this,Qe).measureBox(e)+i;s>=2**32&&(e.largeSize=!0,s=r(this,Qe).measureBox(e)+i),e.size=s,r(this,Qe).writeBox(e)}for(let e of t){e.currentChunk.offset=r(this,Qe).pos,e.currentChunk.moofOffset=d;for(let t of e.currentChunk.samples)r(this,Qe).write(t.data),t.data=null}let u=r(this,Qe).pos;r(this,Qe).seek(r(this,Qe).offsets.get(f));let m=ce(i,t);r(this,Qe).writeBox(m),r(this,Qe).seek(u);for(let e of t)e.finalizedChunks.push(e.currentChunk),r(this,it).push(e.currentChunk),e.currentChunk=null;e&&h(this,Et,At).call(this)},Et=new WeakSet,At=function(){r(this,Qe)instanceof Re&&r(this,Qe).flush()},Mt=new WeakSet,Wt=function(){if(r(this,nt))throw new Error("Cannot add new video or audio chunks after the file has been finalized.")},Ot=l,((a,r,n,o)=>{if(r&&"object"==typeof r||"function"==typeof r)for(let h of i(r))s.call(a,h)||h===n||e(a,h,{get:()=>r[h],enumerable:!(o=t(r,h))||o.enumerable});return a})(e({},"__esModule",{value:!0}),Ot)})();"object"==typeof module&&"object"==typeof module.exports&&Object.assign(module.exports,Mp4Muxer);
 </script>
-<script src="./interaction-2d.js"></script>
+<script src="./interaction-2d.js?v=2"></script>
 <script>
 let W = 1280, H = 720, fm = {};
 const C = 16;
@@ -358,7 +379,7 @@ const log = m => {
 };
 const A = () => ctxA || (ctxA = new (window.AudioContext || window.webkitAudioContext)());
 
-const CF = ['aiProvider', 'fmt', 'nimg', 'keys', 'isrc', 'style', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'musicOn', 'musicVol', 'musicMood', 'cmode', 'vmode', 'charStyle', 'trans', 'bgOn', 'motionVid', 'mvTrans', 'interaction2d'];
+const CF = ['aiProvider', 'fmt', 'nimg', 'keys', 'isrc', 'style', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'musicOn', 'musicVol', 'musicMood', 'exportSpeed', 'cmode', 'vmode', 'charStyle', 'trans', 'bgOn', 'motionVid', 'mvCam', 'mvTrans', 'interaction2d'];
 function setFmt() {
   const v = $('fmt').value === 'v';
   W = v ? 720 : 1280; H = v ? 1280 : 720;
@@ -630,14 +651,17 @@ async function cfCall(payload, timeout = 95000) {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || data.error) {
-      const msg = data.error?.message || 'Không gọi được /api/cloudflare-ai. Hãy mở bản web đã triển khai trên Vercel.';
+      const status = data.error?.upstreamStatus, code = data.error?.providerCode;
+      const diagnostic = Number.isInteger(code) ? ` (Cloudflare ${code})` :
+        Number.isInteger(status) ? ` (Cloudflare HTTP ${status})` : '';
+      const msg = (data.error?.message || 'Không gọi được /api/cloudflare-ai. Hãy mở bản web đã triển khai trên Vercel.') + diagnostic;
       if (CF_BLOCKING_CODES.includes(data.error?.code) || response.status === 429 || response.status === 404) {
         const e = new CloudflareUnavailable(msg);
         if (!payload.probe) cloudflareBlocked = e;
         throw e;
       }
       if (CF_TRANSIENT_CODES.includes(data.error?.code) || [502, 503, 504].includes(response.status)) {
-        throw new CloudflareTemporaryError(data.error?.message || 'Cloudflare hoặc Vercel chưa trả lời kịp.');
+        throw new CloudflareTemporaryError(data.error?.message ? msg : 'Cloudflare hoặc Vercel chưa trả lời kịp.');
       }
       throw new Error(msg);
     }
@@ -884,7 +908,7 @@ function motion2DUI() {
 
 async function refineBatch(sc, part, from, backup) {
   const list = part.map((x, i) => `${from + i + 1}. ${x.text}`).join('\n');
-  const motionRule = interactionOn() ? `- Với cảnh có hành động diễn ra trực tiếp trong câu kể, có thể thêm motion vào mục JSON của cảnh. Dạng motion: {"action":"drink","actor":"MAIN","target":"SECOND","item":"cup","pose":"sit","cue":"nguyên văn 2 đến 6 từ tiếng Việt từ lời kể ở đúng lúc có động tác"}. action chỉ được là: ${Object.keys(StoryMotion.labels).join(', ')}. give là đưa đồ trực tiếp giữa hai người, actor là người đưa, target là người nhận. pick là nhặt đồ từ mặt đất. openDoor là mở cửa, openBox là mở nắp hộp/rương. launch và separate chỉ dùng cho tên lửa đang phóng hoặc đang tách tầng thật sự. item chỉ được là cup, bottle, key, book, phone, letter, box, bag, spoon, food hoặc để trống. pose dùng sit hoặc stand. Không thêm motion nếu hành động chỉ là ý định, được nhắc trong lời thoại mà không diễn ra, hoặc cần tay chân hay đạo cụ không phù hợp.` : '';
+  const motionRule = interactionOn() ? `- Với cảnh có hành động diễn ra trực tiếp trong câu kể, có thể thêm motion vào mục JSON của cảnh. Dạng motion: {"action":"drink","actor":"MAIN","target":"SECOND","item":"cup","pose":"sit","cue":"nguyên văn 2 đến 6 từ tiếng Việt từ lời kể ở đúng lúc có động tác"}. action chỉ được là: ${Object.keys(StoryMotion.labels).join(', ')}. give là đưa đồ trực tiếp giữa hai người, actor là người đưa, target là người nhận. pick là nhặt đồ từ mặt đất. openDoor là mở cửa, openBox là mở nắp hộp/rương. wave là vẫy tay bằng cử động cổ tay, write là viết bằng bút trên giấy hoặc sổ. launch và separate chỉ dùng cho tên lửa đang phóng hoặc đang tách tầng thật sự. item chỉ được là cup, bottle, key, book, phone, letter, box, bag, spoon, food hoặc để trống. pose dùng sit hoặc stand. Không thêm motion nếu hành động chỉ là ý định, được nhắc trong lời thoại mà không diễn ra, hoặc cần tay chân hay đạo cụ không phù hợp.` : '';
   const p = `Bạn là đạo diễn storyboard cho video minh họa truyện vẽ tay. Mỗi cảnh cần giúp người xem hiểu đúng diễn biến ngay cả khi tắt tiếng.
 - Với mỗi lời kể, chọn một khoảnh khắc có ý nghĩa kể chuyện nhất. Viết rõ ai đang làm gì, với ai hoặc với vật nào, và chi tiết nhìn thấy nào giúp người xem hiểu kết quả hoặc cảm xúc. Ví dụ “Qua nhiều ngày thất bại, Lan tìm được hạt giống cuối cùng” → cận tay Lan nhặt đúng một hạt còn lại từ túi trống, nét mặt nhẹ nhõm. Đừng vẽ cả chuỗi sự kiện hoặc chen các vật chỉ được nhắc thoáng qua.
 - action (tiếng Anh): một hành động hoặc trạng thái cụ thể. Dùng đúng vai MAIN, SECOND, THIRD, FOURTH, FIFTH, SIXTH, SEVENTH, EIGHTH cho người có trong bảng. Người phụ vô danh là CROWD. Nêu đúng người làm, người nhận, biểu cảm, hướng nhìn và tương tác tay khi có. Không ép nhân vật chính xuất hiện. Động vật/xe: đúng loài/loại và hành động. Giấc mơ, hồi tưởng, suy nghĩ và dự định phải được phân biệt rõ với hiện tại bằng khung nhỏ, bong bóng hoặc ánh sáng khác khi cần. Không thêm sự kiện, người, số liệu, đồ vật hay cờ không có căn cứ. Cờ chỉ xuất hiện khi liên quan trực tiếp đến lời kể của cảnh.
@@ -3562,6 +3586,40 @@ const ART_STYLE = 'Original illustrated storybook panel. Expressive hand-inked c
 function artRoles(s) {
   return (String(s.image || '').match(/\b(?:MAIN|SECOND|THIRD|FOURTH|FIFTH|SIXTH|SEVENTH|EIGHTH)\b/g) || []).filter((role, i, roles) => roles.indexOf(role) === i);
 }
+function artReferences(sceneNo, roles, color) {
+  const uncovered = new Set(roles), references = [];
+  for (let i = sceneNo - 2; i >= 0 && uncovered.size && references.length < 2; i--) {
+    const scene = scenes[i];
+    if (!scene?.artRef || scene.artColor !== color) continue;
+    const shared = (scene.artRoles || []).filter(role => uncovered.has(role));
+    if (!shared.length) continue;
+    references.push({
+      cue: `Earlier approved illustration for ${shared.join(', ')}. Preserve those roles' face, hair, proportions, outfit and recurring props. Match roles to the written cast. Use the current brief for action, place, camera and any intentional design change.`,
+      photo: scene.artRef
+    });
+    shared.forEach(role => uncovered.delete(role));
+  }
+  return references;
+}
+
+function drawIllustration(ctx, image, width, height) {
+  const contain = Math.min(width / image.width, height / image.height);
+  const cover = Math.max(width / image.width, height / image.height);
+  const draw = scale => {
+    const w = image.width * scale, h = image.height * scale;
+    ctx.drawImage(image, (width - w) / 2, (height - h) / 2, w, h);
+  };
+  ctx.imageSmoothingQuality = 'high';
+  if (contain / cover >= 0.92) {
+    // Cắt tối đa 4% mỗi mép khi tỉ lệ ảnh chỉ lệch nhẹ so với khung.
+    draw(cover);
+  } else {
+    ctx.filter = `blur(${Math.max(14, Math.round(Math.min(width, height) * 0.04))}px)`;
+    draw(cover * 1.15);
+    ctx.filter = 'none';
+    draw(contain);
+  }
+}
 function artPhoto(im, maxSize = 768) {
   const k = Math.min(1, maxSize / Math.max(im.width, im.height));
   const c = document.createElement('canvas');
@@ -3573,7 +3631,7 @@ function artPhoto(im, maxSize = 768) {
 
 class IllustrationUnavailable extends Error {}
 
-async function renderStoryArt(parts, aspectRatio) {
+async function renderStoryArt(parts, aspectRatio, fallbackPrompt) {
   if (storyProvider() === 'cloudflare') {
     const inputs = [];
     for (const part of parts) {
@@ -3583,11 +3641,14 @@ async function renderStoryArt(parts, aspectRatio) {
         inputs.push(artPhoto(refImage, 496));
       } else inputs.push(part);
     }
-    const data = await cfCall({ kind: 'image', parts: inputs, aspect: aspectRatio });
+    const data = await cfCall({ kind: 'image', parts: inputs, aspect: aspectRatio, fallbackPrompt });
     if (!data.image?.data || !/^image\/(png|jpeg|webp)$/i.test(data.image?.mimeType)) {
       throw new Error('Cloudflare không trả ảnh hợp lệ.');
     }
-    return await loadImg(`data:${data.image.mimeType};base64,${data.image.data}`);
+    const image = await loadImg(`data:${data.image.mimeType};base64,${data.image.data}`);
+    if (data.imageMode === 'compatible') log('  🎨 Cloudflare đã vẽ ở khung tương thích bằng mô tả cảnh.');
+    if (data.imageMode === 'backup') log('  🎨 Cloudflare đã vẽ bằng FLUX.1 Schnell từ mô tả cảnh.');
+    return image;
   }
   let error, availabilityOnly = true;
   for (const model of GEM_IMG_MODELS) {
@@ -3611,11 +3672,9 @@ async function renderStoryArt(parts, aspectRatio) {
   throw error;
 }
 
-async function reviewStoryArt(s, photo, previous) {
-  const parts = previous ? [
-    { text: 'The first image shows the recurring character design. Evaluate only the second image as the current scene.' },
-    previous, photo
-  ] : [photo];
+async function reviewStoryArt(s, photo, references) {
+  const parts = references.flatMap(ref => [{ text: ref.cue }, ref.photo]);
+  parts.push({ text: 'The next image is the current scene and the only image to evaluate.' }, photo);
   parts.push({ text: `Compare the current illustration to the current narration and brief below.
 Flag only a material visual error: a wrong actor or recipient, the key action or story clue missing or unreadable, an invented plot event, or an obvious character-design mismatch against the reference. Do not require passing mentions or offscreen actions. A stylized composition, implied action and a visible camera crop are valid when the main beat clearly reads. When uncertain return "pass".
 Return only JSON {"status":"pass","fix":"","note":""} or {"status":"revise","fix":"single concrete correction in English","note":"vấn đề nhìn thấy được, một câu tiếng Việt"}.
@@ -3634,33 +3693,36 @@ ${sceneCtx(s)}` });
 async function illustratedImage(s, sceneNo) {
   const mode = cmodeV(), aspect = sub ? (fm.v ? '4:5' : '21:9') : fm.ar;
   const roles = artRoles(s);
-  const previous = scenes.slice(0, sceneNo - 1).reverse().find(q => q.artRef && q.artColor === mode && q.artRoles.some(role => roles.includes(role)));
+  const references = artReferences(sceneNo, roles, mode);
   const parts = [];
   if (refCustom) parts.push({
     text: 'User reference for brushwork and character design. Match the likeness only for characters the story identifies as corresponding to the reference.',
   }, { inlineData: { mimeType: refMime(), data: refB64() } });
-  if (previous) parts.push({
-    text: `Earlier shot reference for recurring role(s) ${previous.artRoles.filter(role => roles.includes(role)).join(', ')}. Preserve their face, hair, proportions and outfit unless the plot specifies a change. Use the present brief for their action, location and framing.`,
-  }, previous.artRef);
+  for (const ref of references) parts.push({ text: ref.cue }, ref.photo);
   const dates = parseDates(s.text);
   const prompt = `Draw one ${aspect} illustrated story frame.
 ${ART_STYLE}
 Color direction: ${ART_PALETTE[mode] || ART_PALETTE.vivid}
-Use the shot size and exact interaction from the current brief. Show the storytelling clue at readable scale. Make faces, eyes, hands, held objects and the direction of movement unambiguous. For a close-up, frame the essential detail with room around it. In every shot keep key details about 7% in from the outer edges for camera motion. Use only the characters and objects needed by this scene. Keep recurring details consistent and render the right place, era and time of day.
+Use the shot size and exact interaction from the current brief. Give the main face, gesture or held object enough contrast to read at phone size. Make eye-lines, hands, contact points and the direction of motion clear. Keep essential details at least 9% in from the outer edges for framing and camera motion, including close-ups. Give recurring characters the same distinguishing features and keep recurring props identifiable. Keep enough space between faces or hands so the direction of an interaction is clear. Render the right place, era and time of day.
 ${dates.length ? 'Keep the upper-left area visually quiet for a date label added in production.' : ''}
 Artwork only. Keep the image free of captions, speech text, signatures, borders and watermarks.
 ${sceneCtx(s)}`;
-  let image = await renderStoryArt([...parts, { text: prompt }], aspect);
+  const fallbackPrompt = `Draw one ${aspect} hand-inked storybook illustration. Expressive ink lines, gouache on paper and readable gestures. Artwork only, without lettering.
+Scene to draw: ${String(s.image || '').slice(0, 780)}
+Vietnamese narration: ${String(s.text || '').slice(0, 350)}
+Cast cues for characters present: ${String(chars || '').slice(0, 280)}
+Color: ${(ART_PALETTE[mode] || ART_PALETTE.vivid).slice(0, 170)}`;
+  let image = await renderStoryArt([...parts, { text: prompt }], aspect, fallbackPrompt);
   let photo = artPhoto(image);
-  let review = await reviewStoryArt(s, photo, previous?.artRef);
+  let review = await reviewStoryArt(s, photo, references);
   if (review.status === 'revise') {
     log(`  🎨 Cảnh ${sceneNo}: đang chỉnh lại chi tiết kể chuyện.`);
     try {
       const revised = await renderStoryArt([...parts, { text: 'First draft to correct:' }, photo, {
         text: `${prompt}\nCorrect this specific error while preserving the drawing style: ${review.fix}`
-      }], aspect);
+      }], aspect, `Correction: ${review.fix}\n${fallbackPrompt}`);
       const revisedPhoto = artPhoto(revised);
-      const check = await reviewStoryArt(s, revisedPhoto, previous?.artRef);
+      const check = await reviewStoryArt(s, revisedPhoto, references);
       if (check.status === 'pass') {
         image = revised;
         photo = revisedPhoto;
@@ -3672,23 +3734,13 @@ ${sceneCtx(s)}`;
   cv.width = W;
   cv.height = H;
   const x = cv.getContext('2d'), h = Math.min(H, fm.ah + 10);
-  const fit = Math.min(W / image.width, h / image.height);
-  const w = image.width * fit, ih = image.height * fit;
   x.fillStyle = '#fff';
   x.fillRect(0, 0, W, H);
   x.save();
   x.beginPath();
   x.rect(0, 0, W, h);
   x.clip();
-  x.imageSmoothingQuality = 'high';
-  if (w < W - 1 || ih < h - 1) {
-    const cover = Math.max(W / image.width, h / image.height) * 1.12;
-    const bw = image.width * cover, bh = image.height * cover;
-    x.filter = 'blur(26px)';
-    x.drawImage(image, (W - bw) / 2, (h - bh) / 2, bw, bh);
-    x.filter = 'none';
-  }
-  x.drawImage(image, (W - w) / 2, (h - ih) / 2, w, ih);
+  drawIllustration(x, image, W, h);
   if (dates.length) {
     const label = dateLabelSvg(dates).replace(' filter="url(#wob)"', '');
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${h}" viewBox="0 0 ${fm.vw} 900">${label}</svg>`;
@@ -3758,7 +3810,8 @@ Only the environment. No people, silhouettes, animals, rockets, vehicles, doors 
   const x = cv.getContext('2d');
   x.fillStyle = '#fff'; x.fillRect(0, 0, width, h);
   const poster = { motionScene: { ...motionScene, cueFraction: 0.4 }, motionBase: base, dur: 5 };
-  StoryMotion.paint(x, poster, plan.action === 'launch' ? 2.55 : 1.9, width, height);
+  const timing = StoryMotion.timing(poster);
+  StoryMotion.paint(x, poster, timing.start + timing.span * (rocket ? 0.68 : 0.48), width, height);
   return {
     cv, ord: [], art: true, artNote: useBackdrop && !aiBackdrop && mode === 'illustrated' ? 'Cảnh 2D dùng nền vẽ sẵn.' : '',
     artRef: null, artRoles: [], anim: false, bg: null, people: null, bgL: null, fgL: null, bgKind: atmosphere,
@@ -4606,7 +4659,8 @@ function previewMotion(i) {
   }
   const button = d.querySelector('.motion-preview'), cv = d.querySelector('canvas');
   const x = cv.getContext('2d'), start = performance.now();
-  const duration = Math.min(5, s.dur || 5);
+  const timing = StoryMotion.timing(s);
+  const first = Math.max(0, timing.start - 0.2), duration = timing.start + timing.span + 0.3 - first;
   const stageH = Math.min(H, fm.ah + 10) * cv.height / H;
   const draw = time => {
     if (!motionPreview || motionPreview.i !== i) return;
@@ -4616,7 +4670,7 @@ function previewMotion(i) {
       return;
     }
     x.fillStyle = '#fff'; x.fillRect(0, 0, cv.width, cv.height);
-    StoryMotion.paint(x, s, (time - start) / 1000 * (s.dur || duration) / duration, cv.width, stageH);
+    StoryMotion.paint(x, s, first + (time - start) / 1000, cv.width, stageH);
     motionPreview.frame = requestAnimationFrame(draw);
   };
   button.textContent = 'Dừng xem động tác';
@@ -5116,45 +5170,48 @@ function musicPlan(vs, st) {
   merge();
   return segs;
 }
-function startMusic(ac, dest, vs, st, tot, t0) {
+function startMusic(ac, dest, vs, st, tot, t0, speed) {
   const oscs = [], vol = (+$('musicVol').value || 0) / 100;
   const bus = ac.createGain(), duck = ac.createGain(), comp = ac.createDynamicsCompressor();
+  const at = t => Math.max(0, t0 + t / speed);
   bus.gain.value = vol; duck.gain.value = 1;
-  bus.connect(duck); duck.connect(comp); comp.connect(ac.destination); comp.connect(dest);
+  comp.attack.value /= speed; comp.release.value /= speed;
+  bus.connect(duck); duck.connect(comp); comp.connect(ac.destination);
+  if (dest !== ac.destination) comp.connect(dest);
   // Hạ nhạc khi có giọng đọc
   vs.forEach((s, i) => {
     if (!s.buf) return;
-    const a = t0 + st[i] + 0.3, b = a + s.buf.duration;
-    duck.gain.setTargetAtTime(0.5, Math.max(0, a - 0.2), 0.15);
-    duck.gain.setTargetAtTime(1, b + 0.1, 0.4);
+    const a = st[i] + 0.3, b = a + s.buf.duration;
+    duck.gain.setTargetAtTime(0.5, at(a - 0.2), 0.15 / speed);
+    duck.gain.setTargetAtTime(1, at(b + 0.1), 0.4 / speed);
   });
   const mid = n => 440 * Math.pow(2, (n - 69) / 12);
   const mk = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
   const tone = (type, f, s, d, g, a, r, dst, cut, det) => {
     const o = ac.createOscillator(), e = ac.createGain();
-    o.type = type; o.frequency.value = f; if (det) o.detune.value = det;
+    o.type = type; o.frequency.value = f * speed; if (det) o.detune.value = det;
     let node = o;
-    if (cut) { const fl = ac.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = cut; o.connect(fl); node = fl; }
+    if (cut) { const fl = ac.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = cut * speed; o.connect(fl); node = fl; }
     node.connect(e); e.connect(dst);
     const hold = Math.max(s + a + 0.01, s + d);
-    e.gain.setValueAtTime(0, s); e.gain.linearRampToValueAtTime(g, s + a);
-    e.gain.setValueAtTime(g, hold); e.gain.linearRampToValueAtTime(0, hold + r);
-    o.start(s); o.stop(hold + r + 0.05); oscs.push(o);
+    e.gain.setValueAtTime(0, at(s)); e.gain.linearRampToValueAtTime(g, at(s + a));
+    e.gain.setValueAtTime(g, at(hold)); e.gain.linearRampToValueAtTime(0, at(hold + r));
+    o.start(at(s)); o.stop(at(hold + r + 0.05)); oscs.push(o);
   };
   const thump = (s, f0, f1, g, dst) => {
     const o = ac.createOscillator(), e = ac.createGain();
-    o.type = 'sine'; o.frequency.setValueAtTime(f0, s); o.frequency.exponentialRampToValueAtTime(f1, s + 0.25);
-    e.gain.setValueAtTime(g, s); e.gain.linearRampToValueAtTime(0, s + 0.7);
-    o.connect(e); e.connect(dst); o.start(s); o.stop(s + 0.75); oscs.push(o);
+    o.type = 'sine'; o.frequency.setValueAtTime(f0 * speed, at(s)); o.frequency.exponentialRampToValueAtTime(f1 * speed, at(s + 0.25));
+    e.gain.setValueAtTime(g, at(s)); e.gain.linearRampToValueAtTime(0, at(s + 0.7));
+    o.connect(e); e.connect(dst); o.start(at(s)); o.stop(at(s + 0.75)); oscs.push(o);
   };
   const segs = musicPlan(vs, st);
   segs.forEach((sg, si) => {
     const m = MUSIC_MOODS[sg.mood], rnd = mk(1234 + si * 77), last = si === segs.length - 1;
-    const a = t0 + sg.t0, b = t0 + sg.t1, g = ac.createGain();
+    const a = sg.t0, b = sg.t1, g = ac.createGain();
     g.connect(bus);
-    const fo = last ? Math.max(a + 2, t0 + tot - 2) : b;
-    g.gain.setValueAtTime(0, a); g.gain.linearRampToValueAtTime(1, a + 2.5);
-    g.gain.setValueAtTime(1, Math.max(a + 2.5, fo - 1)); g.gain.linearRampToValueAtTime(0, Math.max(a + 2.5, fo - 1) + (last ? 3 : 2.5));
+    const fo = last ? Math.max(a + 2, tot - 2) : b;
+    g.gain.setValueAtTime(0, at(a)); g.gain.linearRampToValueAtTime(1, at(a + 2.5));
+    g.gain.setValueAtTime(1, at(Math.max(a + 2.5, fo - 1))); g.gain.linearRampToValueAtTime(0, at(Math.max(a + 2.5, fo - 1) + (last ? 3 : 2.5)));
     const beat = 60 / m.bpm, len = 4 * beat, S = m.scale;
     let k = 0, mi = S.length;
     for (let ct = a; ct < b; ct += len, k++) {
@@ -5180,6 +5237,25 @@ function startMusic(ac, dest, vs, st, tot, t0) {
   return { stop() { oscs.forEach(o => { try { o.stop(); } catch (e) {} }); try { bus.disconnect(); duck.disconnect(); comp.disconnect(); } catch (e) {} } };
 }
 
+function startStoryAudio(ac, dest, vs, st, tot, t0, speed) {
+  const voices = [];
+  vs.forEach((s, i) => {
+    if (!s.buf) return;
+    const voice = ac.createBufferSource();
+    voice.buffer = s.buf;
+    voice.playbackRate.value = speed;
+    voice.connect(ac.destination);
+    if (dest !== ac.destination) voice.connect(dest);
+    voice.start(t0 + (st[i] + 0.3) / speed);
+    voices.push(voice);
+  });
+  const music = $('musicOn').checked ? startMusic(ac, dest, vs, st, tot, t0, speed) : null;
+  return () => {
+    voices.forEach(voice => { try { voice.stop(); } catch (e) {} });
+    if (music) music.stop();
+  };
+}
+
 // ===== VẼ MỘT KHUNG HÌNH THEO THỜI GIAN t (dùng chung cho xem thử và xuất nhanh) =====
 // ===== CHUYỂN CẢNH GIỮA CÁC CẢNH (5 kiểu) =====
 // flip = lật giấy | dark = tối dần | eraser = lau bảng | iris = thu vòng tròn | tiles = mảnh ghép rơi | fade = mờ trắng (kiểu cũ)
@@ -5189,7 +5265,7 @@ const TRANS_DUR = { flip: 1.0, dark: 0.8, eraser: 1.1, iris: 0.85, tiles: 0.95 }
 function transKind(i) {
   const m = ($('trans') && $('trans').value) || 'mix';
   if (m === 'mix') return TRANS_LIST[i % TRANS_LIST.length];
-  return TRANS_LIST.includes(m) ? m : 'fade';
+  return TRANS_LIST.includes(m) || m === 'cut' ? m : 'fade';
 }
 const _es = p => 0.5 - 0.5 * Math.cos(Math.PI * p);
 const _ez = p => p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
@@ -5317,7 +5393,7 @@ function mvUI() {
   const h = $('mvHint');
   h.hidden = !motionOn();
   h.textContent = $('isrc').value === 'illustrated'
-    ? 'Camera chuyển động nhẹ và nối cảnh. Màu, ánh sáng và không khí theo tranh minh họa đã tạo.'
+    ? 'Camera theo bố cục từng tranh và động tác 2D. Bạn có thể chỉnh camera và kiểu chuyển cảnh trước khi xem thử hoặc xuất.'
     : 'Tranh hiện với camera và hiệu ứng theo lời kể. Bật trước khi tạo tranh để tách lớp nền và nhân vật cho hiệu ứng chiều sâu.';
 }
 
@@ -5341,7 +5417,7 @@ const MV_KW = {
 };
 const MV_INDOOR = ['studio', 'office', 'home', 'kitchen', 'classroom', 'shop', 'hospital', 'bank', 'court', 'factory'];
 const MV_WIDE = ['village', 'farm', 'forest', 'mountain', 'beach', 'desert', 'war', 'street', 'park', 'snow', 'palace'];
-const MV_TR = ['crossfade', 'zoom', 'slide', 'light', 'fade', 'dip'];
+const MV_TR = ['crossfade', 'zoom', 'slide', 'light', 'fade', 'dip', 'cut'];
 
 // Phân tích một cảnh: ban ngày/đêm, mưa/tuyết/lửa/khói/bụi/hạt sáng
 function mvAnalyze(s) {
@@ -5368,7 +5444,7 @@ function mvAnalyze(s) {
 function mvFocus(s, AHt) {
   const out = { fx: W / 2, fy: AHt / 2, x0: 0, y0: 0, x1: W, y1: AHt };
   try {
-    const d = s.cv.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, W, AHt).data;
+    const d = (s.fgL || s.cv).getContext('2d', { willReadFrequently: true }).getImageData(0, 0, W, AHt).data;
     const GX = 32, GY = Math.max(6, Math.round(GX * AHt / W)), cw = W / GX, ch = AHt / GY, cnt = new Float32Array(GX * GY);
     for (let y = 2; y < AHt; y += 4) {
       const gy = Math.min(GY - 1, (y / ch) | 0);
@@ -5404,21 +5480,36 @@ function mvPlanCams(vs) {
   return out;
 }
 
+function mvFlatCamera(scene, kind, height) {
+  const shot = scene.image || '';
+  const cx = W / 2, cy = height / 2;
+  const close = /\[(?:CLOSE|XCLOSE)\]/i.test(shot);
+  const wide = /\[(?:PLACE|WIDE)\]/i.test(shot);
+  const flying = ['launch', 'separate'].includes(scene.motionScene?.action);
+  const zoom = close || flying ? 0.018 : scene.motionScene ? 0.032 : wide ? 0.052 : 0.04;
+  if (wide && !close && !scene.motionScene) {
+    const dx = W * (kind === 'panRL' || kind === 'pull' ? -0.016 : 0.016);
+    return { z0: 1 + zoom, z1: 1 + zoom, ax: cx - dx, bx: cx + dx, ay: cy, by: cy };
+  }
+  const pull = kind === 'pull';
+  return { z0: pull ? 1 + zoom : 1, z1: pull ? 1 : 1 + zoom, ax: cx, bx: cx, ay: cy, by: cy };
+}
+
 // Kế hoạch chuyển cảnh: out[j] = kiểu chuyển từ cảnh j-1 sang cảnh j
 function mvPlanTrans(vs) {
-  const sel = ($('mvTrans') && $('mvTrans').value) || 'auto', out = [''];
-  const seq = ['crossfade', 'zoom', 'slide', 'light', 'crossfade', 'fade'], R = _mvRng(_mvSeed('tr|' + vs.length));
-  let off = Math.floor(R() * seq.length), cnt = 0;
-  for (let j = 1; j < vs.length; j++) {
-    const o = vs[j - 1], s = vs[j];
-    let k;
-    if (MV_TR.includes(sel)) k = sel;
-    else if (o.dur < 2.4 || s.dur < 2.0) k = 'crossfade';
-    else if (/(năm sau|hôm sau|nhiều năm|năm tháng trôi|years later|next day|next morning|later that)/i.test(String(s.text || '')) || (['sad', 'tense', 'mystery'].includes(o.mood) && R() < 0.5)) k = out[j - 1] === 'dip' ? 'fade' : 'dip';
-    else { k = seq[(off + cnt++) % seq.length]; if (k === out[j - 1]) k = seq[(off + cnt++) % seq.length]; if (k === out[j - 1]) k = 'crossfade'; }
-    out.push(k);
-  }
-  return out;
+  const selected = $('mvTrans')?.value;
+  return vs.map((scene, i) => {
+    if (i === 0) return '';
+    if (MV_TR.includes(selected)) return selected;
+    const previous = vs[i - 1], text = scene.text || '', shot = scene.image || '';
+    if (Math.min(previous.dur, scene.dur) < 1.3) return 'cut';
+    if (/^(?:\s|["“])*(?:\d+ năm sau|nhiều năm sau|sáng hôm sau|hôm sau|ngày hôm sau|đêm hôm sau|một lúc sau|vài (?:giờ|ngày|tháng|năm) sau|years later|the next (?:day|morning)|later that)/i.test(text)) return 'dip';
+    if (/\[(?:CLOSE|XCLOSE)\]/i.test(shot) && /bất ngờ|đột nhiên|chợt|suddenly|without warning/i.test(text)) return 'cut';
+    const changedPlace = previous.bgKind && scene.bgKind && previous.bgKind !== scene.bgKind &&
+      previous.bgKind !== 'plain' && scene.bgKind !== 'plain';
+    if (changedPlace && /lên đường|đi tới|đi đến|đến nơi|bước vào|trở về|arriv|travel|journey/i.test(text)) return 'slide';
+    return 'crossfade';
+  });
 }
 
 function mvCreate(vs, st, x) {
@@ -5432,7 +5523,13 @@ function mvCreate(vs, st, x) {
   const ov = mk(W, AHt), og = ov.getContext('2d');
   og.imageSmoothingEnabled = true; og.imageSmoothingQuality = 'low';
   const camK = mvPlanCams(vs), trK = mvPlanTrans(vs), infos = [];
-  const winA = vs.map((s, j) => j ? Math.min(0.55, 0.3 * vs[j - 1].dur) : 0), winB = vs.map((s, j) => j ? Math.min(0.3, 0.2 * s.dur) : 0);
+  const camMode = $('mvCam')?.value;
+  const strength = camMode === 'off' ? 0 : camMode === 'gentle' ? 0.52 : 1;
+  const win = vs.map((s, i) => {
+    if (!i || trK[i] === 'cut') return 0;
+    const limit = ['dip', 'fade'].includes(trK[i]) ? 0.5 : 0.36;
+    return Math.min(limit, 0.18 * s.dur, 0.18 * vs[i - 1].dur);
+  });
 
   // ---- Lớp ánh sáng dựng sẵn: mỗi loại chỉ tạo MỘT lần rồi dùng lại mọi khung (không tạo gradient ở từng khung) ----
   const LAY = {};
@@ -5609,7 +5706,7 @@ function mvCreate(vs, st, x) {
   function info(i) {
     if (infos[i]) return infos[i];
     const s = vs[i];
-    if (s.art) return infos[i] = { cam: { z0: 1, z1: 1.10, ax: W / 2, bx: W / 2, ay: AHt / 2, by: AHt / 2 } };
+    if (s.art || s.motionScene) return infos[i] = { cam: mvFlatCamera(s, camK[i], AHt) };
     const R = _mvRng(_mvSeed(String(s.text || '') + '|' + i + '|' + n)), an = mvAnalyze(s), fo = mvFocus(s, AHt);
     // Camera
     const mid = [W / 2, AHt / 2], m = 0.035 * W, bw = fo.x1 - fo.x0 + 2 * m, bh = fo.y1 - fo.y0 + 2 * m, zFit = Math.min(W / bw, AHt / bh);
@@ -5621,18 +5718,20 @@ function mvCreate(vs, st, x) {
       return clampC(cx, cy, z);
     };
     let kind = camK[i], cam = null;
-    const ZB = W < 1000 ? 1.08 : 1.045;   // mức zoom thấp nhất: cắt bớt viền giấy trắng mờ quanh tranh để hình tràn khung như phim (khung dọc hẹp hơn nên cắt nhiều hơn)
-    const zc = _mvCl(zFit, ZB + 0.04, ZB + 0.1 + R() * 0.07);
-    const pull = () => { const a = fit(fo.fx, fo.fy, zc); return { z0: zc, z1: ZB, ax: a[0], ay: a[1], bx: mid[0], by: mid[1] }; };
-    if (kind === 'push') { const b = fit(fo.fx, fo.fy, zc); cam = { z0: ZB, z1: zc, ax: mid[0], ay: mid[1], bx: b[0], by: b[1] }; }
+    const maxZoom = Math.max(1, zFit);
+    const ZB = Math.min(maxZoom, fm.v ? 1.055 : 1.035);
+    const zc = Math.min(maxZoom, ZB + 0.07 + R() * 0.055);
+    const [mx, my] = fit(mid[0], mid[1], ZB);
+    const pull = () => { const a = fit(fo.fx, fo.fy, zc); return { z0: zc, z1: ZB, ax: a[0], ay: a[1], bx: mx, by: my }; };
+    if (kind === 'push') { const b = fit(fo.fx, fo.fy, zc); cam = { z0: ZB, z1: zc, ax: mx, ay: my, bx: b[0], by: b[1] }; }
     else if (kind === 'pull') cam = pull();
     else if (kind === 'diag') {
-      const z0 = ZB + 0.02, z1 = _mvCl(zFit, ZB + 0.06, ZB + 0.12), sx = R() < 0.5 ? -1 : 1, sy = R() < 0.5 ? -1 : 1;
+      const z0 = Math.min(maxZoom, ZB + 0.02), z1 = Math.min(maxZoom, ZB + 0.09), sx = R() < 0.5 ? -1 : 1, sy = R() < 0.5 ? -1 : 1;
       const a = fit(mid[0] - sx * W, mid[1] - sy * AHt, z0), b = fit(fo.fx, fo.fy, z1);
       cam = { z0, z1, ax: a[0], ay: a[1], bx: b[0], by: b[1] };
     } else {   // panLR / panRL
-      const z = _mvCl(zFit, ZB + 0.03, ZB + 0.06), fy = (fo.fy + mid[1]) / 2, l = fit(-1e9, fy, z), r = fit(1e9, fy, z);
-      if (r[0] - l[0] < 0.022 * W) { kind = 'pull'; cam = pull(); }   // nội dung rộng gần hết khung, lia sẽ cắt mất: đổi sang zoom ra
+      const z = Math.min(maxZoom, ZB + 0.045), fy = (fo.fy + mid[1]) / 2, l = fit(-1e9, fy, z), r = fit(1e9, fy, z);
+      if (r[0] - l[0] < 0.018 * W) { kind = 'pull'; cam = pull(); }   // nội dung rộng gần hết khung, lia sẽ cắt mất: đổi sang zoom ra
       else { const A = kind === 'panLR' ? l : r, B = kind === 'panLR' ? r : l; cam = { z0: z, z1: z, ax: A[0], ay: A[1], bx: B[0], by: B[1] }; }
     }
     // Ánh sáng
@@ -5923,7 +6022,7 @@ function mvCreate(vs, st, x) {
   }
   // Lấy bản đã nướng của cảnh i (nướng nốt ngay nếu chưa xong)
   function bakeOf(i) {
-    if (vs[i].art) return {};
+    if (vs[i].art || vs[i].motionScene) return {};
     if (BK[i] && BK[i].done) return BK[i];
     if (!GEN[i]) GEN[i] = bakeGen(i);
     let r; do { r = GEN[i].next(); } while (!r.done);
@@ -5932,16 +6031,16 @@ function mvCreate(vs, st, x) {
   }
   // Chuẩn bị trước cảnh i: mỗi khung hình chỉ làm một khối nhỏ
   function warm(i) {
-    if (vs[i].art) return;
+    if (vs[i].art || vs[i].motionScene) return;
     if (BK[i] && BK[i].done) return;
     if (!GEN[i]) GEN[i] = bakeGen(i);
     if (GEN[i].next().done) delete GEN[i];
   }
 
-  // Một lớp ảnh với camera (zz = zoom, (cx,cy) = tâm nhìn, xo = lệch ngang thêm cho chuyển cảnh trượt, br = thở nhẹ)
-  function blit(g, img, zz, cx, cy, xo, br) {
+  // Một lớp ảnh với camera (zz = zoom, (cx,cy) = tâm nhìn, br = thở nhẹ)
+  function blit(g, img, zz, cx, cy, br = 0) {
     g.save();
-    g.translate(W / 2 + xo, AHt / 2); g.scale(zz, zz); g.translate(-cx, -cy);
+    g.translate(W / 2, AHt / 2); g.scale(zz, zz); g.translate(-cx, -cy);
     if (br) { g.translate(W / 2, AHt * 0.85); g.scale(br, br); g.translate(-W / 2, -AHt * 0.85); }
     g.drawImage(img, 0, 0, W, AHt, 0, 0, W, AHt);   // chỉ phần nằm trong vùng tranh (phụ đề nằm dưới)
     g.restore();
@@ -5981,33 +6080,36 @@ function mvCreate(vs, st, x) {
     if (inf.fl > 0.01) { g.save(); g.globalAlpha = 0.3 * inf.fl; g.fillStyle = '#e6eeff'; g.fillRect(0, 0, W, AHt); g.restore(); }
   }
 
-  // Vẽ vùng tranh của cảnh i lên g. lt = thời gian trong cảnh, xz/xo = zoom và lệch thêm do chuyển cảnh
-  function pic(g, i, t, lt, xz, xo) {
+  // Vẽ vùng tranh của cảnh i. xz là hệ số zoom bổ sung trong lúc chuyển cảnh.
+  function pic(g, i, t, lt, xz = 1) {
     const s = vs[i];
     if (!s.cv) return;
     const inf = info(i), c = inf.cam, e = _es(_mvCl(lt / Math.max(0.5, s.dur), 0, 1));
-    const z = _mvLerp(c.z0, c.z1, e);
-    const cx = _mvCl(_mvLerp(c.ax, c.bx, e), W / (2 * z), W - W / (2 * z)), cy = _mvCl(_mvLerp(c.ay, c.by, e), AHt / (2 * z), AHt - AHt / (2 * z));
+    const z = _mvLerp(1, _mvLerp(c.z0, c.z1, e), strength);
+    const cx = _mvCl(_mvLerp(W / 2, _mvLerp(c.ax, c.bx, e), strength), W / (2 * z), W - W / (2 * z));
+    const cy = _mvCl(_mvLerp(AHt / 2, _mvLerp(c.ay, c.by, e), strength), AHt / (2 * z), AHt - AHt / (2 * z));
     g.save();
     g.beginPath(); g.rect(0, 0, W, AHt); g.clip();
     if (s.motionScene && globalThis.StoryMotion) {
-      StoryMotion.paint(g, s, lt, W, AHt);
+      g.translate(W / 2, AHt / 2);
+      g.scale(z * xz, z * xz);
+      g.translate(-cx, -cy);
+      StoryMotion.paint(g, s, _mvCl(lt, 0, s.dur), W, AHt);
       g.restore();
       return;
     }
-    if (s.art) {
-      const artZoom = 1 + (z - 1) * 0.35;
-      blit(g, s.cv, artZoom * Math.max(0.99, xz), W / 2, AHt / 2, xo * 0.35, 0);
+    if (s.art || s.motionScene) {
+      blit(g, s.cv, z * xz, cx, cy);
       g.restore();
       return;
     }
     const bk = bakeOf(i), bgImg = bk.bg || s.bgL || s.cv, fgImg = bk.bg ? bk.fg : s.fgL;   // bản đã phối màu (nếu nướng lỗi thì dùng ảnh gốc)
     if (bgImg && (bk.fg || (!bk.bg && s.bgL && s.fgL))) {   // có tách lớp: nền chuyển động chậm hơn, vật/người phía trước nhanh hơn một chút (parallax thật)
       const zb = 1 + (z - 1) * 0.86, bx = W / 2 + (cx - W / 2) * 0.78, by = AHt / 2 + (cy - AHt / 2) * 0.78;
-      blit(g, bgImg, zb * xz, bx, by, xo, 0);
-      if (bk.fog && !weak) { g.globalAlpha = inf.look.fog.a / 0.30 * 0.62; blit(g, bk.fog, zb * xz * 1.04, bx + 22 * Math.sin(TAU * t / 16 + inf.ph[1]), by, xo, 0); g.globalAlpha = 1; }   // sương trôi chậm giữa nền và chủ thể
-      blit(g, fgImg, z * xz, cx, cy, xo, 1 + 0.0028 * Math.sin(TAU * t / 5.5 + inf.ph[0]));
-    } else blit(g, bgImg, z * xz, cx, cy, xo, 0);   // ảnh phẳng: chỉ camera + ánh sáng + phối màu, không tách người giả
+      blit(g, bgImg, zb * xz, bx, by);
+      if (bk.fog && !weak) { g.globalAlpha = inf.look.fog.a / 0.30 * 0.62; blit(g, bk.fog, zb * xz * 1.04, bx + 22 * Math.sin(TAU * t / 16 + inf.ph[1]), by); g.globalAlpha = 1; }   // sương trôi chậm giữa nền và chủ thể
+      blit(g, fgImg, z * xz, cx, cy, 1 + 0.0028 * Math.sin(TAU * t / 5.5 + inf.ph[0]));
+    } else blit(g, bgImg, z * xz, cx, cy);
     grade(g, inf, t, lt);
     g.save();   // hạt đi theo camera một chút (lớp trước nhanh hơn) cho có chiều sâu
     g.translate(-(cx - W / 2) * 1.25, -(cy - AHt / 2) * 1.25);
@@ -6018,39 +6120,49 @@ function mvCreate(vs, st, x) {
     g.restore();
   }
 
-  const self = {
-    dk: 0,
+  function bufferScene(i, t, zoom = 1) {
+    og.fillStyle = '#fff';
+    og.fillRect(0, 0, W, AHt);
+    pic(og, i, t, t - st[i], zoom);
+  }
+
+  return {
     // Vẽ vùng tranh cho thời điểm t (cảnh hiện tại i, lt = t - st[i]); phụ đề do makeRenderer vẽ sau
     frame(g, t, i, lt) {
-      self.dk = 0;
       if (i + 1 < n && lt > 0.3) { info(i + 1); warm(i + 1); }   // chuẩn bị trước (và phối màu dần, mỗi khung một khối nhỏ) cho cảnh sau để không giật khi chuyển
-      let tr = null;
-      if (i < n - 1 && t >= st[i + 1] - winA[i + 1]) tr = { o: i, j: i + 1, p: (t - (st[i + 1] - winA[i + 1])) / (winA[i + 1] + winB[i + 1]), k: trK[i + 1] };
-      else if (i > 0 && t < st[i] + winB[i]) tr = { o: i - 1, j: i, p: (t - (st[i] - winA[i])) / (winA[i] + winB[i]), k: trK[i] };
-      if (!tr) pic(g, i, t, lt, 1, 0);
+      let j = 0;
+      if (i < n - 1 && win[i + 1] && t >= st[i + 1] - win[i + 1]) j = i + 1;
+      else if (i > 0 && win[i] && t < st[i] + win[i]) j = i;
+      if (!j) pic(g, i, t, lt);
       else {
-        const q = _mvCl(tr.p, 0, 1), e = _es(q), k = tr.k, lo = t - st[tr.o], li = Math.max(0, t - st[tr.j]);
+        const q = _mvCl(0.5 + (t - st[j]) / (2 * win[j]), 0, 1), e = _es(q), k = trK[j];
+        const previous = j - 1;
         if (k === 'dip' || k === 'fade') {
-          if (q < 0.5) pic(g, tr.o, t, lo, 1, 0); else pic(g, tr.j, t, li, 1, 0);
-          const hump = 0.5 - 0.5 * Math.cos(TAU * q);
-          if (k === 'dip') self.dk = 0.92 * hump;   // tối dần rồi sáng lên (tối tối đa 92%, không đen hẳn)
-          else { g.save(); g.globalAlpha = 0.88 * hump; g.fillStyle = '#f5f1e8'; g.fillRect(0, 0, W, AHt); g.restore(); }
+          const scene = q < 0.5 ? previous : j;
+          pic(g, scene, t, t - st[scene]);
+          g.save();
+          g.globalAlpha = Math.pow(Math.sin(Math.PI * q), 2);
+          g.fillStyle = k === 'dip' ? '#121217' : '#f5f1e8';
+          g.fillRect(0, 0, W, AHt);
+          g.restore();
+        } else if (k === 'slide') {
+          const offset = Math.round(W * e);
+          bufferScene(previous, t);
+          g.drawImage(ov, -offset, 0);
+          bufferScene(j, t);
+          g.drawImage(ov, W - offset, 0);
         } else {
-          pic(g, tr.o, t, lo, k === 'zoom' ? 1 + 0.10 * e : 1, k === 'slide' ? -0.06 * W * e : 0);
-          og.globalAlpha = 1; og.fillStyle = '#fff'; og.fillRect(0, 0, W, AHt);
-          pic(og, tr.j, t, li, k === 'zoom' ? 0.94 + 0.06 * e : 1, k === 'slide' ? 0.06 * W * (1 - e) : 0);
+          pic(g, previous, t, t - st[previous], k === 'zoom' ? 1 + 0.07 * e : 1);
+          bufferScene(j, t, k === 'zoom' ? 1 + 0.07 * (1 - e) : 1);
           g.save(); g.globalAlpha = e; g.drawImage(ov, 0, 0); g.restore();   // hòa dần cảnh sau lên cảnh trước
           if (k === 'light') { g.save(); g.globalAlpha = 0.55 * Math.pow(Math.sin(Math.PI * q), 2); g.drawImage(layer('glow'), 0, 0); g.restore(); }
         }
       }
-      if (i === 0 && lt < 0.8) { g.save(); g.globalAlpha = 1 - _es(lt / 0.8); g.fillStyle = '#fff'; g.fillRect(0, 0, W, AHt); g.restore(); }   // mở đầu: hiện dần từ giấy trắng
-      if (i === n - 1 && t > tot - 0.55) { g.save(); g.globalAlpha = 0.96 * _es(_mvCl((t - (tot - 0.55)) / 0.95, 0, 1)); g.fillStyle = '#fff'; g.fillRect(0, 0, W, AHt); g.restore(); }   // kết thúc: mờ về giấy trắng
+      const intro = Math.min(0.65, 0.24 * vs[0].dur), outro = Math.min(0.55, 0.24 * vs[n - 1].dur);
+      if (i === 0 && lt < intro) { g.save(); g.globalAlpha = 1 - _es(_mvCl(lt / intro, 0, 1)); g.fillStyle = '#fff'; g.fillRect(0, 0, W, AHt); g.restore(); }
+      if (i === n - 1 && t > tot - outro) { g.save(); g.globalAlpha = 0.96 * _es(_mvCl((t - (tot - outro)) / (outro + 0.4), 0, 1)); g.fillStyle = '#fff'; g.fillRect(0, 0, W, AHt); g.restore(); }
     },
     prep() { if (vs[0] && vs[0].cv) { info(0); bakeOf(0); } },   // nướng sẵn màu cảnh đầu
-    // Phủ tối (chuyển cảnh "tối dần rồi sáng lên") lên cả khung, gồm phụ đề, sau khi phụ đề đã vẽ
-    after(g) {
-      if (self.dk > 0.003) { g.save(); g.globalAlpha = self.dk; g.fillStyle = '#000'; g.fillRect(0, 0, W, H); g.restore(); }
-    },
     // Giải phóng canvas phụ và trả lại cài đặt làm mịn ảnh của canvas chính
     dispose() {
       try {
@@ -6064,7 +6176,6 @@ function mvCreate(vs, st, x) {
       } catch (e) { /* bỏ qua */ }
     }
   };
-  return self;
 }
 
 function makeRenderer(vs, st, x) {
@@ -6079,8 +6190,10 @@ function makeRenderer(vs, st, x) {
   const MV = motionOn() && vs.length ? mvCreate(vs, st, x) : null;   // null = video cũ, mọi đường code cũ giữ nguyên
   // kiểu chuyển cảnh thật sự dùng cho cảnh j (cảnh quá ngắn hoặc cảnh cuối thì mờ trắng như cũ; cảnh cuối chỉ giữ "tối dần")
   const effK = j => {
-    const sj = vs[j]; if (!sj || sj.dur < 1.8) return 'fade';
+    const sj = vs[j]; if (!sj) return 'fade';
     const k = transKind(j);
+    if (k === 'cut') return k;
+    if (sj.dur < 1.8) return 'fade';
     return (j === vs.length - 1 && k !== 'dark') ? 'fade' : k;
   };
   const drawFn = function draw(t) {
@@ -6144,7 +6257,7 @@ function makeRenderer(vs, st, x) {
         x.fillStyle = `rgba(255,255,255,${fo})`;
         x.fillRect(0, 0, W, H);
       }
-    } else if (kT !== 'dark' && lt > s.dur - tdur) {
+    } else if (kT !== 'dark' && kT !== 'cut' && lt > s.dur - tdur) {
       snx.clearRect(0, 0, W, AHt);
       snx.drawImage(x.canvas, 0, 0, W, AHt, 0, 0, W, AHt);
       drawTrans(kT, x, sn, Math.min(1, (lt - (s.dur - tdur)) / tdur), W, AHt);
@@ -6162,7 +6275,7 @@ function makeRenderer(vs, st, x) {
       sp.pages[pi].forEach((l, j) => x.fillText(l, W / 2, fm.sy + j * fm.lh));
       x.globalAlpha = 1;
     }
-    if (MV) { MV.after(x); return; }
+    if (MV) return;
     // Tối dần: cả khung (kể cả phụ đề) tối đen ở cuối cảnh, rồi sáng dần lên ở đầu cảnh sau
     let da = 0;
     if (kT === 'dark') da = _es(Math.min(1, Math.max(0, lt - (s.dur - tdur)) / tdur));
@@ -6202,16 +6315,16 @@ async function pickCodec(FPS, SR) {
   }
   return null;
 }
-async function exportFast() {
+async function exportFast(speed) {
   const vs = scenes.filter(s => s.ok || s.cv || s.buf);
   playing = true;
   stopFlag = false;
   const out = $('out'), cv = $('cv'), x = cv.getContext('2d');
-  const FPS = 30, SR = 48000, FD = Math.round(1e6 / FPS);
+  const FPS = 30, SR = 48000;
   const st = [];
   let tot = 0;
   vs.forEach(s => { st.push(tot); tot += s.dur; });
-  const dur = tot + 0.4, nF = Math.ceil(dur * FPS);
+  const dur = (tot + 0.4) / speed, nF = Math.ceil(dur * FPS);
   let venc = null, aenc = null, R = null;
   const t00 = Date.now();
   try {
@@ -6221,21 +6334,13 @@ async function exportFast() {
     if (!pick) {
       playing = false;
       out.textContent = 'Trình duyệt chưa hỗ trợ xuất nhanh, chuyển sang xuất theo thời gian thật (giữ tab này mở)...';
-      return play(1, true);
+      return play(1, true, speed);
     }
     // 1) Trộn âm thanh (giọng đọc + nhạc nền) thành một đoạn âm thanh duy nhất
     out.textContent = '🎧 Đang trộn giọng đọc và nhạc nền...';
     await sleep(30);
     const off = new OfflineAudioContext(2, Math.ceil(dur * SR), SR);
-    vs.forEach((s, i) => {
-      if (s.buf) {
-        const n = off.createBufferSource();
-        n.buffer = s.buf;
-        n.connect(off.destination);
-        n.start(st[i] + 0.3);
-      }
-    });
-    if ($('musicOn').checked) startMusic(off, off.destination, vs, st, tot, 0);
+    startStoryAudio(off, off.destination, vs, st, tot, 0, speed);
     const mix = await off.startRendering();
     const ch0 = mix.getChannelData(0), ch1 = mix.getChannelData(1), aTotal = mix.length;
     if (stopFlag) throw new Error('STOP');
@@ -6271,8 +6376,10 @@ async function exportFast() {
     for (let f = 0; f < nF; f++) {
       if (stopFlag) throw new Error('STOP');
       if (encErr) throw encErr;
-      R(f / FPS);
-      const vf = new VideoFrame(cv, { timestamp: f * FD, duration: FD });
+      R(f / FPS * speed);
+      const timestamp = Math.round(f * 1e6 / FPS);
+      const duration = Math.round((f + 1) * 1e6 / FPS) - timestamp;
+      const vf = new VideoFrame(cv, { timestamp, duration });
       venc.encode(vf, { keyFrame: f % 90 === 0 });
       vf.close();
       feedAudio((f + 1) / FPS);
@@ -6302,53 +6409,49 @@ async function exportFast() {
   playing = false;
 }
 
-function play(rec, forceReal) {
+function play(rec, forceReal, speed = rec ? Number($('exportSpeed').value) || 1 : 1) {
   const validScenes = scenes.filter(s => s.ok || s.cv || s.buf);
   if (playing || !validScenes.length) return;
-  if (rec && !forceReal && fastExportOK()) return exportFast();
+  if (rec && !forceReal && fastExportOK()) return exportFast(speed);
   playing = true;
   stopFlag = false;
-  const ac = A(), cv = $('cv'), x = cv.getContext('2d'), dest = ac.createMediaStreamDestination();
-  ac.resume().then(() => {
+  const ac = A(), cv = $('cv'), x = cv.getContext('2d');
+  const dest = rec ? ac.createMediaStreamDestination() : ac.destination;
+  let R, stopAudio, stream;
+  ac.resume().then(async () => {
     const st = [];
     let tot = 0;
     validScenes.forEach(s => { st.push(tot); tot += s.dur; });
-    const R = makeRenderer(validScenes, st, x);
+    R = makeRenderer(validScenes, st, x);
     if (R.prep) R.prep();   // video chuyển động: phối màu sẵn cảnh đầu trước khi tính t0, để hình và tiếng khởi động cùng lúc
-    const t0 = ac.currentTime + 0.5;
-    const srcs = [];
-    validScenes.forEach((s, i) => {
-      if (s.buf) {
-        const n = ac.createBufferSource();
-        n.buffer = s.buf;
-        n.connect(ac.destination);
-        n.connect(dest);
-        n.start(t0 + st[i] + 0.3);
-        srcs.push(n);
-      }
-    });
-    const mus = $('musicOn').checked ? startMusic(ac, dest, validScenes, st, tot, t0) : null;
     let mr = null, chunks = [], mime = '', ext = 'webm';
     if (rec) {
       mime = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m)) || '';
       ext = mime.includes('mp4') ? 'mp4' : 'webm';
-      const ms = cv.captureStream(30);
-      dest.stream.getAudioTracks().forEach(t => ms.addTrack(t));
-      mr = new MediaRecorder(ms, mime ? { mimeType: mime, videoBitsPerSecond: 4e6 } : {});
+      stream = cv.captureStream(30);
+      dest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
+      mr = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 4e6 } : {});
       mr.ondataavailable = e => e.data.size && chunks.push(e.data);
       mr.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        playing = false;
         const u = URL.createObjectURL(new Blob(chunks, { type: mime || 'video/webm' }));
         $('out').innerHTML = `<video class="${fm.v ? 'v' : ''}" controls src="${u}"></video><a download="video-ve-tay.${ext}" href="${u}"><button>⬇ Tải video về máy</button></a><button type="button" class="w" onclick="openThumb()">🖼 Tạo thumbnail YouTube</button>`;
       };
-      mr.start(1000);
       $('out').textContent = 'Đang xuất video theo thời gian thật, vui lòng đợi...';
     }
+    const t0 = ac.currentTime + 0.5;
+    stopAudio = startStoryAudio(ac, dest, validScenes, st, tot, t0, speed);
     const end = () => {
-      srcs.forEach(n => { try { n.stop(); } catch (e) {} });
-      if (mus) mus.stop();
-      if (mr && mr.state !== 'inactive') mr.stop();
-      try { R.dispose(); } catch (e) {}
-      playing = false;
+      stopAudio();
+      R.dispose();
+      if (mr && mr.state !== 'inactive') {
+        mr.stop();
+      } else {
+        if (stream) stream.getTracks().forEach(t => t.stop());
+        if (rec && stopFlag) $('out').textContent = '⏹ Đã dừng xuất video.';
+        playing = false;
+      }
     };
     const nextTick = fn => {
       if (rec || document.hidden) setTimeout(fn, 1000 / 30);
@@ -6356,14 +6459,26 @@ function play(rec, forceReal) {
     };
     let lastDraw = -1;
     const frame = () => {
-      const t = ac.currentTime - t0;
+      const t = (ac.currentTime - t0) * speed;
       if (stopFlag || t >= tot + 0.4) return end();
       if (R.mv && !rec && t - lastDraw < 0.030) return nextTick(frame);   // xem thử chuyển động: vẽ ~30 khung/giây (màn 60Hz bỏ bớt khung) cho nhẹ máy
       lastDraw = t;
       R(t);
       nextTick(frame);
     };
+    if (mr) {
+      while (!stopFlag && ac.currentTime < t0) await sleep(10);
+      if (stopFlag) return end();
+      R(0);
+      mr.start(1000);
+    }
     nextTick(frame);
+  }).catch(e => {
+    if (stopAudio) stopAudio();
+    if (R) R.dispose();
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    playing = false;
+    $('out').textContent = `⚠ ${rec ? 'Lỗi khi xuất video' : 'Lỗi khi xem thử'}: ${e.message || e}`;
   });
 }
 // ===== THUMBNAIL YOUTUBE + CÂU HOOK =====

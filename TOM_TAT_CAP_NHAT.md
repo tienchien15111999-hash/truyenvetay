@@ -11,6 +11,7 @@
 
 Khi dùng Cloudflare, kịch bản được tạo theo từng nhóm tối đa bốn cảnh, bố cục theo nhóm tối đa năm cảnh. Yêu cầu chữ gặp lỗi tạm thời được thử lại một lần với GLM-4.7 Flash trên Cloudflare. Nếu một phần vẫn thất bại, bấm **Bắt đầu tạo video** với cùng nội dung trong tab hiện tại để dùng lại các phần kịch bản đã xong. Khi lỗi ở bước bố cục, web có thể dùng mô tả từ kịch bản cho các cảnh đó. Cập nhật cùng lúc **`index.html`** và **`api/cloudflare-ai.js`**.
 
+FLUX.2 Klein 4B vẽ bằng mô tả và ảnh mẫu khi có. Nếu Cloudflare báo lỗi định dạng, web thử lại ở khung 1024×768 bằng mô tả cảnh. FLUX.1 Schnell là model vẽ dự phòng cho lỗi kỹ thuật phù hợp. Tranh tạo chỉ từ mô tả có thể lệch diện mạo nhân vật so với ảnh mẫu. Nhật ký hiển thị mã Cloudflare hoặc trạng thái HTTP khi có phản hồi lỗi.
 
 1. Trong Cloudflare, mở **Workers AI → Use REST API** để lấy **Account ID** và tạo **Workers AI API Token**. Gói **Workers Free** dùng hạn mức theo ngày.
 2. Cập nhật các file trong ZIP vào repo hiện tại để Vercel triển khai bản mới.
