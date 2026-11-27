@@ -39,6 +39,9 @@ canvas.v,video.v{width:auto;max-height:80vh;max-width:100%;margin:0 auto}
 summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px 0}#go{font-size:18px;padding:14px 24px}
 .savebox{margin-top:14px;padding:12px;border:1.5px dashed #1d4ed8;border-radius:6px;background:#f5f8ff}
 .savebox .hint{margin:4px 0 6px}
+dialog{width:min(520px,calc(100% - 32px));max-height:90vh;border:2px solid #111;border-radius:8px;background:#fff;padding:16px;overflow:auto}dialog::backdrop{background:#0008}
+.reference-picker{display:block;margin:12px auto;max-width:100%;height:auto;touch-action:none;cursor:crosshair}
+.review-picture{display:block;width:100%;max-height:55vh;object-fit:contain;margin:12px 0}
 </style>
 </head>
 <body>
@@ -220,7 +223,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
     </div>
   </div>
   <p class="hint" id="nimgHint"></p>
-  <label class="chk"><input type="checkbox" id="sub" checked>Hiện phụ đề</label>
+  <label class="chk"><input type="checkbox" id="sub" checked>Hiện phụ đề tiếng Việt</label>
   <select id="vmode" hidden><option value="hand">hand</option></select>
   <div style="margin:10px 0"><label for="isrc">Cách vẽ tranh</label>
   <select id="isrc" onchange="vui();saveSet()">
@@ -230,13 +233,13 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   <div id="cloudStyleBox" hidden>
     <label for="cfStyle">Phong cách tranh Cloudflare</label>
     <select id="cfStyle" onchange="saveSet()">
-      <option value="portrait">Chân dung điện ảnh</option>
-      <option value="ink" selected>Truyện tranh nét mực</option>
-      <option value="watercolor">Màu nước</option>
-      <option value="anime">Anime điện ảnh</option>
+      <option value="" disabled hidden>Chọn một kiểu vẽ cho dự án</option>
       <option value="threeD">Hoạt hình 3D</option>
+      <option value="anime" selected>Anime điện ảnh</option>
+      <option value="portrait">Ảnh thực (như ảnh chụp)</option>
     </select>
-    <p class="hint">Với người thật, công cụ tìm ảnh chân dung và dùng lại đặc điểm nhận diện giữa các cảnh.</p>
+    <p class="hint">Khi vẽ lại, cảnh dùng kiểu vẽ đã lưu. Chọn <strong>Lấy mẫu nhân vật</strong> trên cảnh ưng ý để dùng lại khuôn mặt và trang phục.</p>
+    <p id="cloudStyleNotice" class="hint" hidden>Dự án cũ chưa có kiểu vẽ thống nhất. Hãy chọn một kiểu cho các cảnh chưa có thông tin hoặc dùng kiểu đã bỏ.</p>
   </div>
   <div id="svgStyleBox">
     <label for="cmode">Màu tranh SVG</label>
@@ -248,7 +251,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
   </div>
   <label class="chk" style="margin-top:8px"><input type="checkbox" id="motionVid" onchange="mvUI();motion2DUI();saveSet()">Video kể chuyện chuyển động</label>
   <p class="hint" id="mvHint" hidden></p>
-  <label class="chk" style="margin-top:8px"><input type="checkbox" id="interaction2d" onchange="motion2DUI();saveSet()">Hoạt hình 2D theo hành động trong truyện</label>
+  <label class="chk" id="interaction2dRow" style="margin-top:8px"><input type="checkbox" id="interaction2d" onchange="motion2DUI();saveSet()">Hoạt hình 2D theo hành động trong truyện</label>
   <p class="hint" id="interactionHint" hidden>Bật trước khi tạo video, hoặc bật rồi bấm Vẽ lại trên cảnh muốn đổi. Có thể chọn động tác cho từng cảnh trong phần xem trước.</p></div>
   <button id="go" onclick="start(false)">Bắt đầu tạo video</button>
   <button id="retryBtn" class="warn" onclick="start(true)" hidden>🔄 Chạy bù các tranh lỗi</button>
@@ -345,6 +348,22 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
 </div>
 </main>
 
+<dialog id="artReferenceDialog" aria-labelledby="artReferenceTitle">
+  <h2 id="artReferenceTitle">Lấy mẫu nhân vật</h2>
+  <label for="artReferenceRole">Nhân vật trong vùng sẽ khoanh</label>
+  <select id="artReferenceRole"></select>
+  <p class="hint">Kéo để khoanh riêng mặt, tóc và vai của một người. Có thể dùng phím mũi tên để dịch vùng chọn và giữ Shift để đổi kích thước.</p>
+  <canvas id="artReferenceCanvas" class="reference-picker" tabindex="0" aria-label="Khoanh nhân vật trong tranh"></canvas>
+  <button type="button" class="w sm" id="saveArtReference" onclick="saveArtworkReference()">Lưu mẫu</button>
+  <button type="button" class="w sm" onclick="document.getElementById('artReferenceDialog').close()">Đóng</button>
+</dialog>
+<dialog id="artReviewDialog" aria-labelledby="artReviewTitle">
+  <h2 id="artReviewTitle">Duyệt tranh vẽ lại</h2>
+  <p id="artReviewReason"></p>
+  <img id="artReviewPicture" class="review-picture" alt="Tranh mới đang chờ duyệt">
+  <button type="button" class="w sm" id="acceptArtReview" onclick="approveArtworkCandidate()">Dùng tranh này</button>
+  <button type="button" class="w sm" onclick="document.getElementById('artReviewDialog').close()">Đóng</button>
+</dialog>
 <script>
 /* mp4-muxer 5.1.5 (MIT, https://github.com/Vanilagy/mp4-muxer) - ghép video/âm thanh thành file mp4 */
 "use strict";var Mp4Muxer=(()=>{var e=Object.defineProperty,t=Object.getOwnPropertyDescriptor,i=Object.getOwnPropertyNames,s=Object.prototype.hasOwnProperty,a=(e,t,i)=>{if(!t.has(e))throw TypeError("Cannot "+i)},r=(e,t,i)=>(a(e,t,"read from private field"),i?i.call(e):t.get(e)),n=(e,t,i)=>{if(t.has(e))throw TypeError("Cannot add the same private member more than once");t instanceof WeakSet?t.add(e):t.set(e,i)},o=(e,t,i,s)=>(a(e,t,"write to private field"),s?s.call(e,i):t.set(e,i),i),h=(e,t,i)=>(a(e,t,"access private method"),i),l={};((t,i)=>{for(var s in i)e(t,s,{get:i[s],enumerable:!0})})(l,{ArrayBufferTarget:()=>Me,FileSystemWritableFileStreamTarget:()=>Oe,Muxer:()=>It,StreamTarget:()=>We});var d,f,u,m,p,c,w,g,b=new Uint8Array(8),y=new DataView(b.buffer),k=e=>[(e%256+256)%256],T=e=>(y.setUint16(0,e,!1),[b[0],b[1]]),C=e=>(y.setUint32(0,e,!1),[b[1],b[2],b[3]]),v=e=>(y.setUint32(0,e,!1),[b[0],b[1],b[2],b[3]]),S=e=>(y.setUint32(0,Math.floor(e/2**32),!1),y.setUint32(4,e,!1),[b[0],b[1],b[2],b[3],b[4],b[5],b[6],b[7]]),x=e=>(y.setInt16(0,256*e,!1),[b[0],b[1]]),z=e=>(y.setInt32(0,65536*e,!1),[b[0],b[1],b[2],b[3]]),E=e=>(y.setInt32(0,2**30*e,!1),[b[0],b[1],b[2],b[3]]),A=(e,t=!1)=>{let i=Array(e.length).fill(null).map((t,i)=>e.charCodeAt(i));return t&&i.push(0),i},M=e=>e&&e[e.length-1],W=e=>{let t;for(let i of e)(!t||i.presentationTimestamp>t.presentationTimestamp)&&(t=i);return t},O=(e,t,i=!0)=>{let s=e*t;return i?Math.round(s):s},B=e=>{let t=e*(Math.PI/180),i=Math.cos(t),s=Math.sin(t);return[i,s,0,-s,i,0,0,0,1]},U=B(0),j=e=>[z(e[0]),z(e[1]),E(e[2]),z(e[3]),z(e[4]),E(e[5]),z(e[6]),z(e[7]),E(e[8])],D=e=>e?"object"!=typeof e?e:Array.isArray(e)?e.map(D):Object.fromEntries(Object.entries(e).map(([e,t])=>[e,D(t)])):e,R=e=>e>=0&&e<2**32,I=(e,t,i)=>({type:e,contents:t&&new Uint8Array(t.flat(10)),children:i}),N=(e,t,i,s,a)=>I(e,[k(t),C(i),s??[]],a),V=e=>({type:"mdat",largeSize:e}),L=(e,t,i=!1)=>I("moov",null,[F(t,e),...e.map(e=>$(e,t)),i?me(e):null]),F=(e,t)=>{let i=O(Math.max(0,...t.filter(e=>e.samples.length>0).map(e=>{const t=W(e.samples);return t.presentationTimestamp+t.duration})),Ut),s=Math.max(...t.map(e=>e.id))+1,a=!R(e)||!R(i),r=a?S:v;return N("mvhd",+a,0,[r(e),r(e),v(Ut),r(i),z(1),x(1),Array(10).fill(0),j(U),Array(24).fill(0),v(s)])},$=(e,t)=>I("trak",null,[P(e,t),H(e,t)]),P=(e,t)=>{let i,s=W(e.samples),a=O(s?s.presentationTimestamp+s.duration:0,Ut),r=!R(t)||!R(a),n=r?S:v;return i="video"===e.info.type?"number"==typeof e.info.rotation?B(e.info.rotation):e.info.rotation:U,N("tkhd",+r,3,[n(t),n(t),v(e.id),v(0),n(a),Array(8).fill(0),T(0),T(0),x("audio"===e.info.type?1:0),T(0),j(i),z("video"===e.info.type?e.info.width:0),z("video"===e.info.type?e.info.height:0)])},H=(e,t)=>I("mdia",null,[_(e,t),q("video"===e.info.type?"vide":"soun"),G(e)]),_=(e,t)=>{let i=W(e.samples),s=O(i?i.presentationTimestamp+i.duration:0,e.timescale),a=!R(t)||!R(s),r=a?S:v;return N("mdhd",+a,0,[r(t),r(t),v(e.timescale),r(s),T(21956),T(0)])},q=e=>N("hdlr",0,0,[A("mhlr"),A(e),v(0),v(0),v(0),A("mp4-muxer-hdlr",!0)]),G=e=>I("minf",null,["video"===e.info.type?J():K(),Q(),Z(e)]),J=()=>N("vmhd",0,1,[T(0),T(0),T(0),T(0)]),K=()=>N("smhd",0,0,[T(0),T(0)]),Q=()=>I("dinf",null,[X()]),X=()=>N("dref",0,0,[v(1)],[Y()]),Y=()=>N("url ",0,1),Z=e=>{const t=e.compositionTimeOffsetTable.length>1||e.compositionTimeOffsetTable.some(e=>0!==e.sampleCompositionTimeOffset);return I("stbl",null,[ee(e),oe(e),he(e),le(e),de(e),fe(e),t?ue(e):null])},ee=e=>N("stsd",0,0,[v(1)],["video"===e.info.type?te(Se[e.info.codec],e):ne(ze[e.info.codec],e)]),te=(e,t)=>{return I(e,[Array(6).fill(0),T(1),T(0),T(0),Array(12).fill(0),T(t.info.width),T(t.info.height),v(4718592),v(4718592),v(0),T(1),Array(32).fill(0),T(24),(i=65535,y.setInt16(0,i,!1),[b[0],b[1]])],[xe[t.info.codec](t),t.info.decoderConfig.colorSpace?re(t):null]);var i},ie={bt709:1,bt470bg:5,smpte170m:6},se={bt709:1,smpte170m:6,"iec61966-2-1":13},ae={rgb:0,bt709:1,bt470bg:5,smpte170m:6},re=e=>I("colr",[A("nclx"),T(ie[e.info.decoderConfig.colorSpace.primaries]),T(se[e.info.decoderConfig.colorSpace.transfer]),T(ae[e.info.decoderConfig.colorSpace.matrix]),k((e.info.decoderConfig.colorSpace.fullRange?1:0)<<7)]),ne=(e,t)=>I(e,[Array(6).fill(0),T(1),T(0),T(0),v(0),T(t.info.numberOfChannels),T(16),T(0),T(0),z(t.info.sampleRate)],[Ee[t.info.codec](t)]),oe=e=>N("stts",0,0,[v(e.timeToSampleTable.length),e.timeToSampleTable.map(e=>[v(e.sampleCount),v(e.sampleDelta)])]),he=e=>{if(e.samples.every(e=>"key"===e.type))return null;let t=[...e.samples.entries()].filter(([,e])=>"key"===e.type);return N("stss",0,0,[v(t.length),t.map(([e])=>v(e+1))])},le=e=>N("stsc",0,0,[v(e.compactlyCodedChunkTable.length),e.compactlyCodedChunkTable.map(e=>[v(e.firstChunk),v(e.samplesPerChunk),v(1)])]),de=e=>N("stsz",0,0,[v(0),v(e.samples.length),e.samples.map(e=>v(e.size))]),fe=e=>e.finalizedChunks.length>0&&M(e.finalizedChunks).offset>=2**32?N("co64",0,0,[v(e.finalizedChunks.length),e.finalizedChunks.map(e=>S(e.offset))]):N("stco",0,0,[v(e.finalizedChunks.length),e.finalizedChunks.map(e=>v(e.offset))]),ue=e=>N("ctts",0,0,[v(e.compositionTimeOffsetTable.length),e.compositionTimeOffsetTable.map(e=>[v(e.sampleCount),v(e.sampleCompositionTimeOffset)])]),me=e=>I("mvex",null,e.map(pe)),pe=e=>N("trex",0,0,[v(e.id),v(1),v(0),v(0),v(0)]),ce=(e,t)=>I("moof",null,[we(e),...t.map(be)]),we=e=>N("mfhd",0,0,[v(e)]),ge=e=>{let t=0,i=0,s="delta"===e.type;return i|=+s,t|=s?1:2,t<<24|i<<16},be=e=>I("traf",null,[ye(e),ke(e),Te(e)]),ye=e=>{let t=0;t|=8,t|=16,t|=32,t|=131072;let i=e.currentChunk.samples[1]??e.currentChunk.samples[0],s={duration:i.timescaleUnitsToNextSample,size:i.size,flags:ge(i)};return N("tfhd",0,131128,[v(e.id),v(s.duration),v(s.size),v(s.flags)])},ke=e=>N("tfdt",1,0,[S(O(e.currentChunk.startTimestamp,e.timescale))]),Te=e=>{let t=e.currentChunk.samples.map(e=>e.timescaleUnitsToNextSample),i=e.currentChunk.samples.map(e=>e.size),s=e.currentChunk.samples.map(ge),a=e.currentChunk.samples.map(t=>O(t.presentationTimestamp-t.decodeTimestamp,e.timescale)),r=new Set(t),n=new Set(i),o=new Set(s),h=new Set(a),l=2===o.size&&s[0]!==s[1],d=r.size>1,f=n.size>1,u=!l&&o.size>1,m=h.size>1||[...h].some(e=>0!==e),p=0;return p|=1,p|=4*+l,p|=256*+d,p|=512*+f,p|=1024*+u,p|=2048*+m,N("trun",1,p,[v(e.currentChunk.samples.length),v(e.currentChunk.offset-e.currentChunk.moofOffset||0),l?v(s[0]):[],e.currentChunk.samples.map((e,r)=>{return[d?v(t[r]):[],f?v(i[r]):[],u?v(s[r]):[],m?(n=a[r],y.setInt32(0,n,!1),[b[0],b[1],b[2],b[3]]):[]];var n})])},Ce=(e,t)=>N("tfra",1,0,[v(e.id),v(63),v(e.finalizedChunks.length),e.finalizedChunks.map(i=>[S(O(i.startTimestamp,e.timescale)),S(i.moofOffset),v(t+1),v(1),v(1)])]),ve=()=>N("mfro",0,0,[v(0)]),Se={avc:"avc1",hevc:"hvc1",vp9:"vp09",av1:"av01"},xe={avc:e=>e.info.decoderConfig&&I("avcC",[...new Uint8Array(e.info.decoderConfig.description)]),hevc:e=>e.info.decoderConfig&&I("hvcC",[...new Uint8Array(e.info.decoderConfig.description)]),vp9:e=>{if(!e.info.decoderConfig)return null;let t=e.info.decoderConfig;if(!t.colorSpace)throw new Error("'colorSpace' is required in the decoder config for VP9.");let i=t.codec.split("."),s=Number(i[1]),a=Number(i[2]),r=0+(Number(i[3])<<4)+Number(t.colorSpace.fullRange);return N("vpcC",1,0,[k(s),k(a),k(r),k(2),k(2),k(2),T(0)])},av1:()=>I("av1C",[129,0,0,0])},ze={aac:"mp4a",opus:"Opus"},Ee={aac:e=>{let t=new Uint8Array(e.info.decoderConfig.description);return N("esds",0,0,[v(58753152),k(32+t.byteLength),T(1),k(0),v(75530368),k(18+t.byteLength),k(64),k(21),C(0),v(130071),v(130071),v(92307584),k(t.byteLength),...t,v(109084800),k(1),k(2)])},opus:e=>{let t=3840,i=0;const s=e.info.decoderConfig?.description;if(s){if(s.byteLength<18)throw new TypeError("Invalid decoder description provided for Opus; must be at least 18 bytes long.");const e=ArrayBuffer.isView(s)?new DataView(s.buffer,s.byteOffset,s.byteLength):new DataView(s);t=e.getUint16(10,!0),i=e.getInt16(14,!0)}return I("dOps",[k(0),k(e.info.numberOfChannels),T(t),v(e.info.sampleRate),x(i),k(0)])}},Ae=(Symbol("isTarget"),class{}),Me=class extends Ae{constructor(){super(...arguments),this.buffer=null}},We=class extends Ae{constructor(e){if(super(),this.options=e,"object"!=typeof e)throw new TypeError("StreamTarget requires an options object to be passed to its constructor.");if(e.onData){if("function"!=typeof e.onData)throw new TypeError("options.onData, when provided, must be a function.");if(e.onData.length<2)throw new TypeError("options.onData, when provided, must be a function that takes in at least two arguments (data and position). Ignoring the position argument, which specifies the byte offset at which the data is to be written, can lead to broken outputs.")}if(void 0!==e.chunked&&"boolean"!=typeof e.chunked)throw new TypeError("options.chunked, when provided, must be a boolean.");if(void 0!==e.chunkSize&&(!Number.isInteger(e.chunkSize)||e.chunkSize<=0))throw new TypeError("options.chunkSize, when provided, must be a positive integer.")}},Oe=class extends Ae{constructor(e,t){if(super(),this.stream=e,this.options=t,!(e instanceof FileSystemWritableFileStream))throw new TypeError("FileSystemWritableFileStreamTarget requires a FileSystemWritableFileStream instance.");if(void 0!==t&&"object"!=typeof t)throw new TypeError("FileSystemWritableFileStreamTarget's options, when provided, must be an object.");if(t&&void 0!==t.chunkSize&&(!Number.isInteger(t.chunkSize)||t.chunkSize<=0))throw new TypeError("options.chunkSize, when provided, must be a positive integer")}},Be=class{constructor(){this.pos=0,n(this,d,new Uint8Array(8)),n(this,f,new DataView(r(this,d).buffer)),this.offsets=new WeakMap}seek(e){this.pos=e}writeU32(e){r(this,f).setUint32(0,e,!1),this.write(r(this,d).subarray(0,4))}writeU64(e){r(this,f).setUint32(0,Math.floor(e/2**32),!1),r(this,f).setUint32(4,e,!1),this.write(r(this,d).subarray(0,8))}writeAscii(e){for(let t=0;t<e.length;t++)r(this,f).setUint8(t%8,e.charCodeAt(t)),t%8==7&&this.write(r(this,d));e.length%8!=0&&this.write(r(this,d).subarray(0,e.length%8))}writeBox(e){if(this.offsets.set(e,this.pos),e.contents&&!e.children)this.writeBoxHeader(e,e.size??e.contents.byteLength+8),this.write(e.contents);else{let t=this.pos;if(this.writeBoxHeader(e,0),e.contents&&this.write(e.contents),e.children)for(let t of e.children)t&&this.writeBox(t);let i=this.pos,s=e.size??i-t;this.seek(t),this.writeBoxHeader(e,s),this.seek(i)}}writeBoxHeader(e,t){this.writeU32(e.largeSize?1:t),this.writeAscii(e.type),e.largeSize&&this.writeU64(t)}measureBoxHeader(e){return 8+(e.largeSize?8:0)}patchBox(e){let t=this.pos;this.seek(this.offsets.get(e)),this.writeBox(e),this.seek(t)}measureBox(e){if(e.contents&&!e.children){return this.measureBoxHeader(e)+e.contents.byteLength}{let t=this.measureBoxHeader(e);if(e.contents&&(t+=e.contents.byteLength),e.children)for(let i of e.children)i&&(t+=this.measureBox(i));return t}}};d=new WeakMap,f=new WeakMap;var Ue,je,De=class extends Be{constructor(e){super(),n(this,w),n(this,u,void 0),n(this,m,new ArrayBuffer(65536)),n(this,p,new Uint8Array(r(this,m))),n(this,c,0),o(this,u,e)}write(e){h(this,w,g).call(this,this.pos+e.byteLength),r(this,p).set(e,this.pos),this.pos+=e.byteLength,o(this,c,Math.max(r(this,c),this.pos))}finalize(){h(this,w,g).call(this,this.pos),r(this,u).buffer=r(this,m).slice(0,Math.max(r(this,c),this.pos))}};u=new WeakMap,m=new WeakMap,p=new WeakMap,c=new WeakMap,w=new WeakSet,g=function(e){let t=r(this,m).byteLength;for(;t<e;)t*=2;if(t===r(this,m).byteLength)return;let i=new ArrayBuffer(t),s=new Uint8Array(i);s.set(r(this,p),0),o(this,m,i),o(this,p,s)};var Re=class extends Be{constructor(e){super(),n(this,Ue,void 0),n(this,je,[]),o(this,Ue,e)}write(e){r(this,je).push({data:e.slice(),start:this.pos}),this.pos+=e.byteLength}flush(){if(0===r(this,je).length)return;let e=[],t=[...r(this,je)].sort((e,t)=>e.start-t.start);e.push({start:t[0].start,size:t[0].data.byteLength});for(let i=1;i<t.length;i++){let s=e[e.length-1],a=t[i];a.start<=s.start+s.size?s.size=Math.max(s.size,a.start+a.data.byteLength-s.start):e.push({start:a.start,size:a.data.byteLength})}for(let t of e){t.data=new Uint8Array(t.size);for(let e of r(this,je))t.start<=e.start&&e.start<t.start+t.size&&t.data.set(e.data,e.start-t.start);r(this,Ue).options.onData?.(t.data,t.start)}r(this,je).length=0}finalize(){}};Ue=new WeakMap,je=new WeakMap;var Ie,Ne,Ve,Le,Fe,$e,Pe,He,_e,qe,Ge,Je=class extends Be{constructor(e){if(super(),n(this,Le),n(this,$e),n(this,He),n(this,qe),n(this,Ie,void 0),n(this,Ne,void 0),n(this,Ve,[]),o(this,Ie,e),o(this,Ne,e.options?.chunkSize??16777216),!Number.isInteger(r(this,Ne))||r(this,Ne)<1024)throw new Error("Invalid StreamTarget options: chunkSize must be an integer not smaller than 1024.")}write(e){h(this,Le,Fe).call(this,e,this.pos),h(this,qe,Ge).call(this),this.pos+=e.byteLength}finalize(){h(this,qe,Ge).call(this,!0)}};Ie=new WeakMap,Ne=new WeakMap,Ve=new WeakMap,Le=new WeakSet,Fe=function(e,t){let i=r(this,Ve).findIndex(e=>e.start<=t&&t<e.start+r(this,Ne));-1===i&&(i=h(this,He,_e).call(this,t));let s=r(this,Ve)[i],a=t-s.start,n=e.subarray(0,Math.min(r(this,Ne)-a,e.byteLength));s.data.set(n,a);let o={start:a,end:a+n.byteLength};if(h(this,$e,Pe).call(this,s,o),0===s.written[0].start&&s.written[0].end===r(this,Ne)&&(s.shouldFlush=!0),r(this,Ve).length>2){for(let e=0;e<r(this,Ve).length-1;e++)r(this,Ve)[e].shouldFlush=!0;h(this,qe,Ge).call(this)}n.byteLength<e.byteLength&&h(this,Le,Fe).call(this,e.subarray(n.byteLength),t+n.byteLength)},$e=new WeakSet,Pe=function(e,t){let i=0,s=e.written.length-1,a=-1;for(;i<=s;){let r=Math.floor(i+(s-i+1)/2);e.written[r].start<=t.start?(i=r+1,a=r):s=r-1}for(e.written.splice(a+1,0,t),(-1===a||e.written[a].end<t.start)&&a++;a<e.written.length-1&&e.written[a].end>=e.written[a+1].start;)e.written[a].end=Math.max(e.written[a].end,e.written[a+1].end),e.written.splice(a+1,1)},He=new WeakSet,_e=function(e){let t={start:Math.floor(e/r(this,Ne))*r(this,Ne),data:new Uint8Array(r(this,Ne)),written:[],shouldFlush:!1};return r(this,Ve).push(t),r(this,Ve).sort((e,t)=>e.start-t.start),r(this,Ve).indexOf(t)},qe=new WeakSet,Ge=function(e=!1){for(let t=0;t<r(this,Ve).length;t++){let i=r(this,Ve)[t];if(i.shouldFlush||e){for(let e of i.written)r(this,Ie).options.onData?.(i.data.subarray(e.start,e.end),i.start+e.start);r(this,Ve).splice(t--,1)}}};var Ke,Qe,Xe,Ye,Ze,et,tt,it,st,at,rt,nt,ot,ht,lt,dt,ft,ut,mt,pt,ct,wt,gt,bt,yt,kt,Tt,Ct,vt,St,xt,zt,Et,At,Mt,Wt,Ot,Bt=class extends Je{constructor(e){super(new We({onData:(t,i)=>e.stream.write({type:"write",data:t,position:i}),chunkSize:e.options?.chunkSize}))}},Ut=1e3,jt=["avc","hevc","vp9","av1"],Dt=["aac","opus"],Rt=["strict","offset","cross-track-offset"],It=class{constructor(e){if(n(this,ot),n(this,lt),n(this,ft),n(this,mt),n(this,ct),n(this,gt),n(this,yt),n(this,Tt),n(this,vt),n(this,xt),n(this,Et),n(this,Mt),n(this,Ke,void 0),n(this,Qe,void 0),n(this,Xe,void 0),n(this,Ye,void 0),n(this,Ze,null),n(this,et,null),n(this,tt,Math.floor(Date.now()/1e3)+2082844800),n(this,it,[]),n(this,st,1),n(this,at,[]),n(this,rt,[]),n(this,nt,!1),h(this,ot,ht).call(this,e),e.video=D(e.video),e.audio=D(e.audio),e.fastStart=D(e.fastStart),this.target=e.target,o(this,Ke,{firstTimestampBehavior:"strict",...e}),e.target instanceof Me)o(this,Qe,new De(e.target));else if(e.target instanceof We)o(this,Qe,e.target.options?.chunked?new Je(e.target):new Re(e.target));else{if(!(e.target instanceof Oe))throw new Error(`Invalid target: ${e.target}`);o(this,Qe,new Bt(e.target))}h(this,mt,pt).call(this),h(this,lt,dt).call(this)}addVideoChunk(e,t,i,s){if(!(e instanceof EncodedVideoChunk))throw new TypeError("addVideoChunk's first argument (sample) must be of type EncodedVideoChunk.");if(t&&"object"!=typeof t)throw new TypeError("addVideoChunk's second argument (meta), when provided, must be an object.");if(void 0!==i&&(!Number.isFinite(i)||i<0))throw new TypeError("addVideoChunk's third argument (timestamp), when provided, must be a non-negative real number.");if(void 0!==s&&!Number.isFinite(s))throw new TypeError("addVideoChunk's fourth argument (compositionTimeOffset), when provided, must be a real number.");let a=new Uint8Array(e.byteLength);e.copyTo(a),this.addVideoChunkRaw(a,e.type,i??e.timestamp,e.duration,t,s)}addVideoChunkRaw(e,t,i,s,a,n){if(!(e instanceof Uint8Array))throw new TypeError("addVideoChunkRaw's first argument (data) must be an instance of Uint8Array.");if("key"!==t&&"delta"!==t)throw new TypeError("addVideoChunkRaw's second argument (type) must be either 'key' or 'delta'.");if(!Number.isFinite(i)||i<0)throw new TypeError("addVideoChunkRaw's third argument (timestamp) must be a non-negative real number.");if(!Number.isFinite(s)||s<0)throw new TypeError("addVideoChunkRaw's fourth argument (duration) must be a non-negative real number.");if(a&&"object"!=typeof a)throw new TypeError("addVideoChunkRaw's fifth argument (meta), when provided, must be an object.");if(void 0!==n&&!Number.isFinite(n))throw new TypeError("addVideoChunkRaw's sixth argument (compositionTimeOffset), when provided, must be a real number.");if(h(this,Mt,Wt).call(this),!r(this,Ke).video)throw new Error("No video track declared.");if("object"==typeof r(this,Ke).fastStart&&r(this,Ze).samples.length===r(this,Ke).fastStart.expectedVideoChunks)throw new Error(`Cannot add more video chunks than specified in 'fastStart' (${r(this,Ke).fastStart.expectedVideoChunks}).`);let o=h(this,gt,bt).call(this,r(this,Ze),e,t,i,s,a,n);if("fragmented"===r(this,Ke).fastStart&&r(this,et)){for(;r(this,rt).length>0&&r(this,rt)[0].decodeTimestamp<=o.decodeTimestamp;){let e=r(this,rt).shift();h(this,yt,kt).call(this,r(this,et),e)}o.decodeTimestamp<=r(this,et).lastDecodeTimestamp?h(this,yt,kt).call(this,r(this,Ze),o):r(this,at).push(o)}else h(this,yt,kt).call(this,r(this,Ze),o)}addAudioChunk(e,t,i){if(!(e instanceof EncodedAudioChunk))throw new TypeError("addAudioChunk's first argument (sample) must be of type EncodedAudioChunk.");if(t&&"object"!=typeof t)throw new TypeError("addAudioChunk's second argument (meta), when provided, must be an object.");if(void 0!==i&&(!Number.isFinite(i)||i<0))throw new TypeError("addAudioChunk's third argument (timestamp), when provided, must be a non-negative real number.");let s=new Uint8Array(e.byteLength);e.copyTo(s),this.addAudioChunkRaw(s,e.type,i??e.timestamp,e.duration,t)}addAudioChunkRaw(e,t,i,s,a){if(!(e instanceof Uint8Array))throw new TypeError("addAudioChunkRaw's first argument (data) must be an instance of Uint8Array.");if("key"!==t&&"delta"!==t)throw new TypeError("addAudioChunkRaw's second argument (type) must be either 'key' or 'delta'.");if(!Number.isFinite(i)||i<0)throw new TypeError("addAudioChunkRaw's third argument (timestamp) must be a non-negative real number.");if(!Number.isFinite(s)||s<0)throw new TypeError("addAudioChunkRaw's fourth argument (duration) must be a non-negative real number.");if(a&&"object"!=typeof a)throw new TypeError("addAudioChunkRaw's fifth argument (meta), when provided, must be an object.");if(h(this,Mt,Wt).call(this),!r(this,Ke).audio)throw new Error("No audio track declared.");if("object"==typeof r(this,Ke).fastStart&&r(this,et).samples.length===r(this,Ke).fastStart.expectedAudioChunks)throw new Error(`Cannot add more audio chunks than specified in 'fastStart' (${r(this,Ke).fastStart.expectedAudioChunks}).`);let n=h(this,gt,bt).call(this,r(this,et),e,t,i,s,a);if("fragmented"===r(this,Ke).fastStart&&r(this,Ze)){for(;r(this,at).length>0&&r(this,at)[0].decodeTimestamp<=n.decodeTimestamp;){let e=r(this,at).shift();h(this,yt,kt).call(this,r(this,Ze),e)}n.decodeTimestamp<=r(this,Ze).lastDecodeTimestamp?h(this,yt,kt).call(this,r(this,et),n):r(this,rt).push(n)}else h(this,yt,kt).call(this,r(this,et),n)}finalize(){if(r(this,nt))throw new Error("Cannot finalize a muxer more than once.");if("fragmented"===r(this,Ke).fastStart){for(let e of r(this,at))h(this,yt,kt).call(this,r(this,Ze),e);for(let e of r(this,rt))h(this,yt,kt).call(this,r(this,et),e);h(this,xt,zt).call(this,!1)}else r(this,Ze)&&h(this,vt,St).call(this,r(this,Ze)),r(this,et)&&h(this,vt,St).call(this,r(this,et));let e=[r(this,Ze),r(this,et)].filter(Boolean);if("in-memory"===r(this,Ke).fastStart){let t;for(let i=0;i<2;i++){let i=L(e,r(this,tt)),s=r(this,Qe).measureBox(i);t=r(this,Qe).measureBox(r(this,Ye));let a=r(this,Qe).pos+s+t;for(let e of r(this,it)){e.offset=a;for(let{data:i}of e.samples)a+=i.byteLength,t+=i.byteLength}if(a<2**32)break;t>=2**32&&(r(this,Ye).largeSize=!0)}let i=L(e,r(this,tt));r(this,Qe).writeBox(i),r(this,Ye).size=t,r(this,Qe).writeBox(r(this,Ye));for(let e of r(this,it))for(let t of e.samples)r(this,Qe).write(t.data),t.data=null}else if("fragmented"===r(this,Ke).fastStart){let t=r(this,Qe).pos,i=(e=>I("mfra",null,[...e.map(Ce),ve()]))(e);r(this,Qe).writeBox(i);let s=r(this,Qe).pos-t;r(this,Qe).seek(r(this,Qe).pos-4),r(this,Qe).writeU32(s)}else{let t=r(this,Qe).offsets.get(r(this,Ye)),i=r(this,Qe).pos-t;r(this,Ye).size=i,r(this,Ye).largeSize=i>=2**32,r(this,Qe).patchBox(r(this,Ye));let s=L(e,r(this,tt));if("object"==typeof r(this,Ke).fastStart){r(this,Qe).seek(r(this,Xe)),r(this,Qe).writeBox(s);let e=t-r(this,Qe).pos;r(this,Qe).writeBox({type:"free",size:e})}else r(this,Qe).writeBox(s)}h(this,Et,At).call(this),r(this,Qe).finalize(),o(this,nt,!0)}};return Ke=new WeakMap,Qe=new WeakMap,Xe=new WeakMap,Ye=new WeakMap,Ze=new WeakMap,et=new WeakMap,tt=new WeakMap,it=new WeakMap,st=new WeakMap,at=new WeakMap,rt=new WeakMap,nt=new WeakMap,ot=new WeakSet,ht=function(e){if("object"!=typeof e)throw new TypeError("The muxer requires an options object to be passed to its constructor.");if(!(e.target instanceof Ae))throw new TypeError("The target must be provided and an instance of Target.");if(e.video){if(!jt.includes(e.video.codec))throw new TypeError(`Unsupported video codec: ${e.video.codec}`);if(!Number.isInteger(e.video.width)||e.video.width<=0)throw new TypeError(`Invalid video width: ${e.video.width}. Must be a positive integer.`);if(!Number.isInteger(e.video.height)||e.video.height<=0)throw new TypeError(`Invalid video height: ${e.video.height}. Must be a positive integer.`);const t=e.video.rotation;if("number"==typeof t&&![0,90,180,270].includes(t))throw new TypeError(`Invalid video rotation: ${t}. Has to be 0, 90, 180 or 270.`);if(Array.isArray(t)&&(9!==t.length||t.some(e=>"number"!=typeof e)))throw new TypeError(`Invalid video transformation matrix: ${t.join()}`);if(void 0!==e.video.frameRate&&(!Number.isInteger(e.video.frameRate)||e.video.frameRate<=0))throw new TypeError(`Invalid video frame rate: ${e.video.frameRate}. Must be a positive integer.`)}if(e.audio){if(!Dt.includes(e.audio.codec))throw new TypeError(`Unsupported audio codec: ${e.audio.codec}`);if(!Number.isInteger(e.audio.numberOfChannels)||e.audio.numberOfChannels<=0)throw new TypeError(`Invalid number of audio channels: ${e.audio.numberOfChannels}. Must be a positive integer.`);if(!Number.isInteger(e.audio.sampleRate)||e.audio.sampleRate<=0)throw new TypeError(`Invalid audio sample rate: ${e.audio.sampleRate}. Must be a positive integer.`)}if(e.firstTimestampBehavior&&!Rt.includes(e.firstTimestampBehavior))throw new TypeError(`Invalid first timestamp behavior: ${e.firstTimestampBehavior}`);if("object"==typeof e.fastStart){if(e.video){if(void 0===e.fastStart.expectedVideoChunks)throw new TypeError("'fastStart' is an object but is missing property 'expectedVideoChunks'.");if(!Number.isInteger(e.fastStart.expectedVideoChunks)||e.fastStart.expectedVideoChunks<0)throw new TypeError("'expectedVideoChunks' must be a non-negative integer.")}if(e.audio){if(void 0===e.fastStart.expectedAudioChunks)throw new TypeError("'fastStart' is an object but is missing property 'expectedAudioChunks'.");if(!Number.isInteger(e.fastStart.expectedAudioChunks)||e.fastStart.expectedAudioChunks<0)throw new TypeError("'expectedAudioChunks' must be a non-negative integer.")}}else if(![!1,"in-memory","fragmented"].includes(e.fastStart))throw new TypeError("'fastStart' option must be false, 'in-memory', 'fragmented' or an object.")},lt=new WeakSet,dt=function(){var e;if(r(this,Qe).writeBox((e={holdsAvc:"avc"===r(this,Ke).video?.codec,fragmented:"fragmented"===r(this,Ke).fastStart}).fragmented?I("ftyp",[A("iso5"),v(512),A("iso5"),A("iso6"),A("mp41")]):I("ftyp",[A("isom"),v(512),A("isom"),e.holdsAvc?A("avc1"):[],A("mp41")])),o(this,Xe,r(this,Qe).pos),"in-memory"===r(this,Ke).fastStart)o(this,Ye,V(!1));else if("fragmented"===r(this,Ke).fastStart);else{if("object"==typeof r(this,Ke).fastStart){let e=h(this,ft,ut).call(this);r(this,Qe).seek(r(this,Qe).pos+e)}o(this,Ye,V(!0)),r(this,Qe).writeBox(r(this,Ye))}h(this,Et,At).call(this)},ft=new WeakSet,ut=function(){if("object"!=typeof r(this,Ke).fastStart)return;let e=0,t=[r(this,Ke).fastStart.expectedVideoChunks,r(this,Ke).fastStart.expectedAudioChunks];for(let i of t)i&&(e+=8*Math.ceil(2/3*i),e+=4*i,e+=12*Math.ceil(2/3*i),e+=4*i,e+=8*i);return e+=4096,e},mt=new WeakSet,pt=function(){if(r(this,Ke).video&&o(this,Ze,{id:1,info:{type:"video",codec:r(this,Ke).video.codec,width:r(this,Ke).video.width,height:r(this,Ke).video.height,rotation:r(this,Ke).video.rotation??0,decoderConfig:null},timescale:r(this,Ke).video.frameRate??57600,samples:[],finalizedChunks:[],currentChunk:null,firstDecodeTimestamp:void 0,lastDecodeTimestamp:-1,timeToSampleTable:[],compositionTimeOffsetTable:[],lastTimescaleUnits:null,lastSample:null,compactlyCodedChunkTable:[]}),r(this,Ke).audio&&(o(this,et,{id:r(this,Ke).video?2:1,info:{type:"audio",codec:r(this,Ke).audio.codec,numberOfChannels:r(this,Ke).audio.numberOfChannels,sampleRate:r(this,Ke).audio.sampleRate,decoderConfig:null},timescale:r(this,Ke).audio.sampleRate,samples:[],finalizedChunks:[],currentChunk:null,firstDecodeTimestamp:void 0,lastDecodeTimestamp:-1,timeToSampleTable:[],compositionTimeOffsetTable:[],lastTimescaleUnits:null,lastSample:null,compactlyCodedChunkTable:[]}),"aac"===r(this,Ke).audio.codec)){let e=h(this,ct,wt).call(this,2,r(this,Ke).audio.sampleRate,r(this,Ke).audio.numberOfChannels);r(this,et).info.decoderConfig={codec:r(this,Ke).audio.codec,description:e,numberOfChannels:r(this,Ke).audio.numberOfChannels,sampleRate:r(this,Ke).audio.sampleRate}}},ct=new WeakSet,wt=function(e,t,i){let s=[96e3,88200,64e3,48e3,44100,32e3,24e3,22050,16e3,12e3,11025,8e3,7350].indexOf(t),a=i,r="";r+=e.toString(2).padStart(5,"0"),r+=s.toString(2).padStart(4,"0"),15===s&&(r+=t.toString(2).padStart(24,"0")),r+=a.toString(2).padStart(4,"0");let n=8*Math.ceil(r.length/8);r=r.padEnd(n,"0");let o=new Uint8Array(r.length/8);for(let e=0;e<r.length;e+=8)o[e/8]=parseInt(r.slice(e,e+8),2);return o},gt=new WeakSet,bt=function(e,t,i,s,a,r,n){let o=s/1e6,l=(s-(n??0))/1e6,d=a/1e6,f=h(this,Tt,Ct).call(this,o,l,e);return o=f.presentationTimestamp,l=f.decodeTimestamp,r?.decoderConfig&&(null===e.info.decoderConfig?e.info.decoderConfig=r.decoderConfig:Object.assign(e.info.decoderConfig,r.decoderConfig)),{presentationTimestamp:o,decodeTimestamp:l,duration:d,data:t,size:t.byteLength,type:i,timescaleUnitsToNextSample:O(d,e.timescale)}},yt=new WeakSet,kt=function(e,t){"fragmented"!==r(this,Ke).fastStart&&e.samples.push(t);const i=O(t.presentationTimestamp-t.decodeTimestamp,e.timescale);if(null!==e.lastTimescaleUnits){let s=O(t.decodeTimestamp,e.timescale,!1),a=Math.round(s-e.lastTimescaleUnits);if(e.lastTimescaleUnits+=a,e.lastSample.timescaleUnitsToNextSample=a,"fragmented"!==r(this,Ke).fastStart){let t=M(e.timeToSampleTable);1===t.sampleCount?(t.sampleDelta=a,t.sampleCount++):t.sampleDelta===a?t.sampleCount++:(t.sampleCount--,e.timeToSampleTable.push({sampleCount:2,sampleDelta:a}));const s=M(e.compositionTimeOffsetTable);s.sampleCompositionTimeOffset===i?s.sampleCount++:e.compositionTimeOffsetTable.push({sampleCount:1,sampleCompositionTimeOffset:i})}}else e.lastTimescaleUnits=0,"fragmented"!==r(this,Ke).fastStart&&(e.timeToSampleTable.push({sampleCount:1,sampleDelta:O(t.duration,e.timescale)}),e.compositionTimeOffsetTable.push({sampleCount:1,sampleCompositionTimeOffset:i}));e.lastSample=t;let s=!1;if(e.currentChunk){let i=t.presentationTimestamp-e.currentChunk.startTimestamp;if("fragmented"===r(this,Ke).fastStart){e===(r(this,Ze)??r(this,et))&&"key"===t.type&&i>=1&&(s=!0,h(this,xt,zt).call(this))}else s=i>=.5}else s=!0;s&&(e.currentChunk&&h(this,vt,St).call(this,e),e.currentChunk={startTimestamp:t.presentationTimestamp,samples:[]}),e.currentChunk.samples.push(t)},Tt=new WeakSet,Ct=function(e,t,i){const s="strict"===r(this,Ke).firstTimestampBehavior,a=-1===i.lastDecodeTimestamp;if(s&&a&&0!==t)throw new Error(`The first chunk for your media track must have a timestamp of 0 (received DTS=${t}).Non-zero first timestamps are often caused by directly piping frames or audio data from a MediaStreamTrack into the encoder. Their timestamps are typically relative to the age of thedocument, which is probably what you want.\n\nIf you want to offset all timestamps of a track such that the first one is zero, set firstTimestampBehavior: 'offset' in the options.\n`);if("offset"===r(this,Ke).firstTimestampBehavior||"cross-track-offset"===r(this,Ke).firstTimestampBehavior){let s;void 0===i.firstDecodeTimestamp&&(i.firstDecodeTimestamp=t),s="offset"===r(this,Ke).firstTimestampBehavior?i.firstDecodeTimestamp:Math.min(r(this,Ze)?.firstDecodeTimestamp??1/0,r(this,et)?.firstDecodeTimestamp??1/0),t-=s,e-=s}if(t<i.lastDecodeTimestamp)throw new Error(`Timestamps must be monotonically increasing (DTS went from ${1e6*i.lastDecodeTimestamp} to ${1e6*t}).`);return i.lastDecodeTimestamp=t,{presentationTimestamp:e,decodeTimestamp:t}},vt=new WeakSet,St=function(e){if("fragmented"===r(this,Ke).fastStart)throw new Error("Can't finalize individual chunks if 'fastStart' is set to 'fragmented'.");if(e.currentChunk)if(e.finalizedChunks.push(e.currentChunk),r(this,it).push(e.currentChunk),0!==e.compactlyCodedChunkTable.length&&M(e.compactlyCodedChunkTable).samplesPerChunk===e.currentChunk.samples.length||e.compactlyCodedChunkTable.push({firstChunk:e.finalizedChunks.length,samplesPerChunk:e.currentChunk.samples.length}),"in-memory"!==r(this,Ke).fastStart){e.currentChunk.offset=r(this,Qe).pos;for(let t of e.currentChunk.samples)r(this,Qe).write(t.data),t.data=null;h(this,Et,At).call(this)}else e.currentChunk.offset=0},xt=new WeakSet,zt=function(e=!0){if("fragmented"!==r(this,Ke).fastStart)throw new Error("Can't finalize a fragment unless 'fastStart' is set to 'fragmented'.");let t=[r(this,Ze),r(this,et)].filter(e=>e&&e.currentChunk);if(0===t.length)return;let i=(s=this,a=st,{set _(e){o(s,a,e,n)},get _(){return r(s,a,l)}})._++;var s,a,n,l;if(1===i){let e=L(t,r(this,tt),!0);r(this,Qe).writeBox(e)}let d=r(this,Qe).pos,f=ce(i,t);r(this,Qe).writeBox(f);{let e=V(!1),i=0;for(let e of t)for(let t of e.currentChunk.samples)i+=t.size;let s=r(this,Qe).measureBox(e)+i;s>=2**32&&(e.largeSize=!0,s=r(this,Qe).measureBox(e)+i),e.size=s,r(this,Qe).writeBox(e)}for(let e of t){e.currentChunk.offset=r(this,Qe).pos,e.currentChunk.moofOffset=d;for(let t of e.currentChunk.samples)r(this,Qe).write(t.data),t.data=null}let u=r(this,Qe).pos;r(this,Qe).seek(r(this,Qe).offsets.get(f));let m=ce(i,t);r(this,Qe).writeBox(m),r(this,Qe).seek(u);for(let e of t)e.finalizedChunks.push(e.currentChunk),r(this,it).push(e.currentChunk),e.currentChunk=null;e&&h(this,Et,At).call(this)},Et=new WeakSet,At=function(){r(this,Qe)instanceof Re&&r(this,Qe).flush()},Mt=new WeakSet,Wt=function(){if(r(this,nt))throw new Error("Cannot add new video or audio chunks after the file has been finalized.")},Ot=l,((a,r,n,o)=>{if(r&&"object"==typeof r||"function"==typeof r)for(let h of i(r))s.call(a,h)||h===n||e(a,h,{get:()=>r[h],enumerable:!(o=t(r,h))||o.enumerable});return a})(e({},"__esModule",{value:!0}),Ot)})();"object"==typeof module&&"object"==typeof module.exports&&Object.assign(module.exports,Mp4Muxer);
@@ -390,11 +409,13 @@ const log = m => {
 const A = () => ctxA || (ctxA = new (window.AudioContext || window.webkitAudioContext)());
 
 const CF = ['aiProvider', 'fmt', 'nimg', 'keys', 'isrc', 'cfStyle', 'style', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'musicOn', 'musicVol', 'musicMood', 'exportSpeed', 'cmode', 'vmode', 'charStyle', 'trans', 'bgOn', 'motionVid', 'mvCam', 'mvTrans', 'interaction2d'];
+const CLOUD_STYLE_NAMES = { threeD: 'Hoạt hình 3D', anime: 'Anime điện ảnh', portrait: 'Ảnh thực' };
+const validCloudStyle = value => Object.hasOwn(CLOUD_STYLE_NAMES, value) ? value : '';
 function setFmt() {
   const v = $('fmt').value === 'v';
   W = v ? 720 : 1280; H = v ? 1280 : 720;
-  const ah = sub ? (v ? 900 : 590) : (v ? 1240 : 700);
-  fm = { v, ar: v ? '9:16' : '16:9', ah, cy: 10 + ah / 2, vw: Math.round(900 * (W - 40) / ah), sw: v ? 640 : 1180, fs: v ? 36 : 26, lh: v ? 46 : 31, ml: v ? 6 : 3, sy: v ? 980 : 640 };
+  const ah = H - 10;
+  fm = { v, ar: v ? '9:16' : '16:9', ah, cy: 10 + ah / 2, vw: Math.round(900 * (W - 40) / ah) };
   const c = $('cv'); c.width = W; c.height = H; c.className = v ? 'v' : '';
 }
 sub = true; setFmt();
@@ -504,7 +525,7 @@ function vui() {
   $('cloudStyleBox').hidden = !cloudArt;
   $('svgStyleBox').hidden = cloudArt;
   if (!$('cmode').value) $('cmode').value = 'vivid';
-  if (!$('cfStyle').value) $('cfStyle').value = 'ink';
+  if ($('cloudStyleNotice')) $('cloudStyleNotice').hidden = !cloudArt || !!$('cfStyle').value;
   $('cloudflareSettings').hidden = !cloud;
   $('gemKeyLabel').textContent = cloud
     ? 'API key Gemini (chỉ cần nếu dùng giọng Gemini hoặc chép lời từ clip)'
@@ -518,8 +539,9 @@ function vui() {
   $('spriteBox').hidden = mode === 'illustrated';
   try { mvUI(); } catch (e) { /* ô motionVid chưa có */ }
   motion2DUI();
-  document.querySelectorAll('.camera-scene').forEach(button => {
-    button.hidden = !canTuneIllustrationCamera(scenes[Number(button.dataset.scene)]);
+  document.querySelectorAll('.camera-scene, .reference-scene').forEach(button => {
+    const scene = scenes[Number(button.dataset.scene)];
+    button.hidden = !canTuneIllustrationCamera(scene) || (button.classList.contains('reference-scene') && artMoment(scene).noPeople === true);
   });
 }
 try {
@@ -533,6 +555,7 @@ try {
   if (o.keys || o.aiProvider === 'cloudflare' || $('cfAccountId').value) $('set').open = false;
 } catch (e) {}
 if ($('isrc').value !== 'illustrated') $('isrc').value = 'svg_ink'; $('style').value = 'ref';
+if (!validCloudStyle($('cfStyle').value)) $('cfStyle').value = 'anime';
 vui();
 $('set').addEventListener('input', saveSet);
 updStat();
@@ -901,6 +924,8 @@ function readGemJson(response) {
 
 const SHOT_TYPES = ['OBJECT', 'PERSON', 'PLACE'];
 const SHOT_SIZES = ['WIDE', 'MEDIUM', 'CLOSE', 'XCLOSE', 'TOP', 'LOW', 'SIDE', 'OTS'];
+const ART_ROLES = ['MAIN', 'SECOND', 'THIRD', 'FOURTH', 'FIFTH', 'SIXTH', 'SEVENTH', 'EIGHTH'];
+const ART_ROLE_PATTERN = /\b(?:MAIN|SECOND|THIRD|FOURTH|FIFTH|SIXTH|SEVENTH|EIGHTH)\b/g;
 function storyboardBrief(entry) {
   const type = String(entry?.type || '').toUpperCase();
   const shot = String(entry?.shot || '').toUpperCase();
@@ -911,39 +936,43 @@ function storyboardBrief(entry) {
   return [
     `[${type}] [${shot}] ${action}`,
     entry.staging && typeof entry.staging === 'string' ? `Composition: ${entry.staging.trim()}` : '',
+    typeof entry.visibleResult === 'string' && entry.visibleResult.trim() ? `VISIBLE RESULT: ${entry.visibleResult.trim().slice(0, 260)}` : '',
+    typeof entry.avoid === 'string' && entry.avoid.trim() ? `DO NOT SHOW: ${entry.avoid.trim().slice(0, 260)}` : '',
     entry.continuity && typeof entry.continuity === 'string' ? `Continuity: ${entry.continuity.trim()}` : '',
     `SET: ${set}`,
     `MUST SHOW: ${must.map(x => x.trim()).join(', ')}`
   ].filter(Boolean).join('\n');
 }
 
-function interactionOn() {
-  return !!($('interaction2d')?.checked && globalThis.StoryMotion);
+function isSvgMode(mode = $('isrc').value) {
+  return mode === 'svg_ink' || mode === 'svg';
+}
+function interactionOn(mode) {
+  return isSvgMode(mode) && !!($('interaction2d')?.checked && globalThis.StoryMotion);
 }
 function motion2DUI() {
-  const hint = $('interactionHint');
-  if (hint) {
-    hint.hidden = !interactionOn();
-    hint.textContent = $('isrc').value === 'illustrated' && motionOn()
-      ? 'Camera bám lời kể trên tranh Cloudflare. Để dùng nhân vật 2D ở một cảnh, chọn động tác cụ thể trong phần xem trước rồi bấm Vẽ lại.'
-      : 'Bật trước khi tạo video, hoặc bật rồi bấm Vẽ lại trên cảnh muốn đổi. Có thể chọn động tác cho từng cảnh trong phần xem trước.';
-  }
-  document.querySelectorAll('.motion-choice').forEach(select => { select.closest('label').hidden = !interactionOn(); });
+  const svg = isSvgMode(), enabled = interactionOn();
+  $('interaction2dRow').hidden = !svg;
+  $('interactionHint').hidden = !enabled;
+  document.querySelectorAll('.motion-choice').forEach(select => { select.closest('label').hidden = !enabled; });
+  document.querySelectorAll('.motion-preview').forEach(button => {
+    button.hidden = !svg || !scenes[Number(button.dataset.scene)]?.motionScene;
+  });
 }
 
 async function refineBatch(sc, part, from, backup) {
   const list = part.map((x, i) => `${from + i + 1}. ${x.text}`).join('\n');
   const motionRule = interactionOn() ? `- Với cảnh có hành động diễn ra trực tiếp trong câu kể, có thể thêm motion vào mục JSON của cảnh. Dạng motion: {"action":"drink","actor":"MAIN","target":"SECOND","item":"cup","pose":"sit","cue":"nguyên văn 2 đến 6 từ tiếng Việt từ lời kể ở đúng lúc có động tác"}. action chỉ được là: ${Object.keys(StoryMotion.labels).join(', ')}. give là đưa đồ trực tiếp giữa hai người, actor là người đưa, target là người nhận. pick là nhặt đồ từ mặt đất. openDoor là mở cửa, openBox là mở nắp hộp/rương. wave là vẫy tay bằng cử động cổ tay, write là viết bằng bút trên giấy hoặc sổ. launch và separate chỉ dùng cho tên lửa đang phóng hoặc đang tách tầng thật sự. item chỉ được là cup, bottle, key, book, phone, letter, box, bag, spoon, food hoặc để trống. pose dùng sit hoặc stand. Không thêm motion nếu hành động chỉ là ý định, được nhắc trong lời thoại mà không diễn ra, hoặc cần tay chân hay đạo cụ không phù hợp.` : '';
   const p = `Bạn là đạo diễn storyboard cho video minh họa truyện vẽ tay. Mỗi cảnh cần giúp người xem hiểu đúng diễn biến ngay cả khi tắt tiếng.
-- Với mỗi lời kể, chọn một khoảnh khắc có ý nghĩa kể chuyện nhất. Viết rõ ai đang làm gì, với ai hoặc với vật nào, và chi tiết nhìn thấy nào giúp người xem hiểu kết quả hoặc cảm xúc. Ví dụ “Qua nhiều ngày thất bại, Lan tìm được hạt giống cuối cùng” → cận tay Lan nhặt đúng một hạt còn lại từ túi trống, nét mặt nhẹ nhõm. Đừng vẽ cả chuỗi sự kiện hoặc chen các vật chỉ được nhắc thoáng qua.
+- Với mỗi lời kể, chọn một khoảnh khắc có ý nghĩa kể chuyện nhất. Ghi cast là danh sách các vai thực sự có mặt trong khung, để [] nếu cảnh chỉ có đồ vật hoặc bối cảnh. Viết rõ ai đang làm gì, với ai hoặc với vật nào, và hành động diễn ra ở đúng địa điểm nào. Đừng vẽ cả chuỗi sự kiện hoặc chen các vật chỉ được nhắc thoáng qua.
 - action (tiếng Anh): một hành động hoặc trạng thái cụ thể. Dùng đúng vai MAIN, SECOND, THIRD, FOURTH, FIFTH, SIXTH, SEVENTH, EIGHTH cho người có trong bảng. Người phụ vô danh là CROWD. Nêu đúng người làm, người nhận, biểu cảm, hướng nhìn và tương tác tay khi có. Không ép nhân vật chính xuất hiện. Động vật/xe: đúng loài/loại và hành động. Giấc mơ, hồi tưởng, suy nghĩ và dự định phải được phân biệt rõ với hiện tại bằng khung nhỏ, bong bóng hoặc ánh sáng khác khi cần. Không thêm sự kiện, người, số liệu, đồ vật hay cờ không có căn cứ. Cờ chỉ xuất hiện khi liên quan trực tiếp đến lời kể của cảnh.
 - type: PERSON khi nhân vật làm gì/cảm thấy gì, OBJECT khi một vật hoặc kết quả tự nó là chủ thể, PLACE khi nơi chốn/hành trình là ý chính. Với đoạn trừu tượng, dùng một chi tiết hoặc biểu đồ liên quan trực tiếp. Dùng tương phản trước-sau/chia khung chỉ khi lời kể thực sự so sánh.
 - shot: WIDE, MEDIUM, CLOSE, XCLOSE, TOP, LOW, SIDE, OTS. Mở không gian bằng WIDE khi địa điểm quan trọng, dùng MEDIUM cho tương tác, CLOSE cho nét mặt hoặc đồ vật quyết định. Chọn theo diễn biến của truyện.
 - staging (tiếng Anh): nêu vị trí chủ thể, điểm nhìn và ánh sáng/thời điểm khi liên quan. Dùng một điểm nhấn rõ, chừa khoảng trống quanh nó, đặt chi tiết phụ phía sau. Nếu lời kể nhắc ngày tháng, chừa góc trên trái cho nhãn do phần mềm chèn.
 - set: chọn một từ trong ${SET_KEYS.join(', ')}. continuity (tiếng Anh): chi tiết cần giữ từ cảnh trước, như vị trí, quần áo hoặc đạo cụ đang cầm, hoặc mô tả rõ chỗ đổi thời gian/địa điểm. Để trống nếu không có gì phải giữ. Không bê hành động cảnh trước vào cảnh hiện tại.
-- must: 1-4 chi tiết thiết yếu trực tiếp chứng minh diễn biến (hành động/đồ vật/bằng chứng nhìn thấy, tiếng Anh). Giữ đúng số lượng khi nó quan trọng. Mọi thông tin còn lại vẫn nằm trong lời kể.
+- must: 1-4 chi tiết thiết yếu trực tiếp chứng minh diễn biến (tiếng Anh). visibleResult (tiếng Anh) là kết quả cần nhìn thấy, phân biệt thành công, thất bại, ý định và sự kiện đã xảy ra. avoid là chi tiết mâu thuẫn dễ vẽ nhầm. Hai vật đang va chạm trên không thì vẽ vật ở đúng nơi va chạm. Người ở phòng điều khiển chỉ xuất hiện trong cảnh phản ứng riêng. Nhiều lần thất bại thì chọn một lần có căn cứ, để web hiển thị số lần. Không tự thêm vụ nổ, tai nạn hoặc nguyên nhân nếu lời kể chưa nêu.
 ${motionRule}
-Trả duy nhất JSON {"shots":[{"id":${from + 1},"type":"PERSON","shot":"MEDIUM","action":"...","staging":"...","set":"home","continuity":"","must":["..."]}]} gồm ${part.length} mục, ID là số đứng trước lời kể, không đổi thứ tự.
+Trả duy nhất JSON {"shots":[{"id":${from + 1},"type":"PERSON","shot":"MEDIUM","action":"...","staging":"...","set":"home","continuity":"","cast":["MAIN"],"visibleResult":"...","avoid":"...","must":["..."]}]} gồm ${part.length} mục, ID là số đứng trước lời kể, không đổi thứ tự.
 Cốt truyện: ${sc.story || ''}
 Bối cảnh: ${sc.setting || ''}
 Dấu hiệu văn hóa/thời đại: ${sc.identity || ''}
@@ -961,11 +990,13 @@ ${list}`;
     const id = shot?.id;
     if (!Number.isInteger(id) || id <= from || id > from + part.length) continue;
     const brief = storyboardBrief(shot);
-    briefs.set(id, briefs.has(id) || !brief ? null : { brief, motion: shot.motion });
+    const visibleCast = Array.isArray(shot.cast) ? [...new Set(shot.cast.filter(role => ART_ROLES.includes(role)))] : null;
+    briefs.set(id, briefs.has(id) || !brief ? null : { brief, motion: shot.motion, visibleCast });
   }
   return part.map((scene, i) => {
     const result = briefs.get(from + i + 1);
     scene.motionHint = result?.motion || null;
+    scene.visibleCast = result?.visibleCast ?? null;
     return result?.brief || null;
   });
 }
@@ -2695,76 +2726,92 @@ function whitenBigBlack(svgStr) {
   }
 }
 
-// ===== MỐC THỜI GIAN (ngày/tháng/năm) TRONG LỜI KỂ -> VẼ LỊCH / BẢNG NGÀY LÊN TRANH =====
-// Tool tự nhận ra ngày tháng năm trong lời kể (viết bằng chữ số) và vẽ thêm vào góc trên bên trái của tranh.
-function parseDates(text) {
-  let t = ' ' + String(text || '') + ' ';
-  const found = [], Y = '((?:1[0-9]|20)\\d{2})';
-  const take = (re, fn) => {
-    t = t.replace(re, (...a) => {
-      const idx = a[a.length - 2];
-      const ok = fn(a, idx);
-      return ok ? ' '.repeat(a[0].length) : a[0];
-    });
-  };
-  const okD = (d, m) => d >= 1 && d <= 31 && m >= 1 && m <= 12;
-  take(new RegExp('(\\d{1,2})\\s*(?:\\/|-|\\.|tháng)\\s*(\\d{1,2})\\s*(?:\\/|-|\\.|năm)\\s*' + Y + '(?!\\d)', 'gi'), (a, idx) => {
-    if (!okD(+a[1], +a[2])) return false;
-    found.push({ idx, cal: 1, d: +a[1], m: +a[2], y: a[3] });
-    return true;
-  });
-  take(/(?:ngày|mùng|mồng)\s*(\d{1,2})\s*(?:\/|-|tháng)\s*(\d{1,2})(?![\d\/])/gi, (a, idx) => {
-    if (!okD(+a[1], +a[2])) return false;
-    found.push({ idx, cal: 1, d: +a[1], m: +a[2] });
-    return true;
-  });
-  take(/(\d{1,2})\s*tháng\s*(\d{1,2})(?!\d)/gi, (a, idx) => {
-    if (!okD(+a[1], +a[2])) return false;
-    found.push({ idx, cal: 1, d: +a[1], m: +a[2] });
-    return true;
-  });
-  take(new RegExp('tháng\\s*(\\d{1,2})\\s*(?:\\/|-|năm|,)?\\s*' + Y + '(?!\\d)', 'gi'), (a, idx) => {
-    if (+a[1] < 1 || +a[1] > 12) return false;
-    found.push({ idx, label: `Tháng ${+a[1]}/${a[2]}` });
-    return true;
-  });
-  take(/tháng\s*(\d{1,2})(?!\d)/gi, (a, idx) => {
-    if (+a[1] < 1 || +a[1] > 12) return false;
-    found.push({ idx, label: `Tháng ${+a[1]}` });
-    return true;
-  });
-  take(new RegExp('(thập niên|những năm|năm|vào|từ|đến|tới|cuối|đầu)\\s*' + Y + '(?!\\d)(?!\\s*(?:đồng|người|usd|vnd|triệu|nghìn|ngàn|km|kg|mét|cái|con|lần|%))', 'gi'), (a, idx) => {
-    const pre = a[1].toLowerCase();
-    found.push({ idx, label: (pre === 'thập niên' || pre === 'những năm') ? `Những năm ${a[2]}` : `Năm ${a[2]}` });
-    return true;
-  });
-  found.sort((x, y) => x.idx - y.idx);
-  return found.slice(0, 2);
-}
-function dateLabelSvg(labels) {
-  const F = `font-family="'Segoe Print','Bradley Hand','Comic Sans MS','Chalkboard SE','Marker Felt',cursive,sans-serif" font-weight="700" text-anchor="middle" fill="#111111" stroke="none"`;
-  const sc = fm.vw > 1200 ? 1.1 : 0.85;
-  let x = fm.vw > 1200 ? 60 : 42, out = '';
-  labels.forEach(L => {
-    if (L.cal) {
-      const mon = `THÁNG ${L.m}`;
-      out += `<g transform="translate(${x} 52) scale(${sc})">` +
-        `<rect x="0" y="0" width="230" height="250" rx="16" fill="#ffffff" stroke="#111111" stroke-width="6"/>` +
-        `<path d="M0 72H230" stroke="#111111" stroke-width="6" fill="none"/>` +
-        `<path d="M62 -16V18M168 -16V18" stroke="#111111" stroke-width="9" stroke-linecap="round" fill="none"/>` +
-        `<text x="115" y="59" font-size="33" ${F}>${mon}</text>` +
-        `<text x="115" y="${L.y ? 172 : 192}" font-size="${L.y ? 104 : 120}" ${F}>${L.d}</text>` +
-        (L.y ? `<text x="115" y="232" font-size="38" ${F}>${L.y}</text>` : '') + `</g>`;
-      x += 230 * sc + 40;
-    } else {
-      const w = Math.max(230, L.label.length * 30 + 60);
-      out += `<g transform="translate(${x} 60) scale(${sc})">` +
-        `<rect x="0" y="0" width="${w}" height="90" rx="22" fill="#ffffff" stroke="#111111" stroke-width="6"/>` +
-        `<text x="${w / 2}" y="62" font-size="46" ${F}>${L.label}</text></g>`;
-      x += w * sc + 40;
+// Các giá trị hiển thị được lấy từ chính lời kể, kèm vị trí để canh với giọng đọc.
+function storyFacts(text) {
+  const source = String(text || '').normalize('NFC');
+  const facts = [];
+  const invalidDates = [];
+  const add = (pattern, format, explicitDate = false) => {
+    for (const match of source.matchAll(pattern)) {
+      const start = match.index, end = start + match[0].length;
+      const overlaps = f => start < f.end && end > f.start;
+      if (facts.some(overlaps) || invalidDates.some(overlaps)) continue;
+      const fact = format(match, start);
+      if (fact) facts.push({ ...fact, start, end });
+      else if (explicitDate) invalidDates.push({ start, end });
     }
-  });
-  return `<g filter="url(#wob)">${out}</g>`;
+  };
+  const two = n => String(+n).padStart(2, '0');
+  const date = (d, m, y) => {
+    if (+d < 1 || +m < 1 || +m > 12) return null;
+    if (+d > new Date(Date.UTC(+y || 2000, +m, 0)).getUTCDate()) return null;
+    return { kind: 'date', label: two(d) + '/' + two(m) + (y ? '/' + y : '') };
+  };
+  add(/(?<![\p{L}\d])(?:(?:ngày|mùng|mồng)\s*)?(\d{1,2})\s*(?:[./-]|tháng)\s*(\d{1,2})\s*(?:[./-]|năm)\s*([12]\d{3})(?!\d)/giu,
+    ([_, d, m, y]) => date(d, m, y), true);
+  add(/(?<![\p{L}\d])([12]\d{3})-(\d{1,2})-(\d{1,2})(?!\d)/gu, ([_, y, m, d]) => date(d, m, y), true);
+  add(/(?<!\p{L})(?:ngày|mùng|mồng)\s*(\d{1,2})\s*(?:[/-]|tháng)\s*(\d{1,2})(?![\d/-]|\s*(?:năm\s*)?[12]\d{3}\b)/giu,
+    ([_, d, m]) => date(d, m), true);
+  add(/(?<!\p{L})tháng\s*(\d{1,2})\s*(?:[/,-]\s*)?(?:năm\s*)?([12]\d{3})(?!\d)/giu,
+    ([_, m, y]) => +m >= 1 && +m <= 12 ? { kind: 'date', label: 'Tháng ' + +m + '/' + y } : null);
+  const amount = '\\d+(?:[.,]\\d+)*';
+  const nums = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín', 'mười'];
+  const tens = '(?:(?:hai|ba|bốn|năm|sáu|bảy|tám|chín)\\s+mươi|mười)';
+  const units = '(?:mốt|tư|lăm|' + nums.slice(1, 10).join('|') + ')';
+  const value = '(' + amount + '|' + tens + '(?:\\s+' + units + ')?|' + nums.join('|') + '|tư)';
+  const sayNumber = n => {
+    if (/^\d/.test(n)) return n;
+    const words = n.toLowerCase().split(/\s+/);
+    if (words.length === 1) return String(words[0] === 'tư' ? 4 : nums.indexOf(words[0]));
+    const teen = words[0] === 'mười', one = words[teen ? 1 : 2];
+    const digit = { mốt: 1, tư: 4, lăm: 5 }[one] ?? (one ? nums.indexOf(one) : 0);
+    return String((teen ? 10 : nums.indexOf(words[0]) * 10) + digit);
+  };
+  const compoundBefore = start => /(?:^|\s)(?:mươi|mười|trăm|nghìn|ngàn|triệu|tỷ|tỉ|linh|lẻ)\s+$/iu.test(source.slice(0, start));
+
+  const magnitude = '(?:(\\s+(?:nghìn|ngàn|triệu|tỷ|tỉ|thousand|million|billion)))?';
+  const currency = '(USD|VND|VNĐ|EUR|GBP|JPY|CNY|đô la Mỹ|đô la|đô|đồng|euro)';
+  add(new RegExp('(?<![\\p{L}\\p{N}.,])' + value + magnitude + '\\s*' + currency + '(?!\\p{L})', 'giu'),
+    ([_, number, multiplier, unit], start) => compoundBefore(start) ? null : ({
+      kind: 'money', label: sayNumber(number) + (multiplier?.toLowerCase() || '') + ' ' +
+        (/^(usd|vnd|vnđ|eur|gbp|jpy|cny)$/i.test(unit) ? unit.toUpperCase() : unit.toLowerCase())
+    }));
+  add(new RegExp('([$€£])\\s*(' + amount + ')' + magnitude, 'giu'),
+    ([_, symbol, number, multiplier]) => ({ kind: 'money', label: symbol + number + (multiplier?.toLowerCase() || '') }));
+  add(new RegExp('(?<!\\p{L})lần\\s+(?:thứ\\s+' + value + '|đầu(?: tiên)?)(?![\\p{L}\\d])', 'giu'),
+    ([matched, number], start) => {
+      if (number && (/[.,]/.test(number) || /^\s+(?:trăm|nghìn|ngàn|triệu|tỷ|tỉ)\b/iu.test(source.slice(start + matched.length)))) return null;
+      const step = number ? Number(sayNumber(number)) : 1;
+      if (!Number.isSafeInteger(step) || step < 1) return null;
+      return { kind: 'step', label: number ? 'Lần thứ ' + step : 'Lần đầu', step };
+    });
+  add(new RegExp('(?<![\\p{L}\\p{N}.,])(' + amount + ')\\s*%|(?<![\\p{L}\\p{N}.,])' + value + magnitude +
+    '\\s+(lần|phần trăm|người|năm|tháng|ngày|giờ|phút|giây|km|kg|tấn|mét|chiếc|cái|con|căn|chuyến)(?!\\p{L})', 'giu'),
+    ([_, percent, number, multiplier, unit], start) => compoundBefore(start) ? null : ({
+      kind: 'number', label: percent ? percent + '%' : sayNumber(number) + (multiplier?.toLowerCase() || '') + ' ' + unit.toLowerCase()
+    }));
+  add(new RegExp('(?<![\\p{L}\\p{N}.,])' + value + '\\s+(nghìn|ngàn|triệu|tỷ|tỉ)(?!\\p{L})', 'giu'),
+    ([matched, number, scale], start) => {
+      const following = source.slice(start + matched.length);
+      if (compoundBefore(start) || new RegExp('^\\s+' + value + '\\s+(?:trăm|nghìn|ngàn|triệu|tỷ|tỉ)(?!\\p{L})', 'iu').test(following)) return null;
+      return { kind: 'number', label: sayNumber(number) + ' ' + scale.toLowerCase() };
+    });
+  add(/(?<!\p{L})tháng\s*(\d{1,2})(?!\d|[/-])/giu,
+    ([_, m]) => +m >= 1 && +m <= 12 ? { kind: 'date', label: 'Tháng ' + +m } : null);
+  add(/(?<!\p{L})(thập niên|những năm|năm|vào|từ|đến|tới|cuối|đầu)\s+([12]\d{3})(?!\d|[.,]\d)(?!\s+(?:đồng|người|usd|vnd|triệu|nghìn|ngàn|km|kg|mét|cái|con|lần|%)(?!\p{L}))/giu,
+    ([_, prefix, year]) => {
+      const lower = prefix.toLowerCase();
+      return { kind: 'date', label: lower === 'thập niên' ? 'Thập niên ' + year : lower === 'những năm' ? 'Những năm ' + year : 'Năm ' + year };
+    });
+  for (const match of source.matchAll(/(?<!\p{L})từ\s+(?:năm\s+)?([12]\d{3})\s+(đến|tới)\s+(?:năm\s+)?([12]\d{3})(?!\d|[.,]\d)/giu)) {
+    const end = match.index + match[0].length;
+    if (facts.some(f => f.kind !== 'date' && f.start < end && f.end > match.index)) continue;
+    const first = match.index + match[0].indexOf(match[1]), last = end - match[3].length;
+    for (const [start, year] of [[first, match[1]], [last, match[3]]]) {
+      if (!facts.some(f => f.start < start + year.length && f.end > start)) facts.push({ kind: 'date', label: 'Năm ' + year, start, end: start + year.length });
+    }
+  }
+  return facts.sort((a, b) => a.start - b.start);
 }
 // ===== CỜ QUỐC GIA chỉ hiện khi lời kể của cảnh nhắc tên nước; NHÃN TÊN nhân vật chỉ hiện ở cảnh đầu tiên người đó xuất hiện =====
 let _curScene = -1; // chỉ số cảnh đang vẽ (-1 = không rõ)
@@ -2806,13 +2853,6 @@ function addTags(svg) {
     o += `<g filter="url(#wob)"><rect x="${x - w / 2}" y="${y}" width="${w}" height="52" rx="14" fill="#ffffff" stroke="#111111" stroke-width="4"/><text x="${x}" y="${y + 37}" font-size="32" ${F}>${t.n}</text></g>`; });
   return svg.replace(/<\/svg>\s*$/, o + '</svg>');
 }
-function addDateLabels(svg, labels) {
-  if (!labels.length) return svg;
-  const m = dateLabelSvg(labels);
-  return svg.replace(/<\/svg>\s*$/, m + '</svg>');
-}
-
-
 // ===== MÀU RỰC RỠ (miễn phí): nền trời / đồi / đất + chi tiết nhỏ do tool tự vẽ phía sau tranh, không cần AI vẽ ảnh =====
 const _hs = t => { let h = 2166136261; for (const c of String(t)) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
 function _rng(seed) { let a = (seed >>> 0) || 1; return () => { a = (Math.imul(a, 1664525) + 1013904223) >>> 0; return a / 4294967296; }; }
@@ -3237,8 +3277,7 @@ async function svgImage(s, blackInkOnly = false) {
   if (cm === 'vivid') rule += '\nCOLOR MODE (VIVID FULL COLOR, like a colorful animated explainer video): the TOOL paints the place (walls, floor, street, sky, hills, trees, skyline) behind your drawing in soft pastel colors, so do NOT draw sky, big ground areas, hills or any background; pick the right <backdrop type=.../>. Every <prop> and <person> is colored automatically. For anything you draw yourself (<path>/<rect>/<circle>) fill it with a bright saturated flat color (any hex such as #ff7a59, #ffd166, #4fb3e8, #7bd389, #b9a4f5, #f08a5d) and keep thick black outlines. Never leave a drawn shape white except faces, eyes, clouds and paper, and never fill big areas black. Use quieter background colors and keep the strongest color on the main action or key prop. Leave a clear gap around that action. Use additional people only if the brief requires them, and group details on shared ground lines.';
   else if (cm === 'color') rule += '\nCOLOR MODE (FULL COLOR): this picture must be a COLORFUL illustration. Keep the thick black outlines, but fill the important things with the 5 palette colors (exact hex values only: red ' + COL.red + ', orange ' + COL.orange + ', yellow ' + COL.yellow + ', green ' + COL.green + ', blue ' + COL.blue + '): clothes, the main objects, buildings, ground, grass, sky shapes, the sun, money. Use white for faces, hands and highlights. Color about 8 to 25 shapes, spread over the whole picture, but never fill one single shape larger than a fifth of the frame and never make a dark or black background.';
   else if (cm !== 'accent' && cm !== 'bw') rule += '\nCOLOR MODE (' + cm + '): the palette is already set. Use the accent hex values on up to about 5 shapes (clothes, key objects, one emotional element) but keep thick black outlines.';
-  const dl = parseDates(s.text);
-  if (dl.length) rule += '\nDATE LABEL: the narration of this scene contains a date. The tool will draw a calendar / date label in the TOP-LEFT corner (about 30% of the width and 30% of the height). Keep that corner EMPTY (put nothing there) and do NOT write any date or text yourself.';
+  if (storyFacts(s.text).length) rule += '\nKeep key figures and props out of the upper corners when feasible. The editor overlays dates and figures. Do not draw any captions, dates, or large numbers yourself.';
   parts.push({ text: `${rule}\n${sceneCtx(s)}` });
   const d = await storyAI({ contents: [{ parts }] }, 75000);
   let aiBd = '';
@@ -3246,7 +3285,7 @@ async function svgImage(s, blackInkOnly = false) {
   const wantBg = !$('bgOn') || $('bgOn').checked;
   if (macro) { try { await libLearn(t, s); } catch (e) { log('  ⚠ Thư viện tự học lỗi: ' + e.message); } } // học đồ vật/nghề mới (không có await nào sau dòng này cho tới khi bung xong thẻ)
   _tags.length = 0; _ppl.length = 0; _spr.length = 0; _curScene = Array.isArray(scenes) ? scenes.indexOf(s) : -1; _bgOn = wantBg && macro;
-  let svg; try { svg = addTags(addDateLabels(sanitizeSvg(macro ? expandPeople(expandProps(t, st.sw), st.sw) : t, curStyle().wob, st.sw), dl)); } finally { _bgOn = false; }
+  let svg; try { svg = addTags(sanitizeSvg(macro ? expandPeople(expandProps(t, st.sw), st.sw) : t, curStyle().wob, st.sw)); } finally { _bgOn = false; }
   { const d2 = new DOMParser().parseFromString(svg, 'image/svg+xml'); // kiểm tra chất lượng: SVG hợp lệ và không trống (lỗi thì vòng thử lại 3 lần có sẵn sẽ vẽ lại)
     if (d2.querySelector('parsererror')) throw new Error('SVG lỗi cú pháp');
     if (d2.querySelectorAll('path,rect,circle,ellipse,line,polygon,polyline').length < 2) throw new Error('Tranh trống'); }
@@ -3393,7 +3432,7 @@ function drawAnim(x, s, lt) {
   x.drawImage(s.bg || s.cv, 0, 0);
   x.globalAlpha = 1;
   if (!s.people) return;
-  const amp = ampAt(s, lt - 0.3);
+  const amp = ampAt(s, lt - NARRATION_LEAD);
   s.people.forEach((p, i) => { if (p.parts) drawPerson(x, p, lt, i, amp); });
 }
 
@@ -3569,26 +3608,61 @@ async function aiColorImage(s, sceneNo) {
 
 // ===== MINH HỌA TRUYỆN VẼ TAY =====
 const CLOUD_ART_STYLES = {
-  portrait: 'Cinematic editorial realism. Natural facial proportions, realistic materials and lighting, purposeful depth of field, balanced film color. Favor a clear, recognizable face in a scene driven by a person.',
-  ink: 'Full-color inked graphic novel. Varied dark outlines, painted gouache colors, visible ink hatching and lightly textured paper, striking panel composition.',
-  watercolor: 'Luminous watercolor illustration. Translucent layered pigment, wet-on-wet backgrounds, soft granulation on cotton paper, controlled sharper edges on the subject.',
-  anime: 'Original cinematic anime scene. Clean expressive linework, precise cel shading, atmospheric detailed backgrounds and lighting, distinctive faces close to the reference.',
-  threeD: 'Original 3D animated film still. Sculpted forms, believable expressions, tactile surfaces, global illumination and a cinematic depth of field. Maintain distinct facial structure and hair silhouettes.'
+  threeD: 'Rendered 3D animated-film still, sculpted characters, visible depth, tactile materials, expressive stylized faces, physically based cinematic lighting. Use consistent 3D rendering throughout the frame.',
+  anime: 'Hand-drawn cinematic 2D anime still throughout the frame: clean deliberate linework, expressive shapes, distinct cel-shading planes and painted cinematic backgrounds. Render real people as recognizable drawn anime characters with these same style traits.',
+  portrait: 'Photorealistic on-location photograph with a real camera: natural skin texture, lifelike anatomy, real-world materials, physically plausible light, photographic detail and depth of field. Render the entire scene as a photograph.'
 };
-function cloudArtStyle() {
-  const value = $('cfStyle')?.value;
-  return Object.hasOwn(CLOUD_ART_STYLES, value) ? value : 'ink';
+function cloudArtStyle(scene) {
+  if (scene && validCloudStyle(scene.artStyle)) return scene.artStyle;
+  return activeProject ? activeProject.artStyle : validCloudStyle($('cfStyle')?.value);
 }
 
-function artRoles(s) {
-  return (String(s.image || '').match(/\b(?:MAIN|SECOND|THIRD|FOURTH|FIFTH|SIXTH|SEVENTH|EIGHTH)\b/g) || []).filter((role, i, roles) => roles.indexOf(role) === i);
+function restoreCloudStyle(data) {
+  if (Object.hasOwn(data, 'cloudStyle')) return validCloudStyle(data.cloudStyle);
+  const saved = validCloudStyle(data.settings?.cfStyle);
+  if (saved) return saved;
+  const painted = new Set(data.scenes.filter(scene => scene.art && scene.artStyle).map(scene => scene.artStyle));
+  return painted.size === 1 ? validCloudStyle(painted.values().next().value) : '';
 }
-function artPeople(s, roles) {
-  const brief = (s.image || '').toLowerCase().normalize('NFC');
-  return Object.entries(castLock).flatMap(([role, info]) => {
-    const name = info.nm;
-    if (!name || (!info.who && !/^elon musk$/i.test(name))) return [];
-    return roles.includes(role) || brief.includes(name.toLowerCase().normalize('NFC')) ? [{ role, name }] : [];
+
+function artMoment(scene) {
+  const narration = String(scene.text || '').normalize('NFC');
+  const conditional = /(?:suýt|có thể|nguy cơ|lo (?:rằng|sợ)|giả sử|nếu|tránh|ngăn)\s+(?:[^.!?,]{0,18}\s+)?(?:va chạm|va nhau|đâm vào|thất bại|không thành công)/iu.test(narration);
+  const stagesCollide = /(?:hai|2|các)\s+tầng(?:\s+(?:của\s+)?tên lửa)?[^.!?]{0,55}(?:va (?:chạm|nhau)|đâm (?:vào|nhau))/iu.test(narration) ||
+    /tầng\s+(?:một|1)[^.!?]{0,65}tầng\s+(?:hai|2)[^.!?]{0,35}(?:va (?:chạm|nhau)|đâm (?:vào|nhau))/iu.test(narration);
+  if (!conditional && stagesCollide && !/không\s+(?:hề\s+)?(?:va (?:chạm|nhau)|đâm (?:vào|nhau))/iu.test(narration)) {
+    return {
+      noPeople: true,
+      cue: 'One external midair view of the two distinct rocket stages at the moment they collide. Make the point of contact between the stages clear. No crew or engineers in this frame. No simultaneous control-room or launch-pad view. Only show an explosion if the narration states one.'
+    };
+  }
+  const hasSuccessfulOutcome = /thành công/iu.test(narration.replace(/không\s+thành công/giu, ''));
+  if (!conditional && !hasSuccessfulOutcome && /(?:phóng(?:\s+tên lửa)?|cất cánh|vào quỹ đạo)[^.!?]{0,75}(?:thất bại|không thành công)|(?:thất bại|không thành công)[^.!?]{0,75}(?:phóng(?:\s+tên lửa)?|vào quỹ đạo)/iu.test(narration)) {
+    return {
+      cue: 'Depict one failed launch moment with a visible unsuccessful outcome consistent with the narration. A normal liftoff or successful flight does not show the result. Use one shot, without a montage. Let the on-screen overlay carry the count. Do not invent an explosion or a cause.'
+    };
+  }
+  return { cue: 'Select one single moment supported by the current narration: the actor, action, location and visible result. Respect the outcome (failure, success, intention or reaction). Keep people in physically plausible positions and use text overlays for counts, dates and money.' };
+}
+
+function artRoles(scene) {
+  if (artMoment(scene).noPeople) return [];
+  if (Array.isArray(scene.visibleCast)) return scene.visibleCast.filter(role => ART_ROLES.includes(role));
+  const brief = String(scene.image || '');
+  const source = (brief + (/^\[(?:OBJECT|PLACE)\]/i.test(brief) ? '' : '\n' + (scene.text || ''))).toLowerCase().normalize('NFC');
+  const roles = new Set(brief.match(ART_ROLE_PATTERN) || []);
+  for (const [role, info] of Object.entries(castLock)) {
+    if (!ART_ROLES.includes(role) || !info.nm) continue;
+    const name = info.nm.toLowerCase().normalize('NFC').replace(/[.*+?^$(){}[\]\\|]/g, '\\$&');
+    if (new RegExp('(?<!\\p{L})' + name + '(?!\\p{L})', 'u').test(source)) roles.add(role);
+  }
+  return [...roles];
+}
+
+function artPeople(roles) {
+  return roles.flatMap(role => {
+    const info = castLock[role];
+    return info?.nm && (info.who || /^elon musk$/i.test(info.nm)) ? [{ role, name: info.nm }] : [];
   });
 }
 const artPortraits = new Map();
@@ -3608,18 +3682,31 @@ function artPortrait(name) {
 }
 function artReferences(sceneNo, roles, style, limit) {
   const uncovered = new Set(roles), references = [];
-  for (let i = sceneNo - 2; i >= 0 && uncovered.size && references.length < limit; i--) {
+  const pinned = activeProject?.castRefs?.[style];
+  for (const role of roles) {
+    const reference = pinned?.[role];
+    if (!reference?.inlineData || references.length === limit) continue;
+    references.push({
+      roles: [role],
+      cue: `Pinned ${CLOUD_STYLE_NAMES[style]} identity reference of ${role} (${castLock[role]?.nm || role}). Keep this person's face, hair and costume design in the current setting. Follow the current narration for position, expression and clothing changes explicitly required by the story.`,
+      photo: reference
+    });
+    uncovered.delete(role);
+  }
+  // The first verified frame for a shared role is more stable than reusing the most recent redraw.
+  for (let i = 0; i < scenes.length && uncovered.size && references.length < limit; i++) {
     const scene = scenes[i];
-    if (!scene?.artRef || (scene.artStyle || 'ink') !== style) continue;
+    if (i === sceneNo - 1 || !scene?.artRef || scene.artStyle !== style || scene.artReview === 'manual') continue;
     const shared = (scene.artRoles || []).filter(role => uncovered.has(role));
     if (!shared.length) continue;
     references.push({
-      cue: `Earlier approved illustration for ${shared.join(', ')}. Preserve those roles' face, hair, proportions, outfit and recurring props. Match roles to the written cast. Use the current brief for action, place, camera and any intentional design change.`,
+      roles: shared,
+      cue: `Verified illustration for ${shared.map(role => role + (castLock[role]?.nm ? ' (' + castLock[role].nm + ')' : '')).join(', ')}. Match the recurring character designs and current style. Use this reference only for identity and continuity. Stage the action from the current narration.`,
       photo: scene.artRef
     });
     shared.forEach(role => uncovered.delete(role));
   }
-  return references;
+  return { references, uncovered };
 }
 
 function drawIllustration(ctx, image, width, height) {
@@ -3632,25 +3719,26 @@ function drawIllustration(ctx, image, width, height) {
     return { x, y, w, h };
   };
   ctx.imageSmoothingQuality = 'high';
-  if (contain / cover >= 0.92) {
-    // Cắt tối đa 4% mỗi mép khi tỉ lệ ảnh chỉ lệch nhẹ so với khung.
-    return draw(cover);
-  } else {
+  if (contain / cover < 0.999) {
+    draw(cover);
     ctx.filter = `blur(${Math.max(14, Math.round(Math.min(width, height) * 0.04))}px)`;
     draw(cover * 1.15);
     ctx.filter = 'none';
-    return draw(contain);
   }
+  return draw(contain);
 }
 
 function cameraCue(text, phrase) {
-  const words = value => value.normalize('NFC').toLowerCase().match(/[\p{L}\p{M}\p{N}]+/gu) || [];
+  const words = value => Array.from(value.normalize('NFC').matchAll(/[\p{L}\p{M}\p{N}]+/gu));
   if (typeof phrase !== 'string' || phrase.length > 180) return null;
   const cue = words(phrase), narration = words(text || '');
   if (cue.length < 2 || cue.length > 10 || cue.length > narration.length) return null;
-  const matches = narration.flatMap((_, i) => cue.every((word, n) => word === narration[i + n]) ? [i] : []);
+  const matches = narration.flatMap((_, i) =>
+    cue.every(([word], n) => word.toLowerCase() === narration[i + n]?.[0].toLowerCase()) ? [i] : []);
   if (matches.length !== 1) return null;
-  return { start: matches[0] / narration.length, end: (matches[0] + cue.length) / narration.length };
+  const first = matches[0], end = first + cue.length, last = narration[end - 1];
+  return { start: first / narration.length, end: end / narration.length,
+    fromOffset: narration[first].index, toOffset: last.index + last[0].length };
 }
 
 function illustrationCamera(s, request, rect, width, height) {
@@ -3699,7 +3787,7 @@ async function renderStoryArt(parts, aspectRatio, fallbackPrompt) {
     const image = await loadImg(`data:${data.image.mimeType};base64,${data.image.data}`);
     if (data.imageMode === 'compatible') log('  🎨 Cloudflare đã vẽ ở khung tương thích bằng mô tả cảnh.');
     if (data.imageMode === 'backup') log('  🎨 Cloudflare đã vẽ bằng FLUX.1 Schnell từ mô tả cảnh.');
-    return image;
+    return { image, mode: ['compatible', 'backup'].includes(data.imageMode) ? data.imageMode : '' };
   }
   let error, availabilityOnly = true;
   for (const model of GEM_IMG_MODELS) {
@@ -3712,7 +3800,7 @@ async function renderStoryArt(parts, aspectRatio, fallbackPrompt) {
       const candidate = response.candidates?.[0];
       const asset = candidate?.content?.parts?.map(part => part.inlineData).find(part => /^image\/(png|jpe?g|webp)$/i.test(part?.mimeType) && part.data);
       if (!asset) throw new Error('Gemini không trả ảnh (' + (candidate?.finishReason || response.promptFeedback?.blockReason || 'trống') + ')');
-      return await loadImg(`data:${asset.mimeType};base64,${asset.data}`);
+      return { image: await loadImg(`data:${asset.mimeType};base64,${asset.data}`), mode: '' };
     } catch (e) {
       if (abortGen) throw e;
       error = e;
@@ -3723,102 +3811,126 @@ async function renderStoryArt(parts, aspectRatio, fallbackPrompt) {
   throw error;
 }
 
-async function reviewStoryArt(s, photo, references, handoff = false) {
+async function reviewStoryArt(s, photo, references, handoff = false, style = '') {
   const parts = references.flatMap(ref => [{ text: ref.cue }, ref.photo]);
   parts.push({ text: 'The next image is the current scene and the only image to evaluate.' }, photo);
   parts.push({ text: `Compare the current illustration to the current narration and brief below.
-Flag only a material visual error: a wrong actor or recipient, the key action or story clue missing or unreadable, an invented plot event, or an obvious identity mismatch against the labeled references. For a real person, compare face shape, hairline, eyes and other distinctive features even in stylized art. Do not require passing mentions or offscreen actions. A stylized composition, implied action and a deliberate camera crop are valid when the main beat clearly reads. When uncertain return "pass".
+${style ? 'Required style: ' + CLOUD_ART_STYLES[style] : 'Keep the actual image style when planning the camera.'}
+Current event and limits: ${artMoment(s).cue}
+Check three things using the actual picture, not the brief alone:
+1. style: the entire image visibly matches the required style. A photograph or CGI in a 2D anime project is a mismatch.
+2. cast: intended people are present when required, and recurring faces, hair and clothing match labeled references when visible. Compare facial structure for real people. Use "pass" if no cast is required and the image respects that constraint.
+3. event: the main action and outcome are visually supported by the current narration. Flag a successful liftoff for a failed launch, physically impossible positions, an invented event, unrelated objects that change the meaning, or a panel sequence instead of the single requested moment. Do not require offscreen actions.
+Use exactly "pass", "fail" or "uncertain" for each check. Return status "revise" for any clear failure and provide a concrete correction. Return status "uncertain" if a required check cannot be verified.
 ${handoff ? 'For this handover, a wider source is needed: try to keep the passed object, both interacting hands and the two people readable in a single image.' : ''}
 If the image passes, optionally choose one camera move that follows the NARRATION and moves within this exact image. Identify the actual visible subject in the current image with a tight bounding box [left,top,right,bottom], all coordinates integers from 0 to 1000, origin at top left. Do not use any earlier reference image for the coordinates.
 - "reveal": start close on the meaningful detail, then pull out to show the people or setting. For a handoff, include the object and BOTH interacting hands in one box. Use this when the wider shot shows the context of the detail.
 - "focus": start wide, then zoom in on the visible detail as the narrator mentions it.
 - "pan": move from the subject to a distinct second detail or person visible in the same image; provide a box for each.
 Choose "cue" as an exact unique phrase of 2 to 10 Vietnamese words copied only from Current Vietnamese narration, at the moment the camera should start to act. If evidence is weak, the detail cannot be localized, or the wider shot adds no information for a reveal, return camera:null or choose a better grounded move. Stay inside the art; never invent details outside the image.
-Return only JSON {"status":"pass","fix":"","note":"","camera":{"move":"reveal","cue":"exact phrase","subject":[320,420,570,660],"destination":null}} or {"status":"revise","fix":"single concrete correction in English","note":"vấn đề nhìn thấy được, một câu tiếng Việt","camera":null}.
+Return only JSON {"status":"pass|revise|uncertain","checks":{"style":"pass","cast":"pass","event":"pass"},"fix":"single concrete correction in English if needed","note":"vấn đề nhìn thấy được, một câu tiếng Việt","camera":{"move":"reveal","cue":"exact phrase","subject":[320,420,570,660],"destination":null}}. Use camera:null if unavailable or the image needs changes.
 ${sceneCtx(s)}` });
   try {
     const response = await storyAI({ contents: [{ parts }], generationConfig: { responseMimeType: 'application/json' } }, 30000, 1);
     const result = readGemJson(response);
-    if (result.status === 'pass') return result;
-    if (result.status === 'revise' && typeof result.fix === 'string' && result.fix.trim()) {
-      return { status: 'revise', fix: result.fix.trim().slice(0, 300), note: typeof result.note === 'string' ? result.note.trim().slice(0, 240) : '' };
+    const checks = ['style', 'cast', 'event'].map(key => result.checks?.[key]);
+    if (result.status === 'revise' || checks.includes('fail')) {
+      const fix = typeof result.fix === 'string' ? result.fix.trim().slice(0, 300) : '';
+      const note = typeof result.note === 'string' ? result.note.trim().slice(0, 240) : '';
+      return { status: 'revise', fix: fix || 'Correct the failed style, cast or event checks using the required style and current narration.', note };
+    }
+    if (result.status === 'pass' && (!style || checks.every(check => check === 'pass'))) return result;
+    if (style && checks.includes('uncertain')) {
+      const labels = ['kiểu vẽ', 'nhân vật', 'diễn biến'].filter((_, i) => checks[i] === 'uncertain').join(', ');
+      return { status: 'unavailable', note: 'Chưa xác minh được ' + labels + '.' };
     }
   } catch (e) { if (abortGen) throw e; }
   return { status: 'unavailable' };
 }
 
-async function illustratedImage(s, sceneNo) {
-  const style = cloudArtStyle(), aspect = sub ? (fm.v ? '4:5' : '21:9') : fm.ar;
-  const roles = artRoles(s), people = artPeople(s, roles);
-  for (const { role } of people) if (!roles.includes(role)) roles.push(role);
-  const portraits = (await Promise.all(people.slice(0, 2).map(async ({ name, role }) => {
-    const photo = await artPortrait(name);
-    return photo && { cue: `Real portrait of ${name}, role ${role}. Use it only for identity: preserve facial structure, eyes, brows, nose, jaw, hairline and other distinctive features. Match the apparent age to the story era and use the current style, action, pose and outfit.`, photo };
-  }))).filter(Boolean);
-  const references = [...portraits, ...artReferences(sceneNo, roles, style, Math.min(2, 3 - portraits.length))];
-  const parts = [];
-  for (const ref of references) parts.push({ text: ref.cue }, ref.photo);
-  const dates = parseDates(s.text);
-  const handoff = globalThis.StoryMotion?.plan(s.motionHint, s.text, s.image, chars)?.action === 'give';
-  const framing = handoff ? 'Frame the handover in one medium view, even if the shot brief suggests a close-up. Put the passed object and both interacting hands visibly together, and keep both figures visible around them so the editor can pull back from that detail to the wider interaction.' : 'Use the shot size and exact interaction from the current brief.';
-  const publicCast = people.length ? `Recognizable real people present: ${people.map(({ role, name }) => `${role} is ${name}`).join('; ')}. Preserve the distinctive face and hair for each person. Keep important faces readable and use the correct age for the scene.` : '';
-  const prompt = `Draw one ${aspect} story frame in full color.
-${CLOUD_ART_STYLES[style]}
-${publicCast}
-${framing}
-Give the main face, gesture or held object enough contrast to read at phone size. Make eye-lines, hands, contact points and the direction of motion clear. Keep essential details at least 9% in from the outer edges for framing and camera motion, including close-ups. Give recurring characters the same distinguishing features and keep recurring props identifiable. Keep enough space between faces or hands so the direction of an interaction is clear. Render the right place, era and time of day.
-${dates.length ? 'Keep the upper-left area visually quiet for a date label added in production.' : ''}
-Artwork only. Keep the image free of captions, speech text, signatures, borders and watermarks.
-${sceneCtx(s)}`;
-  const fallbackPrompt = `Draw one ${aspect} full-color story illustration. ${CLOUD_ART_STYLES[style]} Artwork only, without lettering.
-${publicCast}
-${handoff ? framing : ''}
-Scene to draw: ${String(s.image || '').slice(0, 780)}
-Vietnamese narration: ${String(s.text || '').slice(0, 350)}
-Cast cues for characters present: ${String(chars || '').split(/[;\n]/).filter(entry => roles.some(role => entry.trimStart().startsWith(role + ' '))).join('; ').slice(0, 300)}`;
-  let image = await renderStoryArt([...parts, { text: prompt }], aspect, fallbackPrompt);
-  let photo = artPhoto(image);
-  let review = await reviewStoryArt(s, photo, references, handoff);
-  if (review.status === 'revise') {
-    log(`  🎨 Cảnh ${sceneNo}: đang chỉnh lại chi tiết kể chuyện.`);
-    try {
-      const revised = await renderStoryArt([...parts, { text: 'First draft to correct:' }, photo, {
-        text: `${prompt}\nCorrect this specific error while preserving the drawing style: ${review.fix}`
-      }], aspect, `Correction: ${review.fix}\n${fallbackPrompt}`);
-      const revisedPhoto = artPhoto(revised);
-      const check = await reviewStoryArt(s, revisedPhoto, references, handoff);
-      if (check.status === 'pass') {
-        image = revised;
-        photo = revisedPhoto;
-        review = check;
-      }
-    } catch (e) { if (abortGen) throw e; }
+class ArtworkHold extends Error {
+  constructor(message, candidate = null) {
+    super(message);
+    this.candidate = candidate;
   }
+}
+
+function artResult(scene, image, photo, style, roles, camera, manual = false) {
   const cv = document.createElement('canvas');
   cv.width = W;
   cv.height = H;
-  const x = cv.getContext('2d'), h = Math.min(H, fm.ah + 10);
-  x.fillStyle = '#fff';
-  x.fillRect(0, 0, W, H);
-  x.save();
-  x.beginPath();
-  x.rect(0, 0, W, h);
-  x.clip();
-  const imageRect = drawIllustration(x, image, W, h);
-  if (dates.length) {
-    const label = dateLabelSvg(dates).replace(' filter="url(#wob)"', '');
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${h}" viewBox="0 0 ${fm.vw} 900">${label}</svg>`;
-    x.drawImage(await loadImg('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)), 0, 0);
-  }
-  x.restore();
-  const artNote = review.status === 'revise' ? (review.note || 'Có chi tiết kể chuyện cần xem lại.') :
-    review.status === 'unavailable' ? 'Chưa đối chiếu tự động được với lời kể.' : '';
-  return { cv, ord: [], art: true, artNote, artRef: review.status === 'pass' && roles.length ? photo : null,
-    artCamera: review.status === 'pass' ? illustrationCamera(s, review.camera, imageRect, W, h) : null,
-    artStyle: style, artRoles: roles, bgL: null, fgL: null, bgKind: inferSetting(s), anim: false, bg: null, people: null };
+  const rect = drawIllustration(cv.getContext('2d'), image, W, H);
+  return { cv, ord: [], art: true, artNote: manual ? 'Bạn đã duyệt tranh này.' : '', pendingArt: null,
+    artReview: manual ? 'manual' : 'verified', artRef: photo, artCamera: illustrationCamera(scene, camera, rect, W, H),
+    artStyle: style, artRoles: roles, bgL: null, fgL: null, bgKind: inferSetting(scene), anim: false, bg: null, people: null,
+    motionScene: null, motionBase: null, frameHeight: H, bakedDate: false };
 }
 
-async function makeMotionScene(s, plan, mode) {
+async function illustratedImage(s, sceneNo) {
+  const style = cloudArtStyle(s), aspect = fm.ar;
+  if (!style) throw new ArtworkHold('Chọn kiểu vẽ Cloudflare cho dự án rồi bấm Vẽ lại.');
+  const roles = artRoles(s), people = artPeople(roles);
+  const { references, uncovered } = artReferences(sceneNo, roles, style, 4);
+  const portraits = await Promise.all(people.filter(person => uncovered.has(person.role)).slice(0, Math.min(2, 4 - references.length)).map(async ({ name, role }) => {
+    const photo = await artPortrait(name);
+    return photo && { cue: `Real portrait of ${name}, role ${role}. Use face shape, eyes, brows, nose, jaw and hairline for identity only. Render in the locked project style and story era.`, photo };
+  }));
+  references.push(...portraits.filter(Boolean));
+  const parts = references.flatMap(ref => [{ text: ref.cue }, ref.photo]);
+  const hasFacts = storyFacts(s.text).length > 0;
+  const moment = artMoment(s);
+  const handoff = !moment.noPeople && globalThis.StoryMotion?.plan(s.motionHint, s.text, s.image, chars)?.action === 'give';
+  const framing = handoff ? 'Frame the handover in one medium view, even if the shot brief suggests a close-up. Put the passed object and both interacting hands visibly together, and keep both figures visible so the editor can pull back from that detail.' : 'Use a shot size suited to the single current event.';
+  const visibleCast = moment.noPeople ? 'No people are present.' : roles.length
+    ? 'Recurring characters in frame: ' + roles.map(role => castLock[role]?.nm ? role + ' is ' + castLock[role].nm : role).join(', ') + '.'
+    : '';
+  const publicCast = people.length ? `Recognizable real people present: ${people.map(({ role, name }) => `${role} is ${name}`).join('; ')}. Preserve their recognizable facial structure and age while following the selected style.` : '';
+  const graphics = hasFacts ? 'Leave an upper corner quiet for later graphics. Do not draw a calendar, date, timeline or count.' : '';
+  const prompt = `Draw one ${aspect} story frame in full color. Lock the visual style for the entire frame.
+${CLOUD_ART_STYLES[style]}
+Current event and limits (follow these and the narration over inconsistent visual suggestions): ${moment.cue}
+${visibleCast} ${publicCast}
+${framing}
+Keep essential details at least 9% from the edges. Show where people look, what they touch and the direction of the action. Use the correct place, era and time of day. No collage or multiple panels. ${graphics}
+Artwork only, without captions, dialogue lettering, signatures, borders or watermarks.
+${sceneCtx(s)}`;
+  const fallbackPrompt = `One ${aspect} frame. ${CLOUD_ART_STYLES[style]}
+${moment.cue}
+${visibleCast} ${publicCast}
+${handoff ? framing : ''} ${graphics}
+One shot, no collage or text. Follow this narration: ${String(s.text || '').slice(0, 420)}
+Visual brief (use only where consistent with narration): ${String(s.image || '').slice(0, 460)}
+Cast cues: ${String(chars || '').split(/[;\n]/).filter(entry => roles.some(role => entry.trimStart().startsWith(role + ' '))).join('; ').slice(0, 180)}`;
+  let result = await renderStoryArt([...parts, { text: prompt }], aspect, fallbackPrompt);
+  let photo = artPhoto(result.image);
+  let review = await reviewStoryArt(s, photo, references, handoff, style);
+  if (review.status === 'revise') {
+    log(`  🎨 Cảnh ${sceneNo}: đang sửa theo kết quả đối chiếu.`);
+    try {
+      const draft = references.length < 4 ? [{ text: 'Draft to correct:' }, photo] : [];
+      const fixed = await renderStoryArt([...parts, ...draft, {
+        text: `${prompt}\nCorrect this visible error while keeping the selected style: ${review.fix}`
+      }], aspect, `Correction: ${review.fix.slice(0, 180)}\n${fallbackPrompt}`);
+      photo = artPhoto(fixed.image);
+      result = fixed;
+      review = await reviewStoryArt(s, photo, references, handoff, style);
+    } catch (e) {
+      if (abortGen) throw e;
+      log(`  ℹ Chưa hoàn tất lượt sửa cảnh ${sceneNo}.`);
+    }
+  }
+  if (review.status === 'revise') throw new ArtworkHold(review.note || 'Tranh chưa đạt kiểm tra phong cách, nhân vật hoặc diễn biến.');
+  if (review.status !== 'pass' || result.mode) {
+    const reason = [
+      result.mode ? 'Cloudflare đã vẽ dự phòng từ mô tả chữ.' : '',
+      review.status !== 'pass' ? review.note || 'Chưa xác minh đủ phong cách, nhân vật và diễn biến.' : ''
+    ].filter(Boolean).join(' ');
+    throw new ArtworkHold(reason, { photo, style, roles, reason, camera: review.camera || null, imageBrief: s.image, visibleCast: s.visibleCast ?? null });
+  }
+  return artResult(s, result.image, photo, style, roles, review.camera);
+}
+
+async function makeMotionScene(s, plan) {
   const width = W, height = Math.min(H, fm.ah + 10);
   const h = H;
   const base = document.createElement('canvas');
@@ -3829,46 +3941,13 @@ async function makeMotionScene(s, plan, mode) {
   g.fillRect(0, 0, width, height);
   const atmosphere = inferSetting(s);
   const rocket = plan.action === 'launch' || plan.action === 'separate';
-  const colors = mode === 'illustrated' ? 'color' : cmodeV(), useBackdrop = mode === 'illustrated' || $('bgOn')?.checked !== false;
-  let aiBackdrop = false;
-  if (mode === 'illustrated' && useBackdrop) {
-    const aspect = sub ? (fm.v ? '4:5' : '21:9') : fm.ar;
-    const setting = plan.action === 'separate' ? 'upper atmosphere, blue sky darkening above the curvature of Earth' :
-      rocket ? 'remote island by the sea, distant shore and sky around a launch facility' :
-      atmosphere === 'plain' ? (plan.seated ? 'a quiet cafe or living room' : 'the immediate setting of the scene') : atmosphere;
-    const place = String(settingCtx || '').slice(0, 420);
-    const reserve = rocket
-      ? 'The sky needs ample open space in the center. Keep a narrow band of distant ground near the bottom.'
-      : 'Empty floor across the lower third, with the focal furniture area and middle of the frame unobstructed. Light and shadows should be soft so the overlaid characters are readable.';
-    const prompt = `Paint a background layer for a ${aspect} story frame. Environment: ${setting}. Story setting for era or light only: ${place}.
-${reserve}
-${CLOUD_ART_STYLES[cloudArtStyle()]}
-Only the environment. No people, silhouettes, animals, rockets, vehicles, doors in the foreground, foreground furniture, tables, chairs or loose objects. No lettering, border or watermark. The editor adds every moving object afterwards.`;
-    try {
-      const image = await renderStoryArt([{ text: prompt }], aspect);
-      const scale = Math.max(width / image.width, height / image.height);
-      const w = scale * image.width, bh = scale * image.height;
-      g.imageSmoothingQuality = 'high';
-      g.drawImage(image, (width - w) / 2, (height - bh) / 2, w, bh);
-      aiBackdrop = true;
-    } catch (e) {
-      if (abortGen) throw e;
-      log('  ℹ Dùng nền vẽ sẵn cho cảnh 2D: ' + String(e.message || e).slice(0, 100));
-    }
-  }
-  if (useBackdrop && !aiBackdrop) {
+  if ($('bgOn')?.checked !== false) {
     try {
       const background = await bdCanvas(s, rocket ? 'beach' : atmosphere, []);
       g.drawImage(background, 0, 0, width, height);
     } catch (e) { log('  ℹ Dùng nền giấy cho cảnh 2D.'); }
   }
-  const dates = parseDates(s.text);
-  if (dates.length) {
-    const label = dateLabelSvg(dates).replace(' filter="url(#wob)"', '');
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${fm.vw} 900">${label}</svg>`;
-    g.drawImage(await loadImg('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)), 0, 0);
-  }
-  const motionScene = { ...plan, colors };
+  const motionScene = { ...plan, colors: cmodeV() };
   const cv = document.createElement('canvas');
   cv.width = width;
   cv.height = h;
@@ -3878,20 +3957,18 @@ Only the environment. No people, silhouettes, animals, rockets, vehicles, doors 
   const timing = StoryMotion.timing(poster);
   StoryMotion.paint(x, poster, timing.start + timing.span * (rocket ? 0.68 : 0.48), width, height);
   return {
-    cv, ord: [], art: true, artNote: useBackdrop && !aiBackdrop && mode === 'illustrated' ? 'Cảnh 2D dùng nền vẽ sẵn.' : '',
+    cv, ord: [], art: true, artNote: '',
     artRef: null, artCamera: null, artRoles: [], anim: false, bg: null, people: null, bgL: null, fgL: null, bgKind: atmosphere,
     motionScene, motionBase: base
   };
 }
 
 async function makeImage(s, sceneNo, mode = $('isrc').value) {
-  const automatic = !s.motionChoice || s.motionChoice === 'auto';
-  const usesCamera = mode === 'illustrated' && automatic && motionOn();
-  const plan = interactionOn() && !usesCamera ? StoryMotion.plan(s.motionHint, s.text, s.image, chars, s.motionChoice) : null;
-  const automaticPortrait = plan && mode === 'illustrated' && automatic &&
-    artPeople(s, artRoles(s)).some(({ role }) => role === plan?.main?.role || role === plan?.other?.role);
-  if (plan && !automaticPortrait) return await makeMotionScene(s, plan, mode);
-  return { artCamera: null, ...await makeStillImage(s, sceneNo, mode), motionScene: null, motionBase: null };
+  const plan = interactionOn(mode) ? StoryMotion.plan(s.motionHint, s.text, s.image, chars, s.motionChoice) : null;
+  if (plan) return { ...await makeMotionScene(s, plan), artStyle: null, artReview: null, pendingArt: null, frameHeight: H, bakedDate: false };
+  const still = await makeStillImage(s, sceneNo, mode);
+  return { artCamera: null, art: false, artStyle: null, artRef: null, artRoles: [], artReview: null, pendingArt: null, artNote: '',
+    ...still, motionScene: null, motionBase: null, frameHeight: H, bakedDate: false };
 }
 
 async function makeStillImage(s, sceneNo, mode) {
@@ -3904,7 +3981,7 @@ async function makeStillImage(s, sceneNo, mode) {
       return await svgImage(s, false);
     }
   }
-  if (mode === 'svg' || mode === 'svg_ink') {
+  if (isSvgMode(mode)) {
     return Object.assign(await svgImage(s, mode === 'svg_ink'), { art: false, artNote: '', artRef: null });
   }
 
@@ -4509,6 +4586,10 @@ async function start(isRetry = false) {
   const idea = $('idea').value.trim();
   if (!idea && (!isRetry || !scenes.length)) return alert('Nhập câu chuyện hoặc ý tưởng nhé.');
   beginStoryProject(idea, isRetry);
+  if (imageMode === 'illustrated' && !cloudArtStyle() && (!isRetry || !scenes.some(scene => !scene.cv && validCloudStyle(scene.artStyle)))) {
+    $('cfStyle').focus();
+    return alert('Chọn một kiểu tranh Cloudflare cho dự án nhé.');
+  }
 
   abortGen = false;
   cloudflareBlocked = null;
@@ -4559,6 +4640,7 @@ async function start(isRetry = false) {
         image: s.image || s.text,
         mood: s.mood || '',
         motionHint: s.motionHint || null,
+        visibleCast: s.visibleCast ?? null,
         motionChoice: 'auto',
         ord: [],
         cv: null,
@@ -4590,7 +4672,7 @@ async function start(isRetry = false) {
       while (idx < scenes.length && !abortGen && !imageUnavailable) {
         const i = idx++;
         const s = scenes[i], no = i + 1;
-        const needImg = !s.cv;
+        const needImg = !s.cv && !s.pendingArt;
         if (!needImg) continue;
 
         const imgTask = (async () => {
@@ -4603,6 +4685,7 @@ async function start(isRetry = false) {
               log(`  🎨 Đã vẽ xong tranh cảnh ${no}/${scenes.length}`);
             } catch (e) {
               if (abortGen) break;
+              if (e instanceof ArtworkHold) applyArtworkHold(s, e);
               log(`  ⚠ Cảnh ${no} (thử ${t + 1}/${attempts}) lỗi vẽ: ${e.message.slice(0, 110)}`);
               if (e instanceof IllustrationUnavailable || e instanceof CloudflareUnavailable) {
                 imageUnavailable = true;
@@ -4611,7 +4694,7 @@ async function start(isRetry = false) {
               if (t + 1 < attempts) await nap(2500 * (t + 1));
             }
           }
-          if (!s.cv && !abortGen) { s.failed = true; updateCard(i); }
+          if (!s.cv && !abortGen) { s.failed = !s.pendingArt; updateCard(i); }
         })();
 
         await imgTask;
@@ -4639,13 +4722,15 @@ async function start(isRetry = false) {
       scenes.forEach((s, i) => { if (!s.cv) { s.failed = true; updateCard(i); } });
     }
     const badImg = scenes.filter(s => !s.cv).length;
-    if (badImg > 0) $('retryBtn').hidden = false;
+    if (scenes.some(s => !s.cv && !s.pendingArt)) $('retryBtn').hidden = false;
     if (abortGen) {
       const okCount = scenes.filter(s => s.cv).length;
       log(okCount ? `⏹ Đã dừng. Giữ lại ${okCount} tranh đã vẽ.` : '⏹ Đã dừng.');
     } else {
+      const pending = scenes.filter(s => !s.cv && s.pendingArt).length;
       log(`🖼 Đã vẽ xong ${scenes.length - badImg}/${scenes.length} tranh.` +
-        (badImg ? ` Còn ${badImg} cảnh lỗi: bấm "🔄 Vẽ lại" ở cảnh đó hoặc nút cam "Chạy bù".` : '') +
+        (pending ? ` Có ${pending} cảnh đang chờ Duyệt tranh mới.` : '') +
+        (badImg > pending ? ` Còn ${badImg - pending} cảnh cần vẽ lại. Có thể bấm Chạy bù.` : '') +
         '\n👉 Xem trước tranh ở khung bên dưới. Tranh nào chưa ưng thì bấm 🔄 Vẽ lại. Ưng hết thì bấm "Ưng rồi, tạo giọng đọc và video".');
     }
   } catch (e) {
@@ -4672,6 +4757,8 @@ function renderGallery() {
     d.innerHTML = '<div class="thumb"><canvas></canvas><span class="ph">⏳ Chờ vẽ...</span></div><div class="cap"></div><p class="hint art-note" hidden></p>' +
       `<button type="button" class="w sm" onclick="redraw(${i})">🔄 Vẽ lại</button>` +
       `<button type="button" class="w sm camera-scene" data-scene="${i}" onclick="tuneIllustrationCamera(${i})" hidden>Căn camera</button>` +
+      `<button type="button" class="w sm reference-scene" data-scene="${i}" onclick="openArtworkReference(${i})" hidden>Lấy mẫu nhân vật</button>` +
+      `<button type="button" class="w sm review-scene" onclick="openArtworkCandidate(${i})" hidden>Duyệt tranh mới</button>` +
       `<details><summary>Sửa mô tả tranh</summary><textarea id="ed${i}" style="min-height:70px;font-size:13px"></textarea></details>`;
     g.appendChild(d);
     d.querySelector('.cap').textContent = `${i + 1}. ${s.text}`;
@@ -4695,6 +4782,7 @@ function renderGallery() {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'w sm motion-preview';
+      button.dataset.scene = String(i);
       button.hidden = true;
       button.onclick = () => previewMotion(i);
       d.appendChild(button);
@@ -4713,16 +4801,20 @@ function updateCard(i) {
   camera.hidden = !canTuneIllustrationCamera(s);
   camera.disabled = !!s.busy;
   camera.textContent = s.artCamera ? 'Căn lại camera' : 'Căn camera';
+  const reference = d.querySelector('.reference-scene'), review = d.querySelector('.review-scene');
+  reference.hidden = !canTuneIllustrationCamera(s) || !!artMoment(s).noPeople;
+  review.hidden = !s.pendingArt;
+  reference.disabled = review.disabled = !!s.busy;
   const button = d.querySelector('.motion-preview');
   if (button) {
-    button.hidden = !s.motionScene;
+    button.hidden = !isSvgMode() || !s.motionScene;
     button.disabled = !!s.busy;
     if (s.motionScene && globalThis.StoryMotion) button.textContent = 'Xem động tác · ' + StoryMotion.labels[s.motionScene.action];
   }
   note.textContent = s.artNote || '';
   note.hidden = !s.artNote;
   if (s.busy) { ph.hidden = false; ph.textContent = '⏳ Đang vẽ lại...'; return; }
-  if (!s.cv) { ph.hidden = false; ph.textContent = s.failed ? '⚠ Lỗi, bấm Vẽ lại' : '⏳ Chờ vẽ...'; return; }
+  if (!s.cv) { ph.hidden = false; ph.textContent = s.pendingArt ? 'Chờ duyệt tranh' : s.failed ? '⚠ Lỗi, bấm Vẽ lại' : '⏳ Chờ vẽ...'; return; }
   ph.hidden = true;
   const tw = fm.v ? 220 : 360, th = Math.round(tw * H / W);
   c.width = tw; c.height = th;
@@ -4730,6 +4822,173 @@ function updateCard(i) {
   x.fillStyle = '#fff'; x.fillRect(0, 0, tw, th);
   x.drawImage(s.cv, 0, 0, tw, th);
 }
+function applyArtworkHold(scene, hold) {
+  scene.pendingArt = hold.candidate;
+  scene.artNote = [hold.message,
+    hold.candidate ? 'Mở Duyệt tranh mới để xem.' : '',
+    scene.cv ? 'Tranh trước vẫn đang được dùng.' : ''].filter(Boolean).join(' ');
+}
+
+let artReferenceEdit = null, artReviewEdit = null;
+function openArtworkReference(i) {
+  const scene = scenes[i];
+  if (projectBusy() || !activeProject || !scene?.cv || !scene.art || scene.motionScene || $('isrc').value !== 'illustrated') return;
+  if (scene.artStyle && !validCloudStyle(scene.artStyle)) {
+    return alert('Chọn tranh mẫu thuộc kiểu Hoạt hình 3D, Anime điện ảnh hoặc Ảnh thực đang dùng.');
+  }
+  const style = cloudArtStyle(scene);
+  if (!style) { $('cfStyle').focus(); alert('Chọn kiểu vẽ của cảnh mẫu trước khi lấy mẫu.'); return; }
+  const select = $('artReferenceRole');
+  select.replaceChildren();
+  const known = ART_ROLES.filter(role => castLock[role]?.nm);
+  const visible = [...new Set([...(scene.artRoles || []), ...artRoles(scene)])].filter(role => ART_ROLES.includes(role));
+  const roles = [...new Set([...visible, ...known])];
+  for (const role of roles.length ? roles : ART_ROLES.slice(0, 5)) {
+    const option = document.createElement('option');
+    option.value = role;
+    option.textContent = castLock[role]?.nm || ({ MAIN: 'Nhân vật chính', SECOND: 'Nhân vật thứ hai',
+      THIRD: 'Nhân vật thứ ba', FOURTH: 'Nhân vật thứ tư', FIFTH: 'Nhân vật thứ năm' }[role] || role);
+    select.appendChild(option);
+  }
+  const canvas = $('artReferenceCanvas');
+  const scale = Math.min(320 / scene.cv.width, 380 / scene.cv.height);
+  canvas.width = Math.max(1, Math.round(scene.cv.width * scale));
+  canvas.height = Math.max(1, Math.round(scene.cv.height * scale));
+  artReferenceEdit = { project: activeProject, scene, style, canvas,
+    crop: { x: 0.26, y: 0.17, w: 0.48, h: 0.50 }, pointer: null };
+  paintArtworkReference(artReferenceEdit);
+  $('artReferenceDialog').showModal();
+}
+
+function paintArtworkReference(edit) {
+  const { canvas, scene, crop } = edit, { width, height } = canvas;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(scene.cv, 0, 0, width, height);
+  const x = crop.x * width, y = crop.y * height, w = crop.w * width, h = crop.h * height;
+  ctx.save();
+  ctx.fillStyle = 'rgba(10,17,28,.48)';
+  ctx.beginPath();
+  ctx.rect(0, 0, width, height);
+  ctx.rect(x, y, w, h);
+  ctx.fill('evenodd');
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, w, h);
+  ctx.restore();
+  $('saveArtReference').disabled = crop.w < 0.06 || crop.h < 0.06;
+}
+
+function moveArtworkCrop(event) {
+  const edit = artReferenceEdit;
+  if (!edit || edit.pointer?.id !== event.pointerId) return;
+  const { left, top, width, height } = edit.canvas.getBoundingClientRect();
+  const x = Math.min(1, Math.max(0, (event.clientX - left) / width));
+  const y = Math.min(1, Math.max(0, (event.clientY - top) / height));
+  const anchor = edit.pointer;
+  edit.crop = { x: Math.min(x, anchor.x), y: Math.min(y, anchor.y), w: Math.abs(x - anchor.x), h: Math.abs(y - anchor.y) };
+  paintArtworkReference(edit);
+}
+
+function attachArtworkDialogs() {
+  const canvas = $('artReferenceCanvas');
+  canvas.addEventListener('pointerdown', event => {
+    const edit = artReferenceEdit;
+    if (!edit || edit.pointer || event.button !== 0) return;
+    const { left, top, width, height } = canvas.getBoundingClientRect();
+    edit.pointer = { id: event.pointerId, x: (event.clientX - left) / width, y: (event.clientY - top) / height };
+    canvas.setPointerCapture(event.pointerId);
+    moveArtworkCrop(event);
+  });
+  canvas.addEventListener('pointermove', moveArtworkCrop);
+  canvas.addEventListener('pointerup', event => {
+    if (artReferenceEdit?.pointer?.id !== event.pointerId) return;
+    moveArtworkCrop(event);
+    artReferenceEdit.pointer = null;
+  });
+  canvas.addEventListener('lostpointercapture', () => { if (artReferenceEdit) artReferenceEdit.pointer = null; });
+  canvas.addEventListener('keydown', event => {
+    const delta = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
+    if (!delta || !artReferenceEdit) return;
+    event.preventDefault();
+    const [dx, dy] = delta, crop = artReferenceEdit.crop;
+    if (event.shiftKey) {
+      crop.w = Math.min(1 - crop.x, Math.max(0.06, crop.w + dx * 0.025));
+      crop.h = Math.min(1 - crop.y, Math.max(0.06, crop.h + dy * 0.025));
+    } else {
+      crop.x = Math.min(1 - crop.w, Math.max(0, crop.x + dx * 0.025));
+      crop.y = Math.min(1 - crop.h, Math.max(0, crop.y + dy * 0.025));
+    }
+    paintArtworkReference(artReferenceEdit);
+  });
+  $('artReferenceDialog').addEventListener('close', () => { artReferenceEdit = null; });
+  $('artReviewDialog').addEventListener('close', () => {
+    artReviewEdit = null;
+    $('artReviewPicture').removeAttribute('src');
+  });
+}
+
+function saveArtworkReference() {
+  const edit = artReferenceEdit, role = $('artReferenceRole').value;
+  if (!edit || edit.project !== activeProject || projectBusy() || !ART_ROLES.includes(role) || $('saveArtReference').disabled) return;
+  const { scene, crop, style } = edit, { width, height } = scene.cv;
+  const c = document.createElement('canvas');
+  const scale = Math.min(1, 460 / Math.max(crop.w * width, crop.h * height));
+  c.width = Math.max(1, Math.round(crop.w * width * scale));
+  c.height = Math.max(1, Math.round(crop.h * height * scale));
+  c.getContext('2d').drawImage(scene.cv, crop.x * width, crop.y * height, crop.w * width, crop.h * height, 0, 0, c.width, c.height);
+  const photo = artPhoto(c, 460);
+  activeProject.castRefs = { ...activeProject.castRefs, [style]: { ...activeProject.castRefs?.[style], [role]: photo } };
+  $('artReferenceDialog').close();
+  saveStoryProject().then(saved => {
+    if (saved) log(`  ✓ Đã lưu mẫu ${castLock[role]?.nm || role} cho kiểu ${CLOUD_STYLE_NAMES[style]}.`);
+  });
+}
+
+function artworkDataUrl(photo) {
+  const { mimeType, data } = photo.inlineData;
+  return `data:${mimeType};base64,${data}`;
+}
+
+function openArtworkCandidate(i) {
+  const scene = scenes[i], candidate = scene?.pendingArt;
+  if (projectBusy() || !candidate) return;
+  artReviewEdit = { i, scene, candidate };
+  $('artReviewReason').textContent = candidate.reason + ' Nhìn lại kiểu vẽ, khuôn mặt và diễn biến trước khi dùng tranh.';
+  $('artReviewPicture').src = artworkDataUrl(candidate.photo);
+  $('artReviewDialog').showModal();
+}
+
+async function approveArtworkCandidate() {
+  const edit = artReviewEdit;
+  if (!edit || projectBusy() || scenes[edit.i] !== edit.scene || edit.scene.pendingArt !== edit.candidate) return;
+  const { i, scene, candidate } = edit;
+  scene.busy = true;
+  lockDrawingSettings(true);
+  $('artReviewDialog').close();
+  try {
+    const image = await loadImg(artworkDataUrl(candidate.photo));
+    const changes = { image: candidate.imageBrief, visibleCast: candidate.visibleCast };
+    const result = artResult({ ...scene, ...changes }, image, candidate.photo, candidate.style, candidate.roles, candidate.camera, true);
+    Object.assign(scene, changes, result, { ok: true, failed: false });
+    if ($('ed' + i)) $('ed' + i).value = scene.image;
+    refreshArtworkProgress();
+    await saveStoryProject();
+    refreshStoryProjects();
+  } catch (e) {
+    log('  ⚠ Chưa áp dụng được tranh đang chờ duyệt: ' + e.message);
+  } finally {
+    scene.busy = false;
+    lockDrawingSettings(false);
+    updateCard(i);
+  }
+}
+
+function refreshArtworkProgress() {
+  const drawn = scenes.filter(scene => scene.cv).length;
+  $('bar').style.width = (scenes.length ? 100 * drawn / scenes.length : 0) + '%';
+  $('retryBtn').hidden = !scenes.some(scene => !scene.cv && !scene.pendingArt);
+}
+
 function canTuneIllustrationCamera(scene) {
   return !!(scene?.cv && scene.art && !scene.motionScene && $('isrc').value === 'illustrated');
 }
@@ -4769,7 +5028,7 @@ async function tuneIllustrationCamera(i) {
 let motionPreview = null;
 function previewMotion(i) {
   const s = scenes[i], d = $('card' + i);
-  if (!s?.motionScene || !d || s.busy || playing) return;
+  if (!isSvgMode() || !s?.motionScene || !d || s.busy || playing) return;
   if (motionPreview) {
     cancelAnimationFrame(motionPreview.frame);
     const prior = motionPreview.i;
@@ -4784,7 +5043,7 @@ function previewMotion(i) {
   const stageH = Math.min(H, fm.ah + 10) * cv.height / H;
   const draw = time => {
     if (!motionPreview || motionPreview.i !== i) return;
-    if (!d.isConnected || s.busy || playing || time - start >= duration * 1000) {
+    if (!isSvgMode() || !d.isConnected || s.busy || playing || time - start >= duration * 1000) {
       motionPreview = null;
       updateCard(i);
       return;
@@ -4800,42 +5059,41 @@ async function redraw(i) {
   const s = scenes[i];
   if (!s || s.busy || switchingProject || $('go').disabled || $('mkBtn').disabled || playing) return;
   const imageMode = $('isrc').value;
+  if (imageMode === 'illustrated' && !cloudArtStyle(s)) {
+    $('cfStyle').focus();
+    return alert('Chọn một kiểu tranh Cloudflare cho dự án rồi bấm Vẽ lại.');
+  }
   keys = $('keys').value.split(/\s+/).filter(k => k.length > 20);
   if (storyProvider() === 'gemini' && !keys.length) return keysOk();
   if (!scenes.some(q => q.busy)) cloudflareBlocked = null;
   abortGen = false;
   lockDrawingSettings(true);
-  const ed = $('ed' + i);
-  const previousImage = s.image, previousMotion = s.motionChoice;
-  s.motionChoice = $('motionChoice' + i)?.value || 'auto';
-  if (ed && ed.value.trim()) s.image = ed.value.trim();
+  const image = $('ed' + i)?.value.trim() || s.image;
+  const motionChoice = $('motionChoice' + i)?.value || 'auto';
+  const changes = { image, motionChoice, visibleCast: image === s.image ? s.visibleCast : null };
+  const request = { ...s, ...changes, prev: scenes[i - 1]?.image || s.prev };
   s.busy = true; s.failed = false; updateCard(i);
-  let ok = false;
   const attempts = imageMode === 'illustrated' ? 1 : 2;
-  for (let t = 0; t < attempts && !ok; t++) {
+  for (let t = 0; t < attempts; t++) {
     try {
-      Object.assign(s, await makeImage(s, i + 1, imageMode));
-      ok = true;
+      const result = await makeImage(request, i + 1, imageMode);
+      Object.assign(s, changes, result, { ok: true });
       log(`🔄 Đã vẽ lại tranh cảnh ${i + 1}`);
+      break;
     } catch (e) {
-      log(`  ⚠ Cảnh ${i + 1} lỗi khi vẽ lại: ${(e.message || '').slice(0, 110)}`);
-      if (e instanceof CloudflareUnavailable) break;
-      if (t + 1 < attempts) await sleep(1500);
+      log(`  ⚠ Cảnh ${i + 1}: ${(e.message || '').slice(0, 180)}`);
+      if (e instanceof ArtworkHold) { applyArtworkHold(s, e); break; }
+      if (!(e instanceof CloudflareUnavailable) && t + 1 < attempts) { await sleep(1500); continue; }
+      s.artNote = s.cv ? 'Vẽ lại chưa thành công. Tranh trước vẫn đang được dùng.' : 'Vẽ chưa thành công. Có thể bấm Vẽ lại.';
+      break;
     }
   }
-  if (!ok) {
-    s.image = previousImage;
-    s.motionChoice = previousMotion;
-    if (s.cv) s.artNote = 'Vẽ lại chưa thành công. Đang hiển thị tranh trước.';
-    else s.failed = true;
-  }
-  if (ok) {
-    await saveStoryProject();
-    refreshStoryProjects();
-  }
+  s.failed = !s.cv && !s.pendingArt;
+  refreshArtworkProgress();
+  await saveStoryProject();
+  refreshStoryProjects();
   s.busy = false;
   if (!scenes.some(q => q.busy)) lockDrawingSettings(false);
-  if (scenes.every(q => q.cv)) $('retryBtn').hidden = true;
   updateCard(i);
 }
 function remakeVoices() {
@@ -4849,7 +5107,7 @@ function remakeVoices() {
 async function makeVideo() {
   if (!scenes.length || projectBusy()) return;
   const miss = scenes.filter(s => !s.cv).length;
-  if (miss) return alert(`Còn ${miss} cảnh chưa có tranh. Bấm 🔄 Vẽ lại ở các cảnh đó trước nhé.`);
+  if (miss) return alert(`Còn ${miss} cảnh chưa có tranh. Dùng Duyệt tranh mới hoặc Vẽ lại ở các cảnh đó trước nhé.`);
   if (scenes.some(s => s.busy)) return alert('Đang vẽ lại một tranh, đợi vẽ xong rồi bấm nhé.');
   saveSet();
   keys = $('keys').value.split(/\s+/).filter(k => k.length > 20);
@@ -4926,33 +5184,218 @@ async function makeVideo() {
   $('stp').hidden = true;
 }
 
-function wrap(x, t, w) {
-  const L = [];
-  let l = '';
-  for (const a of t.split(' ')) {
-    const m = l ? l + ' ' + a : a;
-    if (x.measureText(m).width > w && l) {
-      L.push(l);
-      l = a;
-    } else l = m;
+const NARRATION_LEAD = 0.3;
+const narrationCache = new WeakMap();
+
+function speechWindows(buffer, length) {
+  if (!buffer?.sampleRate || typeof buffer.getChannelData !== 'function' || length <= 0) return null;
+  const channel = buffer.getChannelData(0), rate = buffer.sampleRate;
+  const hop = Math.max(1, Math.round(rate * 0.025));
+  const limit = Math.min(channel.length, Math.round(length * rate));
+  const energy = [];
+  let peak = 0;
+  for (let i = 0; i < limit; i += hop) {
+    let sum = 0, count = 0;
+    for (let j = i; j < Math.min(i + hop, limit); j += 4) { sum += channel[j] ** 2; count++; }
+    const rms = Math.sqrt(sum / count);
+    energy.push(rms);
+    peak = Math.max(peak, rms);
   }
-  if (l) L.push(l);
-  return L;
+  const threshold = Math.max(0.001, peak * 0.045);
+  const active = energy.flatMap((level, i) => level >= threshold ? [i] : []);
+  if (active.length * hop / rate < Math.min(0.12, length * 0.3)) return null;
+  const windows = [];
+  for (const i of active) {
+    const start = i * hop / rate, end = Math.min(length, (i + 1) * hop / rate);
+    const last = windows[windows.length - 1];
+    if (last && start - last.end < 0.16) last.end = end;
+    else windows.push({ start, end });
+  }
+  return windows;
 }
 
-// Phụ đề dài hơn số dòng cho phép thì chia thành nhiều trang nối tiếp theo tiến độ lời đọc, không cắt mất phần cuối câu
-const subCache = new WeakMap();
-function subPages(x, s) {
-  const key = s.text + '|' + fm.sw + '|' + fm.fs + '|' + fm.ml, c = subCache.get(s);
-  if (c && c.key === key) return c;
-  const L = wrap(x, s.text, fm.sw), pages = [];
-  for (let i = 0; i < L.length; i += fm.ml) pages.push(L.slice(i, i + fm.ml));
-  if (!pages.length) pages.push(['']);
-  const w = pages.map(p => p.join(' ').length), tot = w.reduce((a, b) => a + b, 0) || 1;
-  let acc = 0; const cut = w.map(v => (acc += v) / tot);
-  const r = { key, pages, cut };
-  subCache.set(s, r);
-  return r;
+function narrationTimeline(scene) {
+  const text = String(scene.text || '').normalize('NFC'), buffer = scene.buf, duration = scene.dur || 0;
+  const cached = narrationCache.get(scene);
+  if (cached?.text === text && cached.buffer === buffer && cached.duration === duration && cached.bakedDate === scene.bakedDate) return cached;
+  const words = Array.from(text.matchAll(/\S+/gu), match => {
+    const value = match[0], size = (value.match(/\p{L}/gu) || []).length;
+    const numeric = (value.match(/\d+/g) || []).reduce((sum, part) => sum + part.length * 0.52, 0);
+    return { value, offset: match.index, limit: match.index + value.length, weight: 0.7 + Math.sqrt(size) * 0.32 + numeric +
+      (/[.!?…]["”')\]]*$/u.test(value) ? 0.55 : /[,;:]["”')\]]*$/u.test(value) ? 0.25 : 0) };
+  });
+  const lead = buffer ? NARRATION_LEAD : Math.min(0.25, duration * 0.08);
+  const length = Math.max(0, Math.min(buffer?.duration ?? (duration - 0.55), duration - lead));
+  const windows = speechWindows(buffer, length) || [{ start: 0, end: length }];
+  const speechLength = windows.reduce((sum, window) => sum + window.end - window.start, 0);
+  const weights = words.reduce((sum, word) => sum + word.weight, 0) || 1;
+  let elapsed = 0, wi = 0, timeInPreviousWindows = 0;
+  const clock = fraction => {
+    const target = fraction * speechLength;
+    while (wi + 1 < windows.length && target >= timeInPreviousWindows + windows[wi].end - windows[wi].start) {
+      timeInPreviousWindows += windows[wi].end - windows[wi].start;
+      wi++;
+    }
+    return lead + Math.min(windows[wi].end, windows[wi].start + target - timeInPreviousWindows);
+  };
+  for (const word of words) {
+    word.start = clock(elapsed / weights);
+    elapsed += word.weight;
+    word.end = clock(elapsed / weights);
+  }
+  const facts = storyFacts(text).filter(fact => !(scene.bakedDate && fact.kind === 'date')).map(fact => ({
+    ...fact,
+    at: words.find(word => word.limit > fact.start)?.start || 0,
+    endAt: words.find(word => word.limit >= fact.end)?.end || duration
+  }));
+  const dates = facts.filter(fact => fact.kind === 'date');
+  const result = { text, buffer, duration, bakedDate: scene.bakedDate, words, facts, dates, layouts: new Map() };
+  narrationCache.set(scene, result);
+  return result;
+}
+
+function captionLayout(ctx, timeline, font, width) {
+  const key = font + '|' + width;
+  if (timeline.layouts.has(key)) return timeline.layouts.get(key);
+  const lines = [];
+  let line = null;
+  timeline.words.forEach((word, i) => {
+    const combined = line ? line.text + ' ' + word.value : word.value;
+    const measured = ctx.measureText(combined).width;
+    if (line && measured <= width) {
+      Object.assign(line, { text: combined, width: measured, last: i + 1 });
+    } else {
+      line = { text: word.value, width: ctx.measureText(word.value).width, first: i, last: i + 1 };
+      lines.push(line);
+    }
+  });
+  const pages = [];
+  for (let i = 0; i < lines.length; i += 2) pages.push(lines.slice(i, i + 2));
+  timeline.layouts.set(key, pages);
+  return pages;
+}
+
+function drawStoryCaptions(ctx, timeline, time, width, height) {
+  const words = timeline.words;
+  if (!words.length || time < words[0].start) return;
+  const small = Math.min(width, height), fontSize = Math.round(small * (height > width ? 0.067 : 0.06));
+  const font = '800 ' + fontSize + 'px system-ui, sans-serif';
+  const available = width * (height > width ? 0.88 : 0.85);
+  ctx.save();
+  ctx.font = font;
+  const pages = captionLayout(ctx, timeline, font, available);
+  let visible = words.findIndex(word => word.start > time);
+  if (visible < 0) visible = words.length;
+  const page = pages.find(lines => lines[lines.length - 1].last >= visible);
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = fontSize * 0.13;
+  ctx.strokeStyle = 'rgba(13,16,23,.95)';
+  ctx.fillStyle = '#fff';
+  ctx.globalAlpha *= Math.min(1, Math.max(0, (timeline.duration - time) / 0.18));
+  const bottom = height * (height > width ? 0.89 : 0.915);
+  for (const [i, line] of page.entries()) {
+    if (visible <= line.first) break;
+    const value = words.slice(line.first, Math.min(line.last, visible)).map(word => word.value).join(' ');
+    const scale = Math.min(1, available / line.width);
+    const top = bottom - (page.length - 1 - i) * fontSize * 1.23;
+    ctx.save();
+    ctx.translate((width - line.width * scale) / 2, top);
+    ctx.scale(scale, 1);
+    ctx.strokeText(value, 0, 0);
+    ctx.fillText(value, 0, 0);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+const FACT_PALETTES = {
+  portrait: ['#172035', '#ffd27d'], ink: ['#29233b', '#ffbf97'], watercolor: ['#173936', '#adf0cf'],
+  anime: ['#251841', '#ffbd91'], threeD: ['#192f4c', '#b5ddff']
+};
+function drawStoryFact(ctx, scene, timeline, time, width, height) {
+  let index = timeline.facts.findIndex(fact => fact.at > time);
+  index = (index < 0 ? timeline.facts.length : index) - 1;
+  const fact = timeline.facts[index];
+  if (!fact) return;
+  const until = Math.min(timeline.duration - 0.08, timeline.facts[index + 1]?.at ?? Infinity,
+    fact.at + 2.5, Math.max(fact.at + 1.45, fact.endAt + 0.65));
+  if (time >= until) return;
+  const activeDates = fact.kind === 'date' && timeline.dates.length > 1
+    ? timeline.dates.filter(date => date.at <= time).slice(-3) : [];
+  const labels = activeDates.length ? activeDates.map(date => date.label) : [fact.label];
+  const [card, accent] = FACT_PALETTES[scene.artStyle] || ['#1c3042', '#fbd28a'];
+  const unit = Math.min(width, height), pad = unit * 0.023;
+  const area = activeDates.length ? width * (height > width ? 0.86 : 0.66) : width * 0.72;
+  const isTimeline = activeDates.length > 0;
+  const size = unit * (isTimeline ? 0.043 : 0.058);
+  const calendar = fact.kind === 'date' && !isTimeline ? size * 0.65 : 0;
+  const marks = fact.kind === 'step' && fact.step <= 6 ? fact.step : 0;
+  const slide = Math.min(1, (time - fact.at) / 0.17);
+  const fadeTime = Math.min(0.18, (until - fact.at) * 0.30);
+  ctx.save();
+  ctx.font = '800 ' + size + 'px system-ui, sans-serif';
+  const iconSpace = calendar ? calendar + pad * 0.7 : 0;
+  const slot = Math.min(Math.max(...labels.map(label => ctx.measureText(label).width)),
+    (area - iconSpace - pad * (labels.length + 1)) / labels.length);
+  const boxWidth = (slot + pad) * labels.length + pad + iconSpace;
+  const boxHeight = pad * 2 + size + (isTimeline || marks ? pad : 0);
+  const subject = scene.artCamera?.subject;
+  const right = !subject || (subject[0] + subject[2]) / 2 < 0.5;
+  const margin = unit * 0.048, x = right ? width - boxWidth - margin : margin, y = height * 0.063;
+  ctx.globalAlpha *= Math.max(0, Math.min(1, 2 * slide - slide ** 2, (until - time) / fadeTime));
+  ctx.translate(x, y - (1 - slide) * pad * 0.65);
+  ctx.beginPath();
+  ctx.roundRect(0, 0, boxWidth, boxHeight, pad * 0.72);
+  ctx.fillStyle = card;
+  ctx.fill();
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  if (isTimeline) {
+    const first = pad + slot / 2, dotY = boxHeight - pad * 0.81;
+    ctx.fillStyle = accent;
+    ctx.fillRect(first, dotY - 1, (labels.length - 1) * (slot + pad) * slide, Math.max(2, unit * 0.003));
+    labels.forEach((label, i) => {
+      const left = pad + i * (slot + pad);
+      ctx.beginPath();
+      ctx.arc(left + slot / 2, dotY, pad * (i === labels.length - 1 ? 0.27 : 0.17), 0, 2 * Math.PI);
+      ctx.fillStyle = accent;
+      ctx.fill();
+      ctx.fillStyle = i === labels.length - 1 ? '#fff' : '#d9e4ec';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, left + slot / 2, pad + size / 2, slot);
+    });
+  } else {
+    ctx.fillStyle = accent;
+    if (calendar) {
+      const iconY = pad + (size - calendar) / 2;
+      ctx.lineWidth = Math.max(2, calendar * 0.085);
+      ctx.strokeStyle = accent;
+      ctx.beginPath();
+      ctx.roundRect(pad, iconY, calendar, calendar, calendar * 0.13);
+      ctx.stroke();
+      ctx.fillRect(pad, iconY + calendar * 0.28, calendar, ctx.lineWidth);
+      for (const shift of [0.24, 0.70]) ctx.fillRect(pad + calendar * shift, iconY - calendar * 0.13, ctx.lineWidth, calendar * 0.29);
+    }
+    if (marks) {
+      for (let i = 0; i < marks; i++) {
+        ctx.beginPath();
+        ctx.arc(pad + pad * (0.3 + 0.85 * i), boxHeight - pad, pad * (i === marks - 1 ? 0.27 * slide : 0.18), 0, 2 * Math.PI);
+        ctx.fill();
+      }
+    } else if (!calendar) ctx.fillRect(pad, boxHeight - pad * 0.55, slot * slide, Math.max(2, unit * 0.003));
+    ctx.fillStyle = '#fff';
+    ctx.fillText(fact.label, pad + iconSpace, pad + size / 2, slot);
+  }
+  ctx.restore();
+}
+
+function drawNarrationOverlay(ctx, scene, time, showSubtitles, width, height) {
+  if (!scene.text) return;
+  const timeline = narrationTimeline(scene);
+  drawStoryFact(ctx, scene, timeline, time, width, height);
+  if (showSubtitles) drawStoryCaptions(ctx, timeline, time, width, height);
 }
 
 function cap(x, x1, y1, x2, y2, w, col, ol) {
@@ -5024,8 +5467,8 @@ const projectRange = prefix => IDBKeyRange.bound(prefix, prefix + '\uffff');
 const PROJECT_CONTROLS = ['aiProvider', 'fmt', 'nimg', 'isrc', 'cfStyle', 'cmode', 'bgOn', 'motionVid', 'mvCam',
   'mvTrans', 'trans', 'interaction2d', 'musicOn', 'musicVol', 'musicMood', 'exportSpeed', 'vsrc', 'voice', 'rewriteOn'];
 const PROJECT_SCENE = ['text', 'image', 'prev', 'mood', 'ord', 'bgKind', 'art', 'artRoles', 'artStyle', 'artCamera', 'artNote', 'dur',
-  'motionHint', 'motionChoice', 'motionScene'];
-const PROJECT_ASSETS = ['cv', 'bgL', 'fgL', 'motionBase', 'artRef', 'buf'];
+  'motionHint', 'motionChoice', 'motionScene', 'frameHeight', 'bakedDate', 'visibleCast', 'artReview'];
+const PROJECT_ASSETS = ['cv', 'bgL', 'fgL', 'motionBase', 'artRef', 'buf', 'pendingArt'];
 const projectFields = (obj, fields) => Object.fromEntries(fields.map(key => [key, obj[key] ?? null]));
 const PROJECT_CANVASES = PROJECT_ASSETS.slice(0, 4);
 let activeProject = null, projectWrite = Promise.resolve(), switchingProject = false, projectListVersion = 0;
@@ -5042,7 +5485,8 @@ function projectName(idea) {
 
 function beginStoryProject(idea, retry) {
   if (activeProject && (retry || (!scenes.length && activeProject.stage === 'script' && activeProject.idea === idea))) return;
-  activeProject = { id: crypto.randomUUID(), idea, revision: null, stage: 'script', script: null, assets: [] };
+  activeProject = { id: crypto.randomUUID(), idea, revision: null, stage: 'script', script: null, assets: [],
+    artStyle: validCloudStyle($('cfStyle').value), castRefs: {} };
   cloudScriptDraft = null;
   scenes = [];
   $('pl').hidden = true;
@@ -5082,6 +5526,58 @@ async function restoreCanvas(blob) {
   } finally { bitmap.close(); }
 }
 
+async function upgradeSavedArtwork(scene, hadSubtitles) {
+  const poster = scene.cv;
+  if (!poster || scene.frameHeight) return;
+  const { width, height } = poster;
+  scene.frameHeight = height;
+  scene.bakedDate = storyFacts(scene.text).some(fact => fact.kind === 'date');
+  if (!scene.art) return;
+  // Các bản cũ lưu PNG cả khung, với vùng tranh kết thúc trước phần giấy dành cho phụ đề.
+  const portrait = height > width;
+  const oldHeight = Math.min(height, portrait ? (hadSubtitles ? 910 : 1250) : (hadSubtitles ? 600 : 710));
+  const canvas = (w, h) => {
+    const cv = document.createElement('canvas');
+    cv.width = w;
+    cv.height = h;
+    return cv;
+  };
+  const framed = image => {
+    const cv = canvas(width, height);
+    const rect = drawIllustration(cv.getContext('2d'), image, width, height);
+    return { cv, rect };
+  };
+  const reference = scene.artRef?.inlineData;
+  let image = null;
+  if (!scene.motionScene && reference?.mimeType && reference.data) {
+    try { image = await loadImg('data:' + reference.mimeType + ';base64,' + reference.data); } catch (e) {}
+  }
+  let oldRect = { x: 0, y: 0, w: width, h: oldHeight };
+  if (image) {
+    const contain = Math.min(width / image.width, oldHeight / image.height);
+    const cover = Math.max(width / image.width, oldHeight / image.height);
+    const scale = contain / cover >= 0.92 ? cover : contain;
+    const w = image.width * scale, h = image.height * scale;
+    oldRect = { x: (width - w) / 2, y: (oldHeight - h) / 2, w, h };
+    scene.bakedDate = false;
+  } else {
+    image = canvas(width, oldHeight);
+    image.getContext('2d').drawImage(poster, 0, 0);
+  }
+  const { cv, rect } = framed(image);
+  scene.cv = cv;
+  if (scene.motionBase) scene.motionBase = framed(scene.motionBase).cv;
+  if (scene.artCamera) {
+    const remap = box => box?.map((value, i) => {
+      const mapped = i % 2 === 0
+        ? (rect.x + rect.w * (value * width - oldRect.x) / oldRect.w) / width
+        : (rect.y + rect.h * (value * oldHeight - oldRect.y) / oldRect.h) / height;
+      return Math.max(0, Math.min(1, mapped));
+    }) || null;
+    scene.artCamera = { ...scene.artCamera, subject: remap(scene.artCamera.subject), destination: remap(scene.artCamera.destination) };
+  }
+}
+
 function saveStoryProject() {
   const project = activeProject;
   if (!project) return Promise.resolve(false);
@@ -5091,13 +5587,14 @@ function saveStoryProject() {
     return [key, el.type === 'checkbox' ? el.checked : el.value];
   }));
   settings.fmt = fm.v ? 'v' : 'h';
+  settings.cfStyle = project.artStyle;
   const checkpoint = cloudScriptDraft ? { ...cloudScriptDraft, res: { ...cloudScriptDraft.res }, scenes: cloudScriptDraft.scenes.slice() } : null;
   const script = project.script;
   const metaKey = PROJECT_LIST_PREFIX + id;
   const entries = scenes.map(scene => projectFields(scene, PROJECT_SCENE));
   const assets = scenes.map(scene => projectFields(scene, PROJECT_ASSETS));
   const manifest = { idea, settings, sub, minutes: +$('min').value, srcMode, chars, storyCtx, settingCtx, identityCtx,
-    stage, script, checkpoint, scenes: entries };
+    stage, script, checkpoint, cloudStyle: project.artStyle, castRefs: project.castRefs, scenes: entries };
   const meta = {
     id, name: projectName(idea), stage, updated: Date.now(), count: entries.length || script?.scenes?.length || checkpoint?.scenes?.length || 0,
     drawn: assets.filter(scene => scene.cv).length
@@ -5110,7 +5607,7 @@ function saveStoryProject() {
       if (old && PROJECT_ASSETS.every(key => old[key] === asset[key])) continue;
       if (!PROJECT_ASSETS.some(key => asset[key]) && !old) continue;
       const stored = old ? await idb.get(projectAssets(id, i)) : null;
-      const record = { artRef: asset.artRef, buf: stored && old.buf === asset.buf ? stored.buf : serializeProjectAudio(asset.buf) };
+      const record = { artRef: asset.artRef, pendingArt: asset.pendingArt, buf: stored && old.buf === asset.buf ? stored.buf : serializeProjectAudio(asset.buf) };
       for (const key of PROJECT_CANVASES) {
         record[key] = stored && old[key] === asset[key] ? stored[key] : await serializeProjectCanvas(asset[key]);
       }
@@ -5134,7 +5631,7 @@ async function migrateStoryDraft() {
   if (!old?.scenes?.length) return;
   const id = 'legacy-cloudflare-draft', metaKey = PROJECT_LIST_PREFIX + id;
   const settings = {
-    fmt: old.fmt, isrc: old.imageMode, aiProvider: 'cloudflare', cfStyle: 'ink',
+    fmt: old.fmt, isrc: old.imageMode, aiProvider: 'cloudflare', cfStyle: validCloudStyle(old.cfStyle),
     cmode: old.colors === 'bw' ? 'bw' : 'vivid', interaction2d: !!old.interaction2d
   };
   const manifest = { ...old, stage: 'draw', settings, scenes: old.scenes.map(scene => projectFields(scene, PROJECT_SCENE)) };
@@ -5188,9 +5685,11 @@ async function openStoryProject(id) {
     const restored = [], assetCache = [];
     for (const [i, info] of data.scenes.entries()) {
       const raw = await idb.get(projectAssets(id, i));
-      const asset = { artRef: raw?.artRef || null, buf: restoreProjectAudio(raw?.buf) };
+      const asset = { artRef: raw?.artRef || null, buf: restoreProjectAudio(raw?.buf), pendingArt: raw?.pendingArt || null };
       for (const key of PROJECT_CANVASES) asset[key] = await restoreCanvas(raw?.[key]);
-      restored.push({ ...info, ...asset, ok: !!asset.cv, failed: !asset.cv, busy: false });
+      const scene = { ...info, ...asset, ok: !!asset.cv, failed: !asset.cv, busy: false };
+      await upgradeSavedArtwork(scene, !!data.sub);
+      restored.push(scene);
       assetCache.push(asset);
     }
     if ((await idb.get(PROJECT_LIST_PREFIX + id))?.revision !== meta.revision) {
@@ -5213,7 +5712,10 @@ async function openStoryProject(id) {
     identityCtx = data.identityCtx || '';
     cloudScriptDraft = data.checkpoint || null;
     scenes = restored;
-    activeProject = { id, idea: data.idea, revision: meta.revision, stage: data.stage, script: data.script || null, assets: assetCache };
+    const artStyle = restoreCloudStyle(data);
+    $('cfStyle').value = artStyle;
+    activeProject = { id, idea: data.idea, revision: meta.revision, stage: data.stage, script: data.script || null, assets: assetCache,
+      artStyle, castRefs: data.castRefs || {} };
     setFmt();
     vui();
     saveSet();
@@ -5224,7 +5726,7 @@ async function openStoryProject(id) {
     $('pl').hidden = !(scenes.length && !pending && (data.stage === 'video' || scenes.some(s => s.buf)));
     renderGallery();
     $('galBox').hidden = !scenes.length;
-    $('retryBtn').hidden = !pending;
+    $('retryBtn').hidden = !scenes.some(scene => !scene.cv && !scene.pendingArt);
     $('bar').style.width = scenes.length ? `${100 * meta.drawn / scenes.length}%` : '0%';
     $('log').textContent = `Đã mở dự án “${meta.name}”. ${pending ? 'Bấm Chạy bù để vẽ các cảnh còn thiếu.' :
       scenes.length ? 'Bạn có thể xem lại các cảnh hoặc tiếp tục tạo giọng đọc.' : 'Bấm Bắt đầu tạo video để tiếp tục từ phần đã lưu.'}`;
@@ -5246,6 +5748,8 @@ async function deleteStoryProject(project) {
     if (!ok) throw new Error('Trình duyệt chưa xóa được dự án');
     if (activeProject?.id === project.id) {
       activeProject = null;
+      if (!$('cfStyle').value) $('cfStyle').value = 'anime';
+      vui();
       cloudScriptDraft = null;
       scenes = [];
       TH = null;
@@ -5260,12 +5764,24 @@ async function deleteStoryProject(project) {
   } finally { switchingProject = false; }
 }
 
+if ($('artReferenceCanvas')) attachArtworkDialogs();
 migrateStoryDraft().then(refreshStoryProjects);
 $('storyProjects').addEventListener('toggle', () => { if ($('storyProjects').open) refreshStoryProjects(); });
 
 // Lưu cài đặt dựng và xuất của dự án đang mở khi người dùng chỉnh sau khi tạo.
 for (const key of PROJECT_CONTROLS) $(key).addEventListener('change', () => {
-  if (activeProject && scenes.length && !projectBusy() && !['isrc', 'fmt'].includes(key)) saveStoryProject();
+  if (activeProject && scenes.length && !projectBusy() && !['isrc', 'fmt', 'cfStyle'].includes(key)) saveStoryProject();
+});
+$('cfStyle').addEventListener('change', () => {
+  if (activeProject && !projectBusy()) {
+    activeProject.artStyle = validCloudStyle($('cfStyle').value);
+    saveStoryProject();
+  }
+  vui();
+});
+$('sub').addEventListener('change', () => {
+  sub = $('sub').checked;
+  if (activeProject && !projectBusy()) saveStoryProject();
 });
 
 // ===== NHÂN VẬT CHÍNH TỪ ẢNH CỦA BẠN (thay người que MAIN, không cần dịch vụ ảnh nào) =====
@@ -5498,7 +6014,7 @@ function startMusic(ac, dest, vs, st, tot, t0, speed) {
   // Hạ nhạc khi có giọng đọc
   vs.forEach((s, i) => {
     if (!s.buf) return;
-    const a = st[i] + 0.3, b = a + s.buf.duration;
+    const a = st[i] + NARRATION_LEAD, b = a + s.buf.duration;
     duck.gain.setTargetAtTime(0.5, at(a - 0.2), 0.15 / speed);
     duck.gain.setTargetAtTime(1, at(b + 0.1), 0.4 / speed);
   });
@@ -5563,7 +6079,7 @@ function startStoryAudio(ac, dest, vs, st, tot, t0, speed) {
     voice.playbackRate.value = speed;
     voice.connect(ac.destination);
     if (dest !== ac.destination) voice.connect(dest);
-    voice.start(t0 + (st[i] + 0.3) / speed);
+    voice.start(t0 + (st[i] + NARRATION_LEAD) / speed);
     voices.push(voice);
   });
   const music = $('musicOn').checked ? startMusic(ac, dest, vs, st, tot, t0, speed) : null;
@@ -5819,9 +6335,13 @@ function mvNarrationCamera(scene, width, height) {
     [from, to] = plan.move === 'reveal' ? [detail, wide] : [wide, detail];
   } else return null;
 
-  const voiceLead = scene.buf ? 0.3 : 0;
+  const voiceLead = scene.buf ? NARRATION_LEAD : 0;
   const speech = Math.max(0, Math.min(scene.buf?.duration ?? duration, duration - voiceLead));
-  const spokenStart = voiceLead + plan.cue.start * speech, spokenEnd = voiceLead + plan.cue.end * speech;
+  const words = narrationTimeline(scene).words;
+  const first = words.find(word => word.limit > plan.cue.fromOffset);
+  const last = words.find(word => word.limit >= plan.cue.toOffset);
+  const spokenStart = first?.start ?? voiceLead + plan.cue.start * speech;
+  const spokenEnd = last?.end ?? voiceLead + plan.cue.end * speech;
   const latestEnd = duration - 0.12;
   const reveal = plan.move === 'reveal';
   const start = _mvCl(reveal ? spokenStart + Math.min(0.35, (spokenEnd - spokenStart) * 0.3) : spokenStart - 0.36,
@@ -6532,6 +7052,7 @@ function mvCreate(vs, st, x) {
 }
 
 function makeRenderer(vs, st, x) {
+  const showSubtitles = sub;
   const rv = document.createElement('canvas');
   rv.width = W;
   rv.height = H;
@@ -6616,27 +7137,16 @@ function makeRenderer(vs, st, x) {
       drawTrans(kT, x, sn, Math.min(1, (lt - (s.dur - tdur)) / tdur), W, AHt);
     }
     }
-    if (sub && s.text) {
-      x.globalAlpha = Math.max(0, Math.min(1, lt / 0.3, (s.dur - lt) / 0.3));
-      x.fillStyle = '#fff';
-      x.fillRect(0, fm.ah + 10, W, H - fm.ah - 10);
-      x.fillStyle = '#111';
-      x.font = `600 ${fm.fs}px system-ui,sans-serif`;
-      x.textAlign = 'center';
-      const sp = subPages(x, s), pr = Math.min(1, lt / Math.max(0.5, s.dur - 0.9));
-      let pi = sp.cut.findIndex(c => pr <= c); if (pi < 0) pi = sp.pages.length - 1;
-      sp.pages[pi].forEach((l, j) => x.fillText(l, W / 2, fm.sy + j * fm.lh));
-      x.globalAlpha = 1;
+    if (!MV) {
+      let dark = 0;
+      if (kT === 'dark') dark = _es(Math.min(1, Math.max(0, lt - (s.dur - tdur)) / tdur));
+      if (i > 0 && lt < 0.5 && effK(i - 1) === 'dark') dark = Math.max(dark, 1 - _es(lt / 0.5));
+      if (dark > 0.003) {
+        x.fillStyle = 'rgba(0,0,0,' + dark + ')';
+        x.fillRect(0, 0, W, H);
+      }
     }
-    if (MV) return;
-    // Tối dần: cả khung (kể cả phụ đề) tối đen ở cuối cảnh, rồi sáng dần lên ở đầu cảnh sau
-    let da = 0;
-    if (kT === 'dark') da = _es(Math.min(1, Math.max(0, lt - (s.dur - tdur)) / tdur));
-    if (i > 0 && lt < 0.5 && effK(i - 1) === 'dark') da = Math.max(da, 1 - _es(lt / 0.5));
-    if (da > 0.003) {
-      x.fillStyle = `rgba(0,0,0,${da})`;
-      x.fillRect(0, 0, W, H);
-    }
+    drawNarrationOverlay(x, s, lt, showSubtitles, W, H);
   };
   drawFn.mv = !!MV;
   drawFn.prep = () => { if (MV) MV.prep(); };

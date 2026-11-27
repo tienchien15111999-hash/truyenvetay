@@ -1,15 +1,28 @@
 # TÓM TẮT DỰ ÁN + LỊCH SỬ CẬP NHẬT (dành cho AI khác đọc nhanh)
 
+## Khóa kiểu vẽ, mẫu nhân vật và duyệt tranh Cloudflare
+
+- Cloudflare có ba kiểu **Hoạt hình 3D**, **Anime điện ảnh** và **Ảnh thực (như ảnh chụp)**. Khi bấm **Vẽ lại**, cảnh ưu tiên kiểu đã lưu nếu còn được hỗ trợ. Các cảnh thiếu kiểu hợp lệ dùng kiểu của dự án. Dự án cũ thiếu cấu hình sẽ dùng kiểu chung của các tranh đã lưu khi xác định được, hoặc hiện ô chọn để bạn đặt lại.
+- Trên một tranh ưng ý, bấm **Lấy mẫu nhân vật**, chọn đúng người, khoanh vùng mặt, tóc và vai, rồi bấm **Lưu mẫu**. Có thể lặp lại cho từng nhân vật. Mẫu lưu theo dự án và kiểu vẽ.
+- Bố cục tập trung vào một khoảnh khắc và kết quả mà lời kể mô tả. Tranh mới được đối chiếu kiểu vẽ, người xuất hiện và diễn biến. Nếu sai rõ ràng, web thử sửa một lần. Nếu vẫn sai, web giữ tranh trước. Tranh vẽ dự phòng hoặc chưa xác minh đủ xuất hiện trong **Duyệt tranh mới** để bạn xem và chấp nhận.
+
+## Khung tranh, phụ đề và mốc trong lời kể
+
+- Tranh dùng trọn khung 16:9 hoặc 9:16 khi xem thử và xuất video. Nếu tỉ lệ ảnh khác khung video, ảnh gốc được giữ đủ mép trên nền mở rộng làm mờ. Camera chuyển động vẫn có thể chủ động lấy cận chi tiết.
+- Bật **Hiện phụ đề tiếng Việt** để hiện chữ trắng đậm có viền tối ở dưới, tối đa hai dòng mỗi lượt. Từng chữ xuất hiện dần theo thời lượng và khoảng ngắt của giọng đọc. Mốc từng chữ là ước lượng theo âm thanh.
+- Ngày và năm xuất hiện bằng thẻ màu. Nhiều mốc trong một cảnh xuất hiện lần lượt trên dòng thời gian. Số tiền, số lượng, phần trăm và thứ tự như **Lần thứ 3** được nhấn khi lời kể nhắc đến. Mỗi thời điểm chỉ có một thẻ nhấn.
+- Khi mở tranh Cloudflare từ bản cũ, công cụ dùng ảnh gốc đã lưu nếu có, hoặc bỏ dải trắng và dàn lại phần tranh còn lưu. Với lịch đã vẽ dính vào tranh cũ, bấm **Vẽ lại** trên cảnh để dùng thẻ ngày mới.
+
 ## Camera bám lời kể cho tranh Cloudflare
 
 - Bật **Video kể chuyện chuyển động** để camera lia hoặc zoom vào đúng chi tiết được nhận diện trong ảnh. Ví dụ cảnh trao chìa khóa mở cận ở hai bàn tay và chìa khóa, rồi zoom ra để thấy người trao và người nhận nếu tranh có khung đủ rộng.
 - Camera canh theo cụm từ trong lời kể và thời lượng giọng đọc. Nếu chưa có điểm camera phù hợp, công cụ dùng cách lia hoặc zoom theo bố cục chung. Các chế độ **Chuyển động nhẹ** và **Khung hình cố định** điều chỉnh mức chuyển động như trước.
-- Với tranh Cloudflare đã có, **Căn camera** phân tích lại tranh đó để lấy điểm camera. Khi bật cả hai tùy chọn, các cảnh Cloudflare ở chế độ tự nhận diện ưu tiên giữ tranh gốc để lia và zoom. Có thể chọn một động tác 2D cụ thể rồi bấm **Vẽ lại** cho cảnh muốn dùng hoạt hình 2D.
+- Với tranh Cloudflare đã có, **Căn camera** phân tích lại tranh đó để lấy điểm camera. Khi tạo hoặc vẽ lại cảnh Cloudflare, công cụ dùng tranh gốc để lia và zoom.
 
 ## Hoạt hình 2D theo lời kể
 
-- Bật **Hoạt hình 2D theo hành động trong truyện** trước khi tạo video. Cảnh nào có hành động phù hợp sẽ có nút **Xem động tác**. Có thể đổi mục **Động tác** trong thẻ cảnh và bấm **Vẽ lại**. Dùng **Tranh thường** để bỏ chuyển động của một cảnh.
-- Các động tác có sẵn gồm uống nước, hút thuốc, ăn, nghe điện thoại, đưa nhận đồ, nhặt đồ, chỉ tay, mở cửa, mở hộp hoặc rương, vẫy tay, viết trên giấy, phóng và tách tầng tên lửa. Chuyển động tay, đồ vật, nắp hộp và khói được vẽ thành các lớp riêng. Khi dùng tranh minh họa, API tạo nền và nhân vật được vẽ theo mô tả vai trong kịch bản. Cảnh chưa có động tác phù hợp vẫn dùng cách vẽ đang chọn.
+- Chọn **Vẽ tay SVG** để hiện mục **Hoạt hình 2D theo hành động trong truyện**. Cảnh nào có hành động phù hợp sẽ có nút **Xem động tác**. Có thể đổi mục **Động tác** trong thẻ cảnh và bấm **Vẽ lại**. Dùng **Tranh thường** để bỏ chuyển động của một cảnh.
+- Các động tác có sẵn gồm uống nước, hút thuốc, ăn, nghe điện thoại, đưa nhận đồ, nhặt đồ, chỉ tay, mở cửa, mở hộp hoặc rương, vẫy tay, viết trên giấy, phóng và tách tầng tên lửa. Chuyển động tay, đồ vật, nắp hộp và khói được vẽ thành các lớp riêng. Cảnh chưa có động tác phù hợp vẫn dùng tranh SVG.
 - Hoạt hình dựng trong trình duyệt và dùng chung hàm khung hình cho xem trước và xuất video. Thời điểm động tác ước lượng theo vị trí cụm từ trong lời kể và độ dài giọng đọc. Giọng Vbee giữ cách dùng cũ.
 - Khi cập nhật một bản đã triển khai, đưa **`index.html`** và **`interaction-2d.js`** lên cùng thư mục gốc của repo. Các file API ở trong thư mục **`api/`**.
 
@@ -21,7 +34,7 @@ FLUX.2 Klein 4B dùng mô tả, ảnh chân dung người thật và tranh tham 
 
 1. Trong Cloudflare, mở **Workers AI → Use REST API** để lấy **Account ID** và tạo **Workers AI API Token**. Gói **Workers Free** dùng hạn mức theo ngày.
 2. Cập nhật các file trong ZIP vào repo hiện tại để Vercel triển khai bản mới.
-3. Ngoài Cài đặt, chọn **Cách vẽ tranh → Tranh AI Cloudflare** rồi chọn một trong năm phong cách. Có thể dùng SVG với **Màu** hoặc **Đen trắng**.
+3. Ngoài Cài đặt, chọn **Cách vẽ tranh → Tranh AI Cloudflare** rồi chọn một trong ba kiểu. Có thể dùng SVG với **Màu** hoặc **Đen trắng**.
 4. Mở **Cài đặt**, nhập **Account ID** và **API Token** rồi bấm **Kiểm tra kết nối Cloudflare**. Trình duyệt nhớ hai giá trị khi đóng tab và giữ chúng ngoài file sao lưu cài đặt và dữ liệu dự án. Giọng Vbee, giọng Gemini và chép lời dùng thông tin đăng nhập tương ứng.
 5. **Dự án cũ** lưu nhiều video trên trình duyệt này, gồm kịch bản, tranh và giọng đã tạo. Bấm **Tiếp tục** để mở lại, **Chạy bù** nếu còn tranh thiếu, hoặc **Xóa** để bỏ một dự án. Bản Cloudflare tạo dở của phiên bản cũ được chuyển sang danh sách này nếu trình duyệt còn giữ dữ liệu.
 
@@ -29,8 +42,8 @@ Nếu đã đặt `CLOUDFLARE_ACCOUNT_ID` và `CLOUDFLARE_API_TOKEN` trên Verce
 
 ## Bản minh họa vẽ tay
 
-- **Tranh AI Cloudflare** có năm phong cách chọn ngoài phần Cài đặt: Chân dung điện ảnh, Truyện tranh nét mực, Màu nước, Anime điện ảnh và Hoạt hình 3D.
-- Storyboard chọn một diễn biến chính cho mỗi cảnh. Với người thật được nhận diện trong bảng nhân vật, web tìm ảnh chân dung đúng tên và dùng lại ảnh giữa các cảnh. Cloudflare đối chiếu tranh với lời kể và ảnh tham chiếu, rồi thử sửa một lần nếu phát hiện sai chi tiết quan trọng.
+- Cloudflare hỗ trợ ba phong cách chọn ngoài phần Cài đặt, gồm **Hoạt hình 3D**, **Anime điện ảnh** và **Ảnh thực**.
+- Storyboard chọn một diễn biến chính cho mỗi cảnh. Ảnh mẫu do bạn chọn được ưu tiên khi vẽ lại nhân vật. Khi cần thêm mẫu cho người thật, web tìm ảnh chân dung đúng tên.
 - **Vẽ tay bằng SVG** vẫn dùng bàn tay vẽ từng nét. Chế độ màu mặc định của SVG có nét mặt rõ hơn, ánh nhìn có thể hướng về người hoặc vật đang tương tác, và dùng màu nhấn cho chủ thể.
 - Khi dịch vụ tạo ảnh hết hạn mức hoặc thiếu quyền, công cụ dừng các lượt ảnh còn lại và giữ tranh đã tạo. Nút **Chạy bù các tranh lỗi** dùng chế độ vẽ đang chọn. Các mục bên dưới ghi lại lịch sử của các bản trước.
 
@@ -52,7 +65,7 @@ Tool tạo video kể chuyện 1-5 phút kiểu whiteboard: nhập truyện/ý t
 
 ## 3. Dữ liệu chính
 - Mỗi cảnh `scenes[i] = {text, image, prev, cv, ord, buf, dur, ok, busy, failed}`: `text` lời kể (tiếng Việt); `image` mô tả vẽ (tiếng Anh); `cv` canvas nét mực đã tách (nền trong suốt) kích thước W×H; `ord` thứ tự các ô 16px để tay vẽ theo (greedy gần nhất); `buf` AudioBuffer giọng đọc; `dur` giây.
-- `fm` (khung hình, đặt trong `setFmt()` mỗi lần `start()`): `{v, ar, ah, cy, vw, sw, fs, lh, ml, sy}` = dọc?, tỉ lệ, chiều cao vùng tranh, tâm camera, bề ngang viewBox SVG (chiều cao luôn 900), chiều rộng/cỡ chữ/dòng/số dòng/vị trí phụ đề. Ngang: W×H = 1280×720; dọc: 720×1280. `W,H` là `let` toàn cục.
+- `fm` lưu hướng khung, tỉ lệ, chiều cao bố cục, tâm camera và chiều rộng viewBox SVG. `setFmt()` chọn 1280×720 hoặc 720×1280. `drawNarrationOverlay()` vẽ phụ đề và thẻ trên canvas của cả xem thử và xuất video.
 - Cài đặt lưu `localStorage['cfg_v3']` theo danh sách `CF` (ô nhập id trùng tên): fmt, nimg, keys, isrc, style, hftok, vsrc, voice, vapp, vtok, vcode, musicOn, musicVol, musicMood (ô `vfall` đã bỏ, xem mục 14), kèm `_t` (giờ lưu). Ảnh mẫu phong cách lưu riêng ở `localStorage['refimg_v1']` (JPEG data URL ≤896px). `saveSet` chạy mỗi khi gõ (sự kiện `input`) và khi đổi ô (`change`).
 - Biến cờ: `abortGen` (nút Dừng tạo), `stopFlag` (dừng xem/xuất), `ctl` (AbortController đang chạy).
 
