@@ -31,8 +31,6 @@ canvas.v,video.v{width:auto;max-height:80vh;max-width:100%;margin:0 auto}
 .card{border:1.5px solid #888;border-radius:6px;padding:8px;background:#fafafa}
 .thumb{position:relative;border:1.5px solid #bbb;border-radius:4px;background:#fff}
 .thumb canvas{width:100%;display:block}
-.thumb .pending-picture{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#f1f1ef}
-.thumb .pending-label{position:absolute;top:8px;left:8px;border-radius:4px;padding:3px 7px;background:#664000;color:#fff;font-size:12px;font-weight:700}
 .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:#555;text-align:center;padding:6px}
 .cap{font-size:12.5px;color:#333;margin:6px 0 0;max-height:4.5em;overflow:hidden}
 .ph[hidden],.chk[hidden]{display:none}
@@ -43,7 +41,6 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
 .savebox .hint{margin:4px 0 6px}
 dialog{width:min(520px,calc(100% - 32px));max-height:90vh;border:2px solid #111;border-radius:8px;background:#fff;padding:16px;overflow:auto}dialog::backdrop{background:#0008}
 .reference-picker{display:block;margin:12px auto;max-width:100%;height:auto;touch-action:none;cursor:crosshair}
-.review-picture{display:block;width:100%;max-height:55vh;object-fit:contain;margin:12px 0}
 </style>
 </head>
 <body>
@@ -197,6 +194,7 @@ dialog{width:min(520px,calc(100% - 32px));max-height:90vh;border:2px solid #111;
   </div>
   <label id="ideaLbl">Câu chuyện hoặc ý tưởng</label>
   <textarea id="idea" placeholder="Ví dụ: Chuyện cậu bé nghèo nhặt được chiếc ví đầy tiền và quyết định đi tìm người đánh rơi để trả lại..."></textarea>
+  <label class="chk" id="keepNarrationRow"><input type="checkbox" id="keepNarration" onchange="saveSet()">Giữ nguyên văn lời kể đã nhập</label>
   <div class="row">
     <div>
       <label id="minLbl">Độ dài video</label>
@@ -233,6 +231,7 @@ dialog{width:min(520px,calc(100% - 32px));max-height:90vh;border:2px solid #111;
     <option value="illustrated">Tranh AI Cloudflare</option>
   </select>
   <div id="cloudStyleBox" hidden>
+    <p class="hint">Gemini chia cảnh và soạn mô tả. Cloudflare vẽ tranh.</p>
     <label for="cfStyle">Phong cách tranh Cloudflare</label>
     <select id="cfStyle" onchange="saveSet()">
       <option value="" disabled hidden>Chọn một kiểu vẽ cho dự án</option>
@@ -274,8 +273,6 @@ dialog{width:min(520px,calc(100% - 32px));max-height:90vh;border:2px solid #111;
 <div class="box" id="galBox" hidden>
   <b>🖼 Xem trước tranh</b>
   <p class="hint">Tranh nào chưa ưng thì bấm 🔄 Vẽ lại (muốn đổi nội dung tranh thì mở "Sửa mô tả tranh", sửa rồi bấm Vẽ lại). Khi ưng hết thì bấm nút xanh bên dưới để tạo giọng đọc và video.</p>
-  <button type="button" class="w sm" id="usePendingArt" onclick="approveMissingArtwork()" hidden>Dùng tranh cho các cảnh còn thiếu</button>
-  <button type="button" class="w sm" id="reviewPendingArt" onclick="reviewPendingArtwork()" hidden>Duyệt các tranh đang chờ</button>
   <div id="gal" class="gal"></div>
   <button id="mkBtn" onclick="makeVideo()">✅ Ưng rồi, tạo giọng đọc và video</button>
   <button type="button" class="w" onclick="remakeVoices()">🔁 Tạo lại toàn bộ giọng</button>
@@ -361,15 +358,6 @@ dialog{width:min(520px,calc(100% - 32px));max-height:90vh;border:2px solid #111;
   <button type="button" class="w sm" id="saveArtReference" onclick="saveArtworkReference()">Lưu mẫu</button>
   <button type="button" class="w sm" onclick="document.getElementById('artReferenceDialog').close()">Đóng</button>
 </dialog>
-<dialog id="artReviewDialog" aria-labelledby="artReviewTitle">
-  <h2 id="artReviewTitle">Duyệt tranh mới</h2>
-  <p id="artReviewNarration"></p>
-  <p id="artReviewReason"></p>
-  <img id="artReviewPicture" class="review-picture" alt="Tranh mới đang chờ duyệt">
-  <button type="button" class="w sm" id="acceptArtReview" onclick="approveArtworkCandidate()">Dùng tranh này</button>
-  <button type="button" class="w sm" id="skipArtReview" onclick="skipArtworkCandidate()" hidden>Xem cảnh tiếp theo</button>
-  <button type="button" class="w sm" onclick="document.getElementById('artReviewDialog').close()">Đóng</button>
-</dialog>
 <script>
 /* mp4-muxer 5.1.5 (MIT, https://github.com/Vanilagy/mp4-muxer) - ghép video/âm thanh thành file mp4 */
 "use strict";var Mp4Muxer=(()=>{var e=Object.defineProperty,t=Object.getOwnPropertyDescriptor,i=Object.getOwnPropertyNames,s=Object.prototype.hasOwnProperty,a=(e,t,i)=>{if(!t.has(e))throw TypeError("Cannot "+i)},r=(e,t,i)=>(a(e,t,"read from private field"),i?i.call(e):t.get(e)),n=(e,t,i)=>{if(t.has(e))throw TypeError("Cannot add the same private member more than once");t instanceof WeakSet?t.add(e):t.set(e,i)},o=(e,t,i,s)=>(a(e,t,"write to private field"),s?s.call(e,i):t.set(e,i),i),h=(e,t,i)=>(a(e,t,"access private method"),i),l={};((t,i)=>{for(var s in i)e(t,s,{get:i[s],enumerable:!0})})(l,{ArrayBufferTarget:()=>Me,FileSystemWritableFileStreamTarget:()=>Oe,Muxer:()=>It,StreamTarget:()=>We});var d,f,u,m,p,c,w,g,b=new Uint8Array(8),y=new DataView(b.buffer),k=e=>[(e%256+256)%256],T=e=>(y.setUint16(0,e,!1),[b[0],b[1]]),C=e=>(y.setUint32(0,e,!1),[b[1],b[2],b[3]]),v=e=>(y.setUint32(0,e,!1),[b[0],b[1],b[2],b[3]]),S=e=>(y.setUint32(0,Math.floor(e/2**32),!1),y.setUint32(4,e,!1),[b[0],b[1],b[2],b[3],b[4],b[5],b[6],b[7]]),x=e=>(y.setInt16(0,256*e,!1),[b[0],b[1]]),z=e=>(y.setInt32(0,65536*e,!1),[b[0],b[1],b[2],b[3]]),E=e=>(y.setInt32(0,2**30*e,!1),[b[0],b[1],b[2],b[3]]),A=(e,t=!1)=>{let i=Array(e.length).fill(null).map((t,i)=>e.charCodeAt(i));return t&&i.push(0),i},M=e=>e&&e[e.length-1],W=e=>{let t;for(let i of e)(!t||i.presentationTimestamp>t.presentationTimestamp)&&(t=i);return t},O=(e,t,i=!0)=>{let s=e*t;return i?Math.round(s):s},B=e=>{let t=e*(Math.PI/180),i=Math.cos(t),s=Math.sin(t);return[i,s,0,-s,i,0,0,0,1]},U=B(0),j=e=>[z(e[0]),z(e[1]),E(e[2]),z(e[3]),z(e[4]),E(e[5]),z(e[6]),z(e[7]),E(e[8])],D=e=>e?"object"!=typeof e?e:Array.isArray(e)?e.map(D):Object.fromEntries(Object.entries(e).map(([e,t])=>[e,D(t)])):e,R=e=>e>=0&&e<2**32,I=(e,t,i)=>({type:e,contents:t&&new Uint8Array(t.flat(10)),children:i}),N=(e,t,i,s,a)=>I(e,[k(t),C(i),s??[]],a),V=e=>({type:"mdat",largeSize:e}),L=(e,t,i=!1)=>I("moov",null,[F(t,e),...e.map(e=>$(e,t)),i?me(e):null]),F=(e,t)=>{let i=O(Math.max(0,...t.filter(e=>e.samples.length>0).map(e=>{const t=W(e.samples);return t.presentationTimestamp+t.duration})),Ut),s=Math.max(...t.map(e=>e.id))+1,a=!R(e)||!R(i),r=a?S:v;return N("mvhd",+a,0,[r(e),r(e),v(Ut),r(i),z(1),x(1),Array(10).fill(0),j(U),Array(24).fill(0),v(s)])},$=(e,t)=>I("trak",null,[P(e,t),H(e,t)]),P=(e,t)=>{let i,s=W(e.samples),a=O(s?s.presentationTimestamp+s.duration:0,Ut),r=!R(t)||!R(a),n=r?S:v;return i="video"===e.info.type?"number"==typeof e.info.rotation?B(e.info.rotation):e.info.rotation:U,N("tkhd",+r,3,[n(t),n(t),v(e.id),v(0),n(a),Array(8).fill(0),T(0),T(0),x("audio"===e.info.type?1:0),T(0),j(i),z("video"===e.info.type?e.info.width:0),z("video"===e.info.type?e.info.height:0)])},H=(e,t)=>I("mdia",null,[_(e,t),q("video"===e.info.type?"vide":"soun"),G(e)]),_=(e,t)=>{let i=W(e.samples),s=O(i?i.presentationTimestamp+i.duration:0,e.timescale),a=!R(t)||!R(s),r=a?S:v;return N("mdhd",+a,0,[r(t),r(t),v(e.timescale),r(s),T(21956),T(0)])},q=e=>N("hdlr",0,0,[A("mhlr"),A(e),v(0),v(0),v(0),A("mp4-muxer-hdlr",!0)]),G=e=>I("minf",null,["video"===e.info.type?J():K(),Q(),Z(e)]),J=()=>N("vmhd",0,1,[T(0),T(0),T(0),T(0)]),K=()=>N("smhd",0,0,[T(0),T(0)]),Q=()=>I("dinf",null,[X()]),X=()=>N("dref",0,0,[v(1)],[Y()]),Y=()=>N("url ",0,1),Z=e=>{const t=e.compositionTimeOffsetTable.length>1||e.compositionTimeOffsetTable.some(e=>0!==e.sampleCompositionTimeOffset);return I("stbl",null,[ee(e),oe(e),he(e),le(e),de(e),fe(e),t?ue(e):null])},ee=e=>N("stsd",0,0,[v(1)],["video"===e.info.type?te(Se[e.info.codec],e):ne(ze[e.info.codec],e)]),te=(e,t)=>{return I(e,[Array(6).fill(0),T(1),T(0),T(0),Array(12).fill(0),T(t.info.width),T(t.info.height),v(4718592),v(4718592),v(0),T(1),Array(32).fill(0),T(24),(i=65535,y.setInt16(0,i,!1),[b[0],b[1]])],[xe[t.info.codec](t),t.info.decoderConfig.colorSpace?re(t):null]);var i},ie={bt709:1,bt470bg:5,smpte170m:6},se={bt709:1,smpte170m:6,"iec61966-2-1":13},ae={rgb:0,bt709:1,bt470bg:5,smpte170m:6},re=e=>I("colr",[A("nclx"),T(ie[e.info.decoderConfig.colorSpace.primaries]),T(se[e.info.decoderConfig.colorSpace.transfer]),T(ae[e.info.decoderConfig.colorSpace.matrix]),k((e.info.decoderConfig.colorSpace.fullRange?1:0)<<7)]),ne=(e,t)=>I(e,[Array(6).fill(0),T(1),T(0),T(0),v(0),T(t.info.numberOfChannels),T(16),T(0),T(0),z(t.info.sampleRate)],[Ee[t.info.codec](t)]),oe=e=>N("stts",0,0,[v(e.timeToSampleTable.length),e.timeToSampleTable.map(e=>[v(e.sampleCount),v(e.sampleDelta)])]),he=e=>{if(e.samples.every(e=>"key"===e.type))return null;let t=[...e.samples.entries()].filter(([,e])=>"key"===e.type);return N("stss",0,0,[v(t.length),t.map(([e])=>v(e+1))])},le=e=>N("stsc",0,0,[v(e.compactlyCodedChunkTable.length),e.compactlyCodedChunkTable.map(e=>[v(e.firstChunk),v(e.samplesPerChunk),v(1)])]),de=e=>N("stsz",0,0,[v(0),v(e.samples.length),e.samples.map(e=>v(e.size))]),fe=e=>e.finalizedChunks.length>0&&M(e.finalizedChunks).offset>=2**32?N("co64",0,0,[v(e.finalizedChunks.length),e.finalizedChunks.map(e=>S(e.offset))]):N("stco",0,0,[v(e.finalizedChunks.length),e.finalizedChunks.map(e=>v(e.offset))]),ue=e=>N("ctts",0,0,[v(e.compositionTimeOffsetTable.length),e.compositionTimeOffsetTable.map(e=>[v(e.sampleCount),v(e.sampleCompositionTimeOffset)])]),me=e=>I("mvex",null,e.map(pe)),pe=e=>N("trex",0,0,[v(e.id),v(1),v(0),v(0),v(0)]),ce=(e,t)=>I("moof",null,[we(e),...t.map(be)]),we=e=>N("mfhd",0,0,[v(e)]),ge=e=>{let t=0,i=0,s="delta"===e.type;return i|=+s,t|=s?1:2,t<<24|i<<16},be=e=>I("traf",null,[ye(e),ke(e),Te(e)]),ye=e=>{let t=0;t|=8,t|=16,t|=32,t|=131072;let i=e.currentChunk.samples[1]??e.currentChunk.samples[0],s={duration:i.timescaleUnitsToNextSample,size:i.size,flags:ge(i)};return N("tfhd",0,131128,[v(e.id),v(s.duration),v(s.size),v(s.flags)])},ke=e=>N("tfdt",1,0,[S(O(e.currentChunk.startTimestamp,e.timescale))]),Te=e=>{let t=e.currentChunk.samples.map(e=>e.timescaleUnitsToNextSample),i=e.currentChunk.samples.map(e=>e.size),s=e.currentChunk.samples.map(ge),a=e.currentChunk.samples.map(t=>O(t.presentationTimestamp-t.decodeTimestamp,e.timescale)),r=new Set(t),n=new Set(i),o=new Set(s),h=new Set(a),l=2===o.size&&s[0]!==s[1],d=r.size>1,f=n.size>1,u=!l&&o.size>1,m=h.size>1||[...h].some(e=>0!==e),p=0;return p|=1,p|=4*+l,p|=256*+d,p|=512*+f,p|=1024*+u,p|=2048*+m,N("trun",1,p,[v(e.currentChunk.samples.length),v(e.currentChunk.offset-e.currentChunk.moofOffset||0),l?v(s[0]):[],e.currentChunk.samples.map((e,r)=>{return[d?v(t[r]):[],f?v(i[r]):[],u?v(s[r]):[],m?(n=a[r],y.setInt32(0,n,!1),[b[0],b[1],b[2],b[3]]):[]];var n})])},Ce=(e,t)=>N("tfra",1,0,[v(e.id),v(63),v(e.finalizedChunks.length),e.finalizedChunks.map(i=>[S(O(i.startTimestamp,e.timescale)),S(i.moofOffset),v(t+1),v(1),v(1)])]),ve=()=>N("mfro",0,0,[v(0)]),Se={avc:"avc1",hevc:"hvc1",vp9:"vp09",av1:"av01"},xe={avc:e=>e.info.decoderConfig&&I("avcC",[...new Uint8Array(e.info.decoderConfig.description)]),hevc:e=>e.info.decoderConfig&&I("hvcC",[...new Uint8Array(e.info.decoderConfig.description)]),vp9:e=>{if(!e.info.decoderConfig)return null;let t=e.info.decoderConfig;if(!t.colorSpace)throw new Error("'colorSpace' is required in the decoder config for VP9.");let i=t.codec.split("."),s=Number(i[1]),a=Number(i[2]),r=0+(Number(i[3])<<4)+Number(t.colorSpace.fullRange);return N("vpcC",1,0,[k(s),k(a),k(r),k(2),k(2),k(2),T(0)])},av1:()=>I("av1C",[129,0,0,0])},ze={aac:"mp4a",opus:"Opus"},Ee={aac:e=>{let t=new Uint8Array(e.info.decoderConfig.description);return N("esds",0,0,[v(58753152),k(32+t.byteLength),T(1),k(0),v(75530368),k(18+t.byteLength),k(64),k(21),C(0),v(130071),v(130071),v(92307584),k(t.byteLength),...t,v(109084800),k(1),k(2)])},opus:e=>{let t=3840,i=0;const s=e.info.decoderConfig?.description;if(s){if(s.byteLength<18)throw new TypeError("Invalid decoder description provided for Opus; must be at least 18 bytes long.");const e=ArrayBuffer.isView(s)?new DataView(s.buffer,s.byteOffset,s.byteLength):new DataView(s);t=e.getUint16(10,!0),i=e.getInt16(14,!0)}return I("dOps",[k(0),k(e.info.numberOfChannels),T(t),v(e.info.sampleRate),x(i),k(0)])}},Ae=(Symbol("isTarget"),class{}),Me=class extends Ae{constructor(){super(...arguments),this.buffer=null}},We=class extends Ae{constructor(e){if(super(),this.options=e,"object"!=typeof e)throw new TypeError("StreamTarget requires an options object to be passed to its constructor.");if(e.onData){if("function"!=typeof e.onData)throw new TypeError("options.onData, when provided, must be a function.");if(e.onData.length<2)throw new TypeError("options.onData, when provided, must be a function that takes in at least two arguments (data and position). Ignoring the position argument, which specifies the byte offset at which the data is to be written, can lead to broken outputs.")}if(void 0!==e.chunked&&"boolean"!=typeof e.chunked)throw new TypeError("options.chunked, when provided, must be a boolean.");if(void 0!==e.chunkSize&&(!Number.isInteger(e.chunkSize)||e.chunkSize<=0))throw new TypeError("options.chunkSize, when provided, must be a positive integer.")}},Oe=class extends Ae{constructor(e,t){if(super(),this.stream=e,this.options=t,!(e instanceof FileSystemWritableFileStream))throw new TypeError("FileSystemWritableFileStreamTarget requires a FileSystemWritableFileStream instance.");if(void 0!==t&&"object"!=typeof t)throw new TypeError("FileSystemWritableFileStreamTarget's options, when provided, must be an object.");if(t&&void 0!==t.chunkSize&&(!Number.isInteger(t.chunkSize)||t.chunkSize<=0))throw new TypeError("options.chunkSize, when provided, must be a positive integer")}},Be=class{constructor(){this.pos=0,n(this,d,new Uint8Array(8)),n(this,f,new DataView(r(this,d).buffer)),this.offsets=new WeakMap}seek(e){this.pos=e}writeU32(e){r(this,f).setUint32(0,e,!1),this.write(r(this,d).subarray(0,4))}writeU64(e){r(this,f).setUint32(0,Math.floor(e/2**32),!1),r(this,f).setUint32(4,e,!1),this.write(r(this,d).subarray(0,8))}writeAscii(e){for(let t=0;t<e.length;t++)r(this,f).setUint8(t%8,e.charCodeAt(t)),t%8==7&&this.write(r(this,d));e.length%8!=0&&this.write(r(this,d).subarray(0,e.length%8))}writeBox(e){if(this.offsets.set(e,this.pos),e.contents&&!e.children)this.writeBoxHeader(e,e.size??e.contents.byteLength+8),this.write(e.contents);else{let t=this.pos;if(this.writeBoxHeader(e,0),e.contents&&this.write(e.contents),e.children)for(let t of e.children)t&&this.writeBox(t);let i=this.pos,s=e.size??i-t;this.seek(t),this.writeBoxHeader(e,s),this.seek(i)}}writeBoxHeader(e,t){this.writeU32(e.largeSize?1:t),this.writeAscii(e.type),e.largeSize&&this.writeU64(t)}measureBoxHeader(e){return 8+(e.largeSize?8:0)}patchBox(e){let t=this.pos;this.seek(this.offsets.get(e)),this.writeBox(e),this.seek(t)}measureBox(e){if(e.contents&&!e.children){return this.measureBoxHeader(e)+e.contents.byteLength}{let t=this.measureBoxHeader(e);if(e.contents&&(t+=e.contents.byteLength),e.children)for(let i of e.children)i&&(t+=this.measureBox(i));return t}}};d=new WeakMap,f=new WeakMap;var Ue,je,De=class extends Be{constructor(e){super(),n(this,w),n(this,u,void 0),n(this,m,new ArrayBuffer(65536)),n(this,p,new Uint8Array(r(this,m))),n(this,c,0),o(this,u,e)}write(e){h(this,w,g).call(this,this.pos+e.byteLength),r(this,p).set(e,this.pos),this.pos+=e.byteLength,o(this,c,Math.max(r(this,c),this.pos))}finalize(){h(this,w,g).call(this,this.pos),r(this,u).buffer=r(this,m).slice(0,Math.max(r(this,c),this.pos))}};u=new WeakMap,m=new WeakMap,p=new WeakMap,c=new WeakMap,w=new WeakSet,g=function(e){let t=r(this,m).byteLength;for(;t<e;)t*=2;if(t===r(this,m).byteLength)return;let i=new ArrayBuffer(t),s=new Uint8Array(i);s.set(r(this,p),0),o(this,m,i),o(this,p,s)};var Re=class extends Be{constructor(e){super(),n(this,Ue,void 0),n(this,je,[]),o(this,Ue,e)}write(e){r(this,je).push({data:e.slice(),start:this.pos}),this.pos+=e.byteLength}flush(){if(0===r(this,je).length)return;let e=[],t=[...r(this,je)].sort((e,t)=>e.start-t.start);e.push({start:t[0].start,size:t[0].data.byteLength});for(let i=1;i<t.length;i++){let s=e[e.length-1],a=t[i];a.start<=s.start+s.size?s.size=Math.max(s.size,a.start+a.data.byteLength-s.start):e.push({start:a.start,size:a.data.byteLength})}for(let t of e){t.data=new Uint8Array(t.size);for(let e of r(this,je))t.start<=e.start&&e.start<t.start+t.size&&t.data.set(e.data,e.start-t.start);r(this,Ue).options.onData?.(t.data,t.start)}r(this,je).length=0}finalize(){}};Ue=new WeakMap,je=new WeakMap;var Ie,Ne,Ve,Le,Fe,$e,Pe,He,_e,qe,Ge,Je=class extends Be{constructor(e){if(super(),n(this,Le),n(this,$e),n(this,He),n(this,qe),n(this,Ie,void 0),n(this,Ne,void 0),n(this,Ve,[]),o(this,Ie,e),o(this,Ne,e.options?.chunkSize??16777216),!Number.isInteger(r(this,Ne))||r(this,Ne)<1024)throw new Error("Invalid StreamTarget options: chunkSize must be an integer not smaller than 1024.")}write(e){h(this,Le,Fe).call(this,e,this.pos),h(this,qe,Ge).call(this),this.pos+=e.byteLength}finalize(){h(this,qe,Ge).call(this,!0)}};Ie=new WeakMap,Ne=new WeakMap,Ve=new WeakMap,Le=new WeakSet,Fe=function(e,t){let i=r(this,Ve).findIndex(e=>e.start<=t&&t<e.start+r(this,Ne));-1===i&&(i=h(this,He,_e).call(this,t));let s=r(this,Ve)[i],a=t-s.start,n=e.subarray(0,Math.min(r(this,Ne)-a,e.byteLength));s.data.set(n,a);let o={start:a,end:a+n.byteLength};if(h(this,$e,Pe).call(this,s,o),0===s.written[0].start&&s.written[0].end===r(this,Ne)&&(s.shouldFlush=!0),r(this,Ve).length>2){for(let e=0;e<r(this,Ve).length-1;e++)r(this,Ve)[e].shouldFlush=!0;h(this,qe,Ge).call(this)}n.byteLength<e.byteLength&&h(this,Le,Fe).call(this,e.subarray(n.byteLength),t+n.byteLength)},$e=new WeakSet,Pe=function(e,t){let i=0,s=e.written.length-1,a=-1;for(;i<=s;){let r=Math.floor(i+(s-i+1)/2);e.written[r].start<=t.start?(i=r+1,a=r):s=r-1}for(e.written.splice(a+1,0,t),(-1===a||e.written[a].end<t.start)&&a++;a<e.written.length-1&&e.written[a].end>=e.written[a+1].start;)e.written[a].end=Math.max(e.written[a].end,e.written[a+1].end),e.written.splice(a+1,1)},He=new WeakSet,_e=function(e){let t={start:Math.floor(e/r(this,Ne))*r(this,Ne),data:new Uint8Array(r(this,Ne)),written:[],shouldFlush:!1};return r(this,Ve).push(t),r(this,Ve).sort((e,t)=>e.start-t.start),r(this,Ve).indexOf(t)},qe=new WeakSet,Ge=function(e=!1){for(let t=0;t<r(this,Ve).length;t++){let i=r(this,Ve)[t];if(i.shouldFlush||e){for(let e of i.written)r(this,Ie).options.onData?.(i.data.subarray(e.start,e.end),i.start+e.start);r(this,Ve).splice(t--,1)}}};var Ke,Qe,Xe,Ye,Ze,et,tt,it,st,at,rt,nt,ot,ht,lt,dt,ft,ut,mt,pt,ct,wt,gt,bt,yt,kt,Tt,Ct,vt,St,xt,zt,Et,At,Mt,Wt,Ot,Bt=class extends Je{constructor(e){super(new We({onData:(t,i)=>e.stream.write({type:"write",data:t,position:i}),chunkSize:e.options?.chunkSize}))}},Ut=1e3,jt=["avc","hevc","vp9","av1"],Dt=["aac","opus"],Rt=["strict","offset","cross-track-offset"],It=class{constructor(e){if(n(this,ot),n(this,lt),n(this,ft),n(this,mt),n(this,ct),n(this,gt),n(this,yt),n(this,Tt),n(this,vt),n(this,xt),n(this,Et),n(this,Mt),n(this,Ke,void 0),n(this,Qe,void 0),n(this,Xe,void 0),n(this,Ye,void 0),n(this,Ze,null),n(this,et,null),n(this,tt,Math.floor(Date.now()/1e3)+2082844800),n(this,it,[]),n(this,st,1),n(this,at,[]),n(this,rt,[]),n(this,nt,!1),h(this,ot,ht).call(this,e),e.video=D(e.video),e.audio=D(e.audio),e.fastStart=D(e.fastStart),this.target=e.target,o(this,Ke,{firstTimestampBehavior:"strict",...e}),e.target instanceof Me)o(this,Qe,new De(e.target));else if(e.target instanceof We)o(this,Qe,e.target.options?.chunked?new Je(e.target):new Re(e.target));else{if(!(e.target instanceof Oe))throw new Error(`Invalid target: ${e.target}`);o(this,Qe,new Bt(e.target))}h(this,mt,pt).call(this),h(this,lt,dt).call(this)}addVideoChunk(e,t,i,s){if(!(e instanceof EncodedVideoChunk))throw new TypeError("addVideoChunk's first argument (sample) must be of type EncodedVideoChunk.");if(t&&"object"!=typeof t)throw new TypeError("addVideoChunk's second argument (meta), when provided, must be an object.");if(void 0!==i&&(!Number.isFinite(i)||i<0))throw new TypeError("addVideoChunk's third argument (timestamp), when provided, must be a non-negative real number.");if(void 0!==s&&!Number.isFinite(s))throw new TypeError("addVideoChunk's fourth argument (compositionTimeOffset), when provided, must be a real number.");let a=new Uint8Array(e.byteLength);e.copyTo(a),this.addVideoChunkRaw(a,e.type,i??e.timestamp,e.duration,t,s)}addVideoChunkRaw(e,t,i,s,a,n){if(!(e instanceof Uint8Array))throw new TypeError("addVideoChunkRaw's first argument (data) must be an instance of Uint8Array.");if("key"!==t&&"delta"!==t)throw new TypeError("addVideoChunkRaw's second argument (type) must be either 'key' or 'delta'.");if(!Number.isFinite(i)||i<0)throw new TypeError("addVideoChunkRaw's third argument (timestamp) must be a non-negative real number.");if(!Number.isFinite(s)||s<0)throw new TypeError("addVideoChunkRaw's fourth argument (duration) must be a non-negative real number.");if(a&&"object"!=typeof a)throw new TypeError("addVideoChunkRaw's fifth argument (meta), when provided, must be an object.");if(void 0!==n&&!Number.isFinite(n))throw new TypeError("addVideoChunkRaw's sixth argument (compositionTimeOffset), when provided, must be a real number.");if(h(this,Mt,Wt).call(this),!r(this,Ke).video)throw new Error("No video track declared.");if("object"==typeof r(this,Ke).fastStart&&r(this,Ze).samples.length===r(this,Ke).fastStart.expectedVideoChunks)throw new Error(`Cannot add more video chunks than specified in 'fastStart' (${r(this,Ke).fastStart.expectedVideoChunks}).`);let o=h(this,gt,bt).call(this,r(this,Ze),e,t,i,s,a,n);if("fragmented"===r(this,Ke).fastStart&&r(this,et)){for(;r(this,rt).length>0&&r(this,rt)[0].decodeTimestamp<=o.decodeTimestamp;){let e=r(this,rt).shift();h(this,yt,kt).call(this,r(this,et),e)}o.decodeTimestamp<=r(this,et).lastDecodeTimestamp?h(this,yt,kt).call(this,r(this,Ze),o):r(this,at).push(o)}else h(this,yt,kt).call(this,r(this,Ze),o)}addAudioChunk(e,t,i){if(!(e instanceof EncodedAudioChunk))throw new TypeError("addAudioChunk's first argument (sample) must be of type EncodedAudioChunk.");if(t&&"object"!=typeof t)throw new TypeError("addAudioChunk's second argument (meta), when provided, must be an object.");if(void 0!==i&&(!Number.isFinite(i)||i<0))throw new TypeError("addAudioChunk's third argument (timestamp), when provided, must be a non-negative real number.");let s=new Uint8Array(e.byteLength);e.copyTo(s),this.addAudioChunkRaw(s,e.type,i??e.timestamp,e.duration,t)}addAudioChunkRaw(e,t,i,s,a){if(!(e instanceof Uint8Array))throw new TypeError("addAudioChunkRaw's first argument (data) must be an instance of Uint8Array.");if("key"!==t&&"delta"!==t)throw new TypeError("addAudioChunkRaw's second argument (type) must be either 'key' or 'delta'.");if(!Number.isFinite(i)||i<0)throw new TypeError("addAudioChunkRaw's third argument (timestamp) must be a non-negative real number.");if(!Number.isFinite(s)||s<0)throw new TypeError("addAudioChunkRaw's fourth argument (duration) must be a non-negative real number.");if(a&&"object"!=typeof a)throw new TypeError("addAudioChunkRaw's fifth argument (meta), when provided, must be an object.");if(h(this,Mt,Wt).call(this),!r(this,Ke).audio)throw new Error("No audio track declared.");if("object"==typeof r(this,Ke).fastStart&&r(this,et).samples.length===r(this,Ke).fastStart.expectedAudioChunks)throw new Error(`Cannot add more audio chunks than specified in 'fastStart' (${r(this,Ke).fastStart.expectedAudioChunks}).`);let n=h(this,gt,bt).call(this,r(this,et),e,t,i,s,a);if("fragmented"===r(this,Ke).fastStart&&r(this,Ze)){for(;r(this,at).length>0&&r(this,at)[0].decodeTimestamp<=n.decodeTimestamp;){let e=r(this,at).shift();h(this,yt,kt).call(this,r(this,Ze),e)}n.decodeTimestamp<=r(this,Ze).lastDecodeTimestamp?h(this,yt,kt).call(this,r(this,et),n):r(this,rt).push(n)}else h(this,yt,kt).call(this,r(this,et),n)}finalize(){if(r(this,nt))throw new Error("Cannot finalize a muxer more than once.");if("fragmented"===r(this,Ke).fastStart){for(let e of r(this,at))h(this,yt,kt).call(this,r(this,Ze),e);for(let e of r(this,rt))h(this,yt,kt).call(this,r(this,et),e);h(this,xt,zt).call(this,!1)}else r(this,Ze)&&h(this,vt,St).call(this,r(this,Ze)),r(this,et)&&h(this,vt,St).call(this,r(this,et));let e=[r(this,Ze),r(this,et)].filter(Boolean);if("in-memory"===r(this,Ke).fastStart){let t;for(let i=0;i<2;i++){let i=L(e,r(this,tt)),s=r(this,Qe).measureBox(i);t=r(this,Qe).measureBox(r(this,Ye));let a=r(this,Qe).pos+s+t;for(let e of r(this,it)){e.offset=a;for(let{data:i}of e.samples)a+=i.byteLength,t+=i.byteLength}if(a<2**32)break;t>=2**32&&(r(this,Ye).largeSize=!0)}let i=L(e,r(this,tt));r(this,Qe).writeBox(i),r(this,Ye).size=t,r(this,Qe).writeBox(r(this,Ye));for(let e of r(this,it))for(let t of e.samples)r(this,Qe).write(t.data),t.data=null}else if("fragmented"===r(this,Ke).fastStart){let t=r(this,Qe).pos,i=(e=>I("mfra",null,[...e.map(Ce),ve()]))(e);r(this,Qe).writeBox(i);let s=r(this,Qe).pos-t;r(this,Qe).seek(r(this,Qe).pos-4),r(this,Qe).writeU32(s)}else{let t=r(this,Qe).offsets.get(r(this,Ye)),i=r(this,Qe).pos-t;r(this,Ye).size=i,r(this,Ye).largeSize=i>=2**32,r(this,Qe).patchBox(r(this,Ye));let s=L(e,r(this,tt));if("object"==typeof r(this,Ke).fastStart){r(this,Qe).seek(r(this,Xe)),r(this,Qe).writeBox(s);let e=t-r(this,Qe).pos;r(this,Qe).writeBox({type:"free",size:e})}else r(this,Qe).writeBox(s)}h(this,Et,At).call(this),r(this,Qe).finalize(),o(this,nt,!0)}};return Ke=new WeakMap,Qe=new WeakMap,Xe=new WeakMap,Ye=new WeakMap,Ze=new WeakMap,et=new WeakMap,tt=new WeakMap,it=new WeakMap,st=new WeakMap,at=new WeakMap,rt=new WeakMap,nt=new WeakMap,ot=new WeakSet,ht=function(e){if("object"!=typeof e)throw new TypeError("The muxer requires an options object to be passed to its constructor.");if(!(e.target instanceof Ae))throw new TypeError("The target must be provided and an instance of Target.");if(e.video){if(!jt.includes(e.video.codec))throw new TypeError(`Unsupported video codec: ${e.video.codec}`);if(!Number.isInteger(e.video.width)||e.video.width<=0)throw new TypeError(`Invalid video width: ${e.video.width}. Must be a positive integer.`);if(!Number.isInteger(e.video.height)||e.video.height<=0)throw new TypeError(`Invalid video height: ${e.video.height}. Must be a positive integer.`);const t=e.video.rotation;if("number"==typeof t&&![0,90,180,270].includes(t))throw new TypeError(`Invalid video rotation: ${t}. Has to be 0, 90, 180 or 270.`);if(Array.isArray(t)&&(9!==t.length||t.some(e=>"number"!=typeof e)))throw new TypeError(`Invalid video transformation matrix: ${t.join()}`);if(void 0!==e.video.frameRate&&(!Number.isInteger(e.video.frameRate)||e.video.frameRate<=0))throw new TypeError(`Invalid video frame rate: ${e.video.frameRate}. Must be a positive integer.`)}if(e.audio){if(!Dt.includes(e.audio.codec))throw new TypeError(`Unsupported audio codec: ${e.audio.codec}`);if(!Number.isInteger(e.audio.numberOfChannels)||e.audio.numberOfChannels<=0)throw new TypeError(`Invalid number of audio channels: ${e.audio.numberOfChannels}. Must be a positive integer.`);if(!Number.isInteger(e.audio.sampleRate)||e.audio.sampleRate<=0)throw new TypeError(`Invalid audio sample rate: ${e.audio.sampleRate}. Must be a positive integer.`)}if(e.firstTimestampBehavior&&!Rt.includes(e.firstTimestampBehavior))throw new TypeError(`Invalid first timestamp behavior: ${e.firstTimestampBehavior}`);if("object"==typeof e.fastStart){if(e.video){if(void 0===e.fastStart.expectedVideoChunks)throw new TypeError("'fastStart' is an object but is missing property 'expectedVideoChunks'.");if(!Number.isInteger(e.fastStart.expectedVideoChunks)||e.fastStart.expectedVideoChunks<0)throw new TypeError("'expectedVideoChunks' must be a non-negative integer.")}if(e.audio){if(void 0===e.fastStart.expectedAudioChunks)throw new TypeError("'fastStart' is an object but is missing property 'expectedAudioChunks'.");if(!Number.isInteger(e.fastStart.expectedAudioChunks)||e.fastStart.expectedAudioChunks<0)throw new TypeError("'expectedAudioChunks' must be a non-negative integer.")}}else if(![!1,"in-memory","fragmented"].includes(e.fastStart))throw new TypeError("'fastStart' option must be false, 'in-memory', 'fragmented' or an object.")},lt=new WeakSet,dt=function(){var e;if(r(this,Qe).writeBox((e={holdsAvc:"avc"===r(this,Ke).video?.codec,fragmented:"fragmented"===r(this,Ke).fastStart}).fragmented?I("ftyp",[A("iso5"),v(512),A("iso5"),A("iso6"),A("mp41")]):I("ftyp",[A("isom"),v(512),A("isom"),e.holdsAvc?A("avc1"):[],A("mp41")])),o(this,Xe,r(this,Qe).pos),"in-memory"===r(this,Ke).fastStart)o(this,Ye,V(!1));else if("fragmented"===r(this,Ke).fastStart);else{if("object"==typeof r(this,Ke).fastStart){let e=h(this,ft,ut).call(this);r(this,Qe).seek(r(this,Qe).pos+e)}o(this,Ye,V(!0)),r(this,Qe).writeBox(r(this,Ye))}h(this,Et,At).call(this)},ft=new WeakSet,ut=function(){if("object"!=typeof r(this,Ke).fastStart)return;let e=0,t=[r(this,Ke).fastStart.expectedVideoChunks,r(this,Ke).fastStart.expectedAudioChunks];for(let i of t)i&&(e+=8*Math.ceil(2/3*i),e+=4*i,e+=12*Math.ceil(2/3*i),e+=4*i,e+=8*i);return e+=4096,e},mt=new WeakSet,pt=function(){if(r(this,Ke).video&&o(this,Ze,{id:1,info:{type:"video",codec:r(this,Ke).video.codec,width:r(this,Ke).video.width,height:r(this,Ke).video.height,rotation:r(this,Ke).video.rotation??0,decoderConfig:null},timescale:r(this,Ke).video.frameRate??57600,samples:[],finalizedChunks:[],currentChunk:null,firstDecodeTimestamp:void 0,lastDecodeTimestamp:-1,timeToSampleTable:[],compositionTimeOffsetTable:[],lastTimescaleUnits:null,lastSample:null,compactlyCodedChunkTable:[]}),r(this,Ke).audio&&(o(this,et,{id:r(this,Ke).video?2:1,info:{type:"audio",codec:r(this,Ke).audio.codec,numberOfChannels:r(this,Ke).audio.numberOfChannels,sampleRate:r(this,Ke).audio.sampleRate,decoderConfig:null},timescale:r(this,Ke).audio.sampleRate,samples:[],finalizedChunks:[],currentChunk:null,firstDecodeTimestamp:void 0,lastDecodeTimestamp:-1,timeToSampleTable:[],compositionTimeOffsetTable:[],lastTimescaleUnits:null,lastSample:null,compactlyCodedChunkTable:[]}),"aac"===r(this,Ke).audio.codec)){let e=h(this,ct,wt).call(this,2,r(this,Ke).audio.sampleRate,r(this,Ke).audio.numberOfChannels);r(this,et).info.decoderConfig={codec:r(this,Ke).audio.codec,description:e,numberOfChannels:r(this,Ke).audio.numberOfChannels,sampleRate:r(this,Ke).audio.sampleRate}}},ct=new WeakSet,wt=function(e,t,i){let s=[96e3,88200,64e3,48e3,44100,32e3,24e3,22050,16e3,12e3,11025,8e3,7350].indexOf(t),a=i,r="";r+=e.toString(2).padStart(5,"0"),r+=s.toString(2).padStart(4,"0"),15===s&&(r+=t.toString(2).padStart(24,"0")),r+=a.toString(2).padStart(4,"0");let n=8*Math.ceil(r.length/8);r=r.padEnd(n,"0");let o=new Uint8Array(r.length/8);for(let e=0;e<r.length;e+=8)o[e/8]=parseInt(r.slice(e,e+8),2);return o},gt=new WeakSet,bt=function(e,t,i,s,a,r,n){let o=s/1e6,l=(s-(n??0))/1e6,d=a/1e6,f=h(this,Tt,Ct).call(this,o,l,e);return o=f.presentationTimestamp,l=f.decodeTimestamp,r?.decoderConfig&&(null===e.info.decoderConfig?e.info.decoderConfig=r.decoderConfig:Object.assign(e.info.decoderConfig,r.decoderConfig)),{presentationTimestamp:o,decodeTimestamp:l,duration:d,data:t,size:t.byteLength,type:i,timescaleUnitsToNextSample:O(d,e.timescale)}},yt=new WeakSet,kt=function(e,t){"fragmented"!==r(this,Ke).fastStart&&e.samples.push(t);const i=O(t.presentationTimestamp-t.decodeTimestamp,e.timescale);if(null!==e.lastTimescaleUnits){let s=O(t.decodeTimestamp,e.timescale,!1),a=Math.round(s-e.lastTimescaleUnits);if(e.lastTimescaleUnits+=a,e.lastSample.timescaleUnitsToNextSample=a,"fragmented"!==r(this,Ke).fastStart){let t=M(e.timeToSampleTable);1===t.sampleCount?(t.sampleDelta=a,t.sampleCount++):t.sampleDelta===a?t.sampleCount++:(t.sampleCount--,e.timeToSampleTable.push({sampleCount:2,sampleDelta:a}));const s=M(e.compositionTimeOffsetTable);s.sampleCompositionTimeOffset===i?s.sampleCount++:e.compositionTimeOffsetTable.push({sampleCount:1,sampleCompositionTimeOffset:i})}}else e.lastTimescaleUnits=0,"fragmented"!==r(this,Ke).fastStart&&(e.timeToSampleTable.push({sampleCount:1,sampleDelta:O(t.duration,e.timescale)}),e.compositionTimeOffsetTable.push({sampleCount:1,sampleCompositionTimeOffset:i}));e.lastSample=t;let s=!1;if(e.currentChunk){let i=t.presentationTimestamp-e.currentChunk.startTimestamp;if("fragmented"===r(this,Ke).fastStart){e===(r(this,Ze)??r(this,et))&&"key"===t.type&&i>=1&&(s=!0,h(this,xt,zt).call(this))}else s=i>=.5}else s=!0;s&&(e.currentChunk&&h(this,vt,St).call(this,e),e.currentChunk={startTimestamp:t.presentationTimestamp,samples:[]}),e.currentChunk.samples.push(t)},Tt=new WeakSet,Ct=function(e,t,i){const s="strict"===r(this,Ke).firstTimestampBehavior,a=-1===i.lastDecodeTimestamp;if(s&&a&&0!==t)throw new Error(`The first chunk for your media track must have a timestamp of 0 (received DTS=${t}).Non-zero first timestamps are often caused by directly piping frames or audio data from a MediaStreamTrack into the encoder. Their timestamps are typically relative to the age of thedocument, which is probably what you want.\n\nIf you want to offset all timestamps of a track such that the first one is zero, set firstTimestampBehavior: 'offset' in the options.\n`);if("offset"===r(this,Ke).firstTimestampBehavior||"cross-track-offset"===r(this,Ke).firstTimestampBehavior){let s;void 0===i.firstDecodeTimestamp&&(i.firstDecodeTimestamp=t),s="offset"===r(this,Ke).firstTimestampBehavior?i.firstDecodeTimestamp:Math.min(r(this,Ze)?.firstDecodeTimestamp??1/0,r(this,et)?.firstDecodeTimestamp??1/0),t-=s,e-=s}if(t<i.lastDecodeTimestamp)throw new Error(`Timestamps must be monotonically increasing (DTS went from ${1e6*i.lastDecodeTimestamp} to ${1e6*t}).`);return i.lastDecodeTimestamp=t,{presentationTimestamp:e,decodeTimestamp:t}},vt=new WeakSet,St=function(e){if("fragmented"===r(this,Ke).fastStart)throw new Error("Can't finalize individual chunks if 'fastStart' is set to 'fragmented'.");if(e.currentChunk)if(e.finalizedChunks.push(e.currentChunk),r(this,it).push(e.currentChunk),0!==e.compactlyCodedChunkTable.length&&M(e.compactlyCodedChunkTable).samplesPerChunk===e.currentChunk.samples.length||e.compactlyCodedChunkTable.push({firstChunk:e.finalizedChunks.length,samplesPerChunk:e.currentChunk.samples.length}),"in-memory"!==r(this,Ke).fastStart){e.currentChunk.offset=r(this,Qe).pos;for(let t of e.currentChunk.samples)r(this,Qe).write(t.data),t.data=null;h(this,Et,At).call(this)}else e.currentChunk.offset=0},xt=new WeakSet,zt=function(e=!0){if("fragmented"!==r(this,Ke).fastStart)throw new Error("Can't finalize a fragment unless 'fastStart' is set to 'fragmented'.");let t=[r(this,Ze),r(this,et)].filter(e=>e&&e.currentChunk);if(0===t.length)return;let i=(s=this,a=st,{set _(e){o(s,a,e,n)},get _(){return r(s,a,l)}})._++;var s,a,n,l;if(1===i){let e=L(t,r(this,tt),!0);r(this,Qe).writeBox(e)}let d=r(this,Qe).pos,f=ce(i,t);r(this,Qe).writeBox(f);{let e=V(!1),i=0;for(let e of t)for(let t of e.currentChunk.samples)i+=t.size;let s=r(this,Qe).measureBox(e)+i;s>=2**32&&(e.largeSize=!0,s=r(this,Qe).measureBox(e)+i),e.size=s,r(this,Qe).writeBox(e)}for(let e of t){e.currentChunk.offset=r(this,Qe).pos,e.currentChunk.moofOffset=d;for(let t of e.currentChunk.samples)r(this,Qe).write(t.data),t.data=null}let u=r(this,Qe).pos;r(this,Qe).seek(r(this,Qe).offsets.get(f));let m=ce(i,t);r(this,Qe).writeBox(m),r(this,Qe).seek(u);for(let e of t)e.finalizedChunks.push(e.currentChunk),r(this,it).push(e.currentChunk),e.currentChunk=null;e&&h(this,Et,At).call(this)},Et=new WeakSet,At=function(){r(this,Qe)instanceof Re&&r(this,Qe).flush()},Mt=new WeakSet,Wt=function(){if(r(this,nt))throw new Error("Cannot add new video or audio chunks after the file has been finalized.")},Ot=l,((a,r,n,o)=>{if(r&&"object"==typeof r||"function"==typeof r)for(let h of i(r))s.call(a,h)||h===n||e(a,h,{get:()=>r[h],enumerable:!(o=t(r,h))||o.enumerable});return a})(e({},"__esModule",{value:!0}),Ot)})();"object"==typeof module&&"object"==typeof module.exports&&Object.assign(module.exports,Mp4Muxer);
@@ -414,7 +402,7 @@ const log = m => {
 };
 const A = () => ctxA || (ctxA = new (window.AudioContext || window.webkitAudioContext)());
 
-const CF = ['aiProvider', 'fmt', 'nimg', 'keys', 'isrc', 'cfStyle', 'style', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'musicOn', 'musicVol', 'musicMood', 'exportSpeed', 'cmode', 'vmode', 'charStyle', 'trans', 'bgOn', 'motionVid', 'mvCam', 'mvTrans', 'interaction2d'];
+const CF = ['aiProvider', 'fmt', 'nimg', 'keys', 'isrc', 'cfStyle', 'style', 'hftok', 'vsrc', 'voice', 'vapp', 'vtok', 'vcode', 'musicOn', 'musicVol', 'musicMood', 'exportSpeed', 'cmode', 'vmode', 'charStyle', 'trans', 'bgOn', 'motionVid', 'mvCam', 'mvTrans', 'interaction2d', 'keepNarration'];
 const CLOUD_STYLE_NAMES = { threeD: 'Hoạt hình 3D', anime: 'Anime điện ảnh', portrait: 'Ảnh thực' };
 const validCloudStyle = value => Object.hasOwn(CLOUD_STYLE_NAMES, value) ? value : '';
 function setFmt() {
@@ -447,6 +435,7 @@ function updStat() {
   const n = (o.keys || '').split(/\s+/).filter(k => k.length > 20).length;
   const parts = [];
   parts.push(storyProvider() === 'cloudflare' ? 'Cloudflare Workers AI' : (n ? `${n} key Gemini` : 'chưa có key Gemini'));
+  if ($('isrc').value === 'illustrated') parts.push('Cloudflare Workers AI');
   if (o.vapp && o.vtok) parts.push('Vbee (App ID + Token)');
   if (o.hftok) parts.push('token Hugging Face');
   const t = o._t ? new Date(o._t).toLocaleString('vi-VN') : null;
@@ -523,7 +512,7 @@ function clearKeys() {
   saveSet();
 }
 function storyProvider() {
-  return $('isrc').value === 'illustrated' || $('aiProvider').value === 'cloudflare' ? 'cloudflare' : 'gemini';
+  return $('isrc').value !== 'illustrated' && $('aiProvider').value === 'cloudflare' ? 'cloudflare' : 'gemini';
 }
 function vui() {
   const mode = $('isrc').value, cloudArt = mode === 'illustrated', cloud = storyProvider() === 'cloudflare';
@@ -532,8 +521,10 @@ function vui() {
   $('svgStyleBox').hidden = cloudArt;
   if (!$('cmode').value) $('cmode').value = 'vivid';
   if ($('cloudStyleNotice')) $('cloudStyleNotice').hidden = !cloudArt || !!$('cfStyle').value;
-  $('cloudflareSettings').hidden = !cloud;
-  $('gemKeyLabel').textContent = cloud
+  $('cloudflareSettings').hidden = !(cloudArt || cloud);
+  $('gemKeyLabel').textContent = cloudArt
+    ? 'API key Gemini dùng để chia cảnh và soạn mô tả tranh (mỗi key một dòng)'
+    : cloud
     ? 'API key Gemini (chỉ cần nếu dùng giọng Gemini hoặc chép lời từ clip)'
     : 'API key Gemini (nhiều key thì mỗi key một dòng)';
   const v = $('vsrc').value;
@@ -737,7 +728,7 @@ async function storyAI(body, timeout, rounds, { task, backup } = {}) {
 async function testCloudflare() {
   const button = $('cfCheck'), out = $('cfResult');
   button.disabled = true;
-  out.textContent = 'Đang kiểm tra kết nối và model chia cảnh…';
+  out.textContent = 'Đang kiểm tra kết nối Cloudflare…';
   out.style.color = '#555';
   try {
     const data = await cfCall({ kind: 'text', parts: [{ text: 'Reply only with OK.' }], probe: true }, 45000);
@@ -797,6 +788,39 @@ function sliceText(t, k) {
 // Đảm bảo mỗi cảnh kết thúc trọn câu: AI đôi khi cắt một câu làm đôi giữa hai cảnh
 const SENT_END = /[.!?…]["”’')\]»]*$/;
 const ABBR_END = /(?:^|\s)(?:TP|TS|PGS|GS|ThS|Mr|Mrs|Ms|Dr|St|No|vs)\.$/i;
+async function splitOriginalNarration(source) {
+  const idea = source.trim(), ends = [];
+  let from = 0;
+  for (const match of idea.matchAll(/[.!?…]+["”’')\]»]*(?=\s|$)|\n+/gu)) {
+    const end = match.index + match[0].length;
+    const sentence = idea.slice(from, end).trim();
+    if (sentence && !ABBR_END.test(sentence)) { ends.push(end); from = end; }
+  }
+  if (from < idea.length) ends.push(idea.length);
+  if (!ends.length) throw new Error('Nhập nguyên văn lời kể trước khi chia cảnh.');
+  const count = Math.min(imgCount(), ends.length);
+  const numbered = ends.map((end, i) => (i + 1) + '. ' + idea.slice(ends[i - 1] || 0, end).trim()).join('\n');
+  const message = [
+    'Chia lời kể tiếng Việt đã đánh số dưới đây thành ' + count + ' cảnh liền nhau theo thay đổi hành động, nhân vật hoặc địa điểm.',
+    'Trả duy nhất JSON {"story":"","setting":"","identity":"","characters":"","cuts":[]} . cuts gồm chỉ số cuối của từng cảnh tăng dần, kết thúc ở ' + ends.length + '. Dùng đủ các câu theo thứ tự. Không trả lại văn bản lời kể.',
+    'characters dùng MAIN, SECOND, THIRD, FOURTH, FIFTH, SIXTH, SEVENTH, EIGHTH; ví dụ "MAIN = Lan (job=student): black hair, red shirt". Người nổi tiếng dùng tên thật kèm who=.',
+    numbered
+  ].join('\n');
+  const response = await storyAI({ contents: [{ parts: [{ text: message }] }],
+    generationConfig: { responseMimeType: 'application/json' } }, 95000, undefined, { task: 'script' });
+  let parsed = null;
+  try { parsed = readGemJson(response); } catch (e) { if (!(e instanceof SyntaxError)) throw e; }
+  const cuts = parsed?.cuts;
+  const valid = Array.isArray(cuts) && cuts.length === count && cuts.at(-1) === ends.length &&
+    cuts.every((cut, i) => Number.isInteger(cut) && cut > (cuts[i - 1] || 0));
+  const bounds = valid ? cuts : Array.from({ length: count }, (_, i) => Math.round((i + 1) * ends.length / count));
+  if (!valid) log('  ℹ Chia lại theo ranh giới câu vì các điểm ngắt AI trả về chưa hợp lệ.');
+  const scenes = bounds.map((cut, i) => ({ text: idea.slice(ends[bounds[i - 1] - 1] || 0, ends[cut - 1]).trim(), image: '' }));
+  const metadata = Object.fromEntries(['story', 'setting', 'identity', 'characters']
+    .map(key => [key, typeof parsed?.[key] === 'string' ? parsed[key] : '']));
+  return { ...metadata, scenes, verbatim: true };
+}
+
 function splitSentences(t) {
   const raw = String(t || '').trim().split(/(?<=[.!?…]["”’')\]»]*)\s+/).filter(Boolean), out = [];
   for (const x of raw) {
@@ -895,6 +919,7 @@ function cloudScriptPieces(idea, count) {
 
 // Video dài: viết kịch bản theo từng phần ~24 cảnh để không bị cụt và không quá thời gian
 async function makeScript(idea, min) {
+  if (srcMode === 'text' && $('keepNarration')?.checked) return await splitOriginalNarration(idea);
   const cloud = storyProvider() === 'cloudflare';
   const n = imgCount(), total = Math.round(min * 60 * 3.2), partSize = cloud ? 4 : 24;
   const parts = Math.max(1, Math.ceil(n / partSize));
@@ -3731,12 +3756,12 @@ function artReferences(sceneNo, roles, style, limit) {
   // The first verified frame for a shared role is more stable than reusing the most recent redraw.
   for (let i = 0; i < scenes.length && uncovered.size && references.length < limit; i++) {
     const scene = scenes[i];
-    if (i === sceneNo - 1 || !scene?.artRef || scene.artStyle !== style || scene.artReview === 'manual') continue;
+    if (i === sceneNo - 1 || !scene?.artRef || scene.artStyle !== style) continue;
     const shared = (scene.artRoles || []).filter(role => uncovered.has(role));
     if (!shared.length) continue;
     references.push({
       roles: shared,
-      cue: `Verified illustration for ${shared.map(role => role + (castLock[role]?.nm ? ' (' + castLock[role].nm + ')' : '')).join(', ')}. Match the recurring character designs and current style. Use this reference only for identity and continuity. Stage the action from the current narration.`,
+      cue: `Saved illustration for ${shared.map(role => role + (castLock[role]?.nm ? ' (' + castLock[role].nm + ')' : '')).join(', ')}. Match the recurring character designs and current style. Use this reference only for identity and continuity. Stage the action from the current narration.`,
       photo: scene.artRef
     });
     shared.forEach(role => uncovered.delete(role));
@@ -3803,124 +3828,38 @@ function artPhoto(im, maxSize = 768) {
   return { inlineData: { mimeType: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.85).split(',')[1] } };
 }
 
-class IllustrationUnavailable extends Error {}
-
 async function renderStoryArt(parts, aspectRatio, fallbackPrompt) {
-  if (storyProvider() === 'cloudflare') {
-    const inputs = [];
-    for (const part of parts) {
-      if (part.inlineData) {
-        const { mimeType, data } = part.inlineData;
-        const refImage = await loadImg(`data:${mimeType};base64,${data}`);
-        inputs.push(artPhoto(refImage, 496));
-      } else inputs.push(part);
-    }
-    const data = await cfCall({ kind: 'image', parts: inputs, aspect: aspectRatio, fallbackPrompt });
-    if (!data.image?.data || !/^image\/(png|jpeg|webp)$/i.test(data.image?.mimeType)) {
-      throw new Error('Cloudflare không trả ảnh hợp lệ.');
-    }
-    const image = await loadImg(`data:${data.image.mimeType};base64,${data.image.data}`);
-    if (data.imageMode === 'compatible') log('  🎨 Cloudflare đã vẽ ở khung tương thích bằng mô tả cảnh.');
-    if (data.imageMode === 'backup') log('  🎨 Cloudflare đã vẽ bằng FLUX.1 Schnell từ mô tả cảnh.');
-    return { image, mode: ['compatible', 'backup'].includes(data.imageMode) ? data.imageMode : '' };
+  const inputs = [];
+  for (const part of parts) {
+    if (part.inlineData) {
+      const refImage = await loadImg(artworkDataUrl(part));
+      inputs.push(artPhoto(refImage, 496));
+    } else inputs.push(part);
   }
-  let error, availabilityOnly = true;
-  for (const model of GEM_IMG_MODELS) {
-    if (retiredModels.has(model)) continue;
-    try {
-      const response = await gem(model, {
-        contents: [{ parts }],
-        generationConfig: { responseModalities: ['TEXT', 'IMAGE'], imageConfig: { aspectRatio } }
-      }, 90000, 1);
-      const candidate = response.candidates?.[0];
-      const asset = candidate?.content?.parts?.map(part => part.inlineData).find(part => /^image\/(png|jpe?g|webp)$/i.test(part?.mimeType) && part.data);
-      if (!asset) throw new Error('Gemini không trả ảnh (' + (candidate?.finishReason || response.promptFeedback?.blockReason || 'trống') + ')');
-      return { image: await loadImg(`data:${asset.mimeType};base64,${asset.data}`), mode: '' };
-    } catch (e) {
-      if (abortGen) throw e;
-      error = e;
-      availabilityOnly &&= /^(401|403|404|429)\b|^400.*API[_ ]KEY/i.test(e.message);
-    }
+  const data = await cfCall({ kind: 'image', parts: inputs, aspect: aspectRatio, fallbackPrompt });
+  if (!data.image?.data || !/^image\/(png|jpeg|webp)$/i.test(data.image?.mimeType)) {
+    throw new Error('Cloudflare không trả ảnh hợp lệ.');
   }
-  if (availabilityOnly) throw new IllustrationUnavailable(error ? error.message : 'Chưa có model Gemini hỗ trợ tạo ảnh');
-  throw error;
+  const image = await loadImg(artworkDataUrl({ inlineData: data.image }));
+  if (data.imageMode === 'compatible') log('  🎨 Cloudflare đã vẽ ở khung tương thích bằng mô tả cảnh.');
+  if (data.imageMode === 'backup') log('  🎨 Cloudflare đã vẽ bằng FLUX.1 Schnell từ mô tả cảnh.');
+  return image;
 }
 
-async function reviewStoryArt(s, photo, references, handoff = false, style = '') {
-  const parts = references.flatMap(ref => [{ text: ref.cue }, ref.photo]);
-  parts.push({ text: 'The next image is the current scene and the only image to evaluate.' }, photo);
-  const styleCheck = style ? 'Required style: ' + CLOUD_ART_STYLES[style] : 'Keep the actual image style when planning the camera.';
-  parts.push({ text: `Compare the current illustration to the current narration and brief below.
-${styleCheck}
-Current event and limits: ${artMoment(s).cue}
-Check three things using the actual picture, not the brief alone:
-1. style: the entire image visibly matches the required style. A photograph or CGI in a 2D anime project is a mismatch.
-2. cast: intended people are present when required, and recognizable features match labeled references when visible. If the narration does not require a recognizable face in this shot, assess only who should be present. With no reference, check who is shown and the visible traits in the cast brief. Use "pass" if no cast is required and the image respects that constraint.
-3. event: the main action and outcome are visually supported by the current narration. Flag a successful liftoff for a failed launch, physically impossible positions, an invented event, unrelated objects that change the meaning, or a panel sequence instead of the single requested moment. Do not require offscreen actions.
-Use exactly "pass", "fail" or "uncertain" for each check. Return status "revise" for any clear failure and provide a concrete correction. Return status "uncertain" if a required check cannot be verified.
-${handoff ? 'For this handover, a wider source is needed: try to keep the passed object, both interacting hands and the two people readable in a single image.' : ''}
-If the image passes, optionally choose one camera move that follows the NARRATION and moves within this exact image. Identify the actual visible subject in the current image with a tight bounding box [left,top,right,bottom], all coordinates integers from 0 to 1000, origin at top left. Do not use any earlier reference image for the coordinates.
-- "reveal": start close on the meaningful detail, then pull out to show the people or setting. For a handoff, include the object and BOTH interacting hands in one box. Use this when the wider shot shows the context of the detail.
-- "focus": start wide, then zoom in on the visible detail as the narrator mentions it.
-- "pan": move from the subject to a distinct second detail or person visible in the same image; provide a box for each.
-Choose "cue" as an exact unique phrase of 2 to 10 Vietnamese words copied only from Current Vietnamese narration, at the moment the camera should start to act. If evidence is weak, the detail cannot be localized, or the wider shot adds no information for a reveal, return camera:null or choose a better grounded move. Stay inside the art; never invent details outside the image.
-Return only JSON {"status":"pass|revise|uncertain","checks":{"style":"pass","cast":"pass","event":"pass"},"fix":"single concrete correction in English if needed","note":"vấn đề nhìn thấy được, một câu tiếng Việt","camera":{"move":"reveal","cue":"exact phrase","subject":[320,420,570,660],"destination":null}}. Use camera:null if unavailable or the image needs changes.
-${sceneCtx(s)}` });
-  for (let attempt = 0; attempt < (style ? 2 : 1); attempt++) {
-    if (attempt) parts[parts.length - 1] = { text: `Compare the current illustration against the latest picture and this narration.
-${styleCheck}
-${artMoment(s).cue}
-${sceneCtx(s)}
-Return one JSON object only. Required keys: "checks" with "style", "cast", "event" set independently to "pass", "fail" or "uncertain". Check actual drawing style, who should be shown and whether the image depicts the action and outcome. If no people are needed or no face must be seen, evaluate who is shown. Add "fix" (English correction) and "note" (Vietnamese) for any fail. Add no camera instructions.` };
-    let result;
-    try {
-      const response = await storyAI({ contents: [{ parts }], generationConfig: { responseMimeType: 'application/json' } }, 30000, 1);
-      result = readGemJson(response);
-    } catch (e) {
-      if (abortGen) throw e;
-      if (e instanceof SyntaxError) continue;
-      return { status: 'unavailable', note: 'Dịch vụ đối chiếu tranh chưa phản hồi thành công.' };
-    }
-    const checks = ['style', 'cast', 'event'].map(key => result?.checks?.[key]);
-    if (!result || typeof result !== 'object') continue;
-    if (result.status === 'revise' || checks.includes('fail')) {
-      const fix = typeof result.fix === 'string' ? result.fix.trim().slice(0, 300) : '';
-      const note = typeof result.note === 'string' ? result.note.trim().slice(0, 240) : '';
-      return { status: 'revise', fix: fix || 'Correct the failed style, cast or event checks using the required style and current narration.', note };
-    }
-    if ((!style && result.status === 'pass') || (style && (!result.status || result.status === 'pass') && checks.every(check => check === 'pass'))) {
-      return { ...result, status: 'pass' };
-    }
-    if (style && checks.includes('uncertain')) {
-      const labels = ['kiểu vẽ', 'nhân vật', 'diễn biến'].filter((_, i) => checks[i] === 'uncertain').join(', ');
-      return { status: 'unavailable', note: 'Chưa xác minh được ' + labels + '.' };
-    }
-    if (result.status === 'uncertain' && checks.every(check => check === 'pass')) break;
-  }
-  return { status: 'unavailable', note: 'Kết quả đối chiếu chưa đủ thông tin. Bạn có thể xem tranh và quyết định.' };
-}
-
-class ArtworkHold extends Error {
-  constructor(message, candidate = null) {
-    super(message);
-    this.candidate = candidate;
-  }
-}
-
-function artResult(scene, image, photo, style, roles, camera, manual = false) {
+function artResult(scene, image, photo, style, roles, camera, width = W, height = H) {
   const cv = document.createElement('canvas');
-  cv.width = W;
-  cv.height = H;
-  const rect = drawIllustration(cv.getContext('2d'), image, W, H);
-  return { cv, ord: [], art: true, artNote: manual ? 'Bạn đã duyệt tranh này.' : '', pendingArt: null,
-    artReview: manual ? 'manual' : 'verified', artRef: photo, artCamera: illustrationCamera(scene, camera, rect, W, H),
+  cv.width = width;
+  cv.height = height;
+  const rect = drawIllustration(cv.getContext('2d'), image, width, height);
+  return { cv, ord: [], art: true, artNote: '', pendingArt: null,
+    artRef: photo, artCamera: illustrationCamera(scene, camera, rect, width, height),
     artStyle: style, artRoles: roles, bgL: null, fgL: null, bgKind: inferSetting(scene), anim: false, bg: null, people: null,
-    motionScene: null, motionBase: null, frameHeight: H, bakedDate: false };
+    motionScene: null, motionBase: null, frameHeight: height, bakedDate: false };
 }
 
 async function illustratedImage(s, sceneNo) {
   const style = cloudArtStyle(s), aspect = fm.ar;
-  if (!style) throw new ArtworkHold('Chọn kiểu vẽ Cloudflare cho dự án rồi bấm Vẽ lại.');
+  if (!style) throw new Error('Chọn kiểu vẽ Cloudflare cho dự án rồi bấm Vẽ lại.');
   const roles = artRoles(s), people = artPeople(roles);
   const { references, uncovered } = artReferences(sceneNo, roles, style, 4);
   const portraits = await Promise.all(people.filter(person => uncovered.has(person.role)).slice(0, Math.min(2, 4 - references.length)).map(async ({ name, role }) => {
@@ -3953,33 +3892,8 @@ ${handoff ? framing : ''} ${graphics}
 One shot, no collage or text. Follow this narration: ${String(s.text || '').slice(0, 420)}
 Visual brief (use only where consistent with narration): ${String(s.image || '').slice(0, 460)}
 Cast cues: ${String(chars || '').split(/[;\n]/).filter(entry => roles.some(role => entry.trimStart().startsWith(role + ' '))).join('; ').slice(0, 180)}`;
-  let result = await renderStoryArt([...parts, { text: prompt }], aspect, fallbackPrompt);
-  let photo = artPhoto(result.image);
-  let review = await reviewStoryArt(s, photo, references, handoff, style);
-  if (review.status === 'revise') {
-    log(`  🎨 Cảnh ${sceneNo}: đang sửa theo kết quả đối chiếu.`);
-    try {
-      const draft = references.length < 4 ? [{ text: 'Draft to correct:' }, photo] : [];
-      const fixed = await renderStoryArt([...parts, ...draft, {
-        text: `${prompt}\nCorrect this visible error while keeping the selected style: ${review.fix}`
-      }], aspect, `Correction: ${review.fix.slice(0, 180)}\n${fallbackPrompt}`);
-      photo = artPhoto(fixed.image);
-      result = fixed;
-      review = await reviewStoryArt(s, photo, references, handoff, style);
-    } catch (e) {
-      if (abortGen) throw e;
-      log(`  ℹ Chưa hoàn tất lượt sửa cảnh ${sceneNo}.`);
-    }
-  }
-  if (review.status === 'revise') throw new ArtworkHold(review.note || 'Tranh chưa đạt kiểm tra phong cách, nhân vật hoặc diễn biến.');
-  if (review.status !== 'pass' || result.mode) {
-    const reason = [
-      result.mode ? 'Cloudflare đã vẽ dự phòng từ mô tả chữ.' : '',
-      review.status !== 'pass' ? review.note || 'Chưa xác minh đủ phong cách, nhân vật và diễn biến.' : ''
-    ].filter(Boolean).join(' ');
-    throw new ArtworkHold(reason, { photo, style, roles, reason, camera: review.camera || null, imageBrief: s.image, visibleCast: s.visibleCast ?? null });
-  }
-  return artResult(s, result.image, photo, style, roles, review.camera);
+  const image = await renderStoryArt([...parts, { text: prompt }], aspect, fallbackPrompt);
+  return artResult(s, image, artPhoto(image), style, roles);
 }
 
 async function makeMotionScene(s, plan) {
@@ -4017,9 +3931,9 @@ async function makeMotionScene(s, plan) {
 
 async function makeImage(s, sceneNo, mode = $('isrc').value) {
   const plan = interactionOn(mode) ? StoryMotion.plan(s.motionHint, s.text, s.image, chars, s.motionChoice) : null;
-  if (plan) return { ...await makeMotionScene(s, plan), artStyle: null, artReview: null, pendingArt: null, frameHeight: H, bakedDate: false };
+  if (plan) return { ...await makeMotionScene(s, plan), artStyle: null, pendingArt: null, frameHeight: H, bakedDate: false };
   const still = await makeStillImage(s, sceneNo, mode);
-  return { artCamera: null, art: false, artStyle: null, artRef: null, artRoles: [], artReview: null, pendingArt: null, artNote: '',
+  return { artCamera: null, art: false, artStyle: null, artRef: null, artRoles: [], pendingArt: null, artNote: '',
     ...still, motionScene: null, motionBase: null, frameHeight: H, bakedDate: false };
 }
 
@@ -4523,6 +4437,7 @@ function srcTab(t) {
   srcMode = t;
   document.querySelectorAll('#srcTabs button').forEach((b, i) => b.classList.toggle('on', ['text', 'tt', 'file'][i] === t));
   $('srcTt').hidden = t !== 'tt'; $('srcFile').hidden = t !== 'file'; $('srcRw').hidden = t === 'text';
+  $('keepNarrationRow').hidden = t !== 'text';
   $('min').disabled = t !== 'text';
   $('minLbl').textContent = t === 'text' ? 'Độ dài video' : 'Độ dài video (tự theo nội dung)';
   $('ideaLbl').textContent = t === 'text' ? 'Câu chuyện hoặc ý tưởng' : 'Nội dung (chép lời xong sẽ hiện ở đây, bạn sửa được)';
@@ -4628,13 +4543,10 @@ async function tiktokToText() {
 async function start(isRetry = false) {
   if (projectBusy()) return;
   const provider = storyProvider(), imageMode = $('isrc').value;
+  const needsScript = !isRetry || !scenes.length;
   saveSet();
   keys = $('keys').value.split(/\s+/).filter(k => k.length > 20);
-  if (provider === 'gemini' && !keys.length) return keysOk();
-  if ($('vsrc').value === 'vbee' && !($('vapp').value.trim() && $('vtok').value.trim() && $('vcode').value.trim())) {
-    $('set').open = true;
-    return alert('Điền đủ App ID, Token và mã giọng Vbee trong phần Cài đặt nhé.');
-  }
+  if (provider === 'gemini' && (needsScript || imageMode !== 'illustrated') && !keys.length) return keysOk();
   const idea = $('idea').value.trim();
   if (!idea && (!isRetry || !scenes.length)) return alert('Nhập câu chuyện hoặc ý tưởng nhé.');
   beginStoryProject(idea, isRetry);
@@ -4660,13 +4572,13 @@ async function start(isRetry = false) {
   try {
     await saveStoryProject();
     refreshStoryProjects();
-    if (!isRetry || !scenes.length) {
+    if (needsScript) {
       $('log').textContent = '⏳ Đang viết kịch bản...';
       $('bar').style.width = '0%';
       const script = activeProject.script || await makeScript(idea, +$('min').value);
       activeProject.script = script;
       await saveStoryProject();
-      const sc = { ...script, scenes: fixSceneBreaks(removeRepeatedNarration(script.scenes, idea)) };
+      const sc = { ...script, scenes: script.verbatim ? script.scenes.map(scene => ({ ...scene })) : fixSceneBreaks(removeRepeatedNarration(script.scenes, idea)) };
       chars = sc.characters || '';
       parseCast(chars);
       storyCtx = sc.story || '';
@@ -4724,7 +4636,7 @@ async function start(isRetry = false) {
       while (idx < scenes.length && !abortGen && !imageUnavailable) {
         const i = idx++;
         const s = scenes[i], no = i + 1;
-        const needImg = !s.cv && !s.pendingArt;
+        const needImg = !s.cv;
         if (!needImg) continue;
 
         const imgTask = (async () => {
@@ -4737,22 +4649,20 @@ async function start(isRetry = false) {
               log(`  🎨 Đã vẽ xong tranh cảnh ${no}/${scenes.length}`);
             } catch (e) {
               if (abortGen) break;
-              if (e instanceof ArtworkHold) applyArtworkHold(s, e);
               log(`  ⚠ Cảnh ${no} (thử ${t + 1}/${attempts}) lỗi vẽ: ${e.message.slice(0, 110)}`);
-              if (e instanceof IllustrationUnavailable || e instanceof CloudflareUnavailable) {
+              if (e instanceof CloudflareUnavailable) {
                 imageUnavailable = true;
                 break;
               }
               if (t + 1 < attempts) await nap(2500 * (t + 1));
             }
           }
-          if (!s.cv && !abortGen) { s.failed = !s.pendingArt; updateCard(i); }
+          if (!s.cv && !abortGen) { s.failed = true; updateCard(i); }
         })();
 
         await imgTask;
         if (!s.cv) {
           if (abortGen) break;
-          if (s.pendingArt) await saveStoryProject();
           continue;
         }
 
@@ -4769,21 +4679,19 @@ async function start(isRetry = false) {
     else await Promise.all([worker(), worker()]);
 
     if (imageUnavailable) {
-      log(provider === 'cloudflare'
+      log(imageMode === 'illustrated' || provider === 'cloudflare'
         ? '  ⚠ ' + (cloudflareBlocked?.message || 'Cloudflare chưa tạo được tranh.') + ' Tranh đã có được giữ lại.'
         : '  ⚠ Gemini tạo ảnh chưa khả dụng. Kiểm tra quyền tạo ảnh hoặc hạn mức, rồi bấm Chạy bù. Có thể chọn SVG để vẽ các cảnh còn thiếu.');
-      scenes.forEach((s, i) => { if (!s.cv && !s.pendingArt) { s.failed = true; updateCard(i); } });
+      scenes.forEach((s, i) => { if (!s.cv) { s.failed = true; updateCard(i); } });
     }
     const badImg = scenes.filter(s => !s.cv).length;
-    if (scenes.some(s => !s.cv && !s.pendingArt)) $('retryBtn').hidden = false;
+    $('retryBtn').hidden = !badImg;
     if (abortGen) {
       const okCount = scenes.filter(s => s.cv).length;
       log(okCount ? `⏹ Đã dừng. Giữ lại ${okCount} tranh đã vẽ.` : '⏹ Đã dừng.');
     } else {
-      const pending = scenes.filter(s => !s.cv && s.pendingArt).length;
       log(`🖼 Đã vẽ xong ${scenes.length - badImg}/${scenes.length} tranh.` +
-        (pending ? ` Có ${pending} cảnh đang chờ Duyệt tranh mới.` : '') +
-        (badImg > pending ? ` Còn ${badImg - pending} cảnh cần vẽ lại. Có thể bấm Chạy bù.` : '') +
+        (badImg ? ` Còn ${badImg} cảnh cần vẽ lại. Có thể bấm Chạy bù.` : '') +
         '\n👉 Xem trước tranh ở khung bên dưới. Tranh nào chưa ưng thì bấm 🔄 Vẽ lại. Ưng hết thì bấm "Ưng rồi, tạo giọng đọc và video".');
     }
   } catch (e) {
@@ -4807,11 +4715,10 @@ function renderGallery() {
     const d = document.createElement('div');
     d.className = 'card';
     d.id = 'card' + i;
-    d.innerHTML = '<div class="thumb"><canvas></canvas><img class="pending-picture" alt="Tranh mới chờ duyệt" hidden><span class="pending-label" hidden>Chờ duyệt</span><span class="ph">⏳ Chờ vẽ...</span></div><div class="cap"></div><p class="hint art-note" hidden></p>' +
+    d.innerHTML = '<div class="thumb"><canvas></canvas><span class="ph">⏳ Chờ vẽ...</span></div><div class="cap"></div><p class="hint art-note" hidden></p>' +
       `<button type="button" class="w sm" onclick="redraw(${i})">🔄 Vẽ lại</button>` +
       `<button type="button" class="w sm camera-scene" data-scene="${i}" onclick="tuneIllustrationCamera(${i})" hidden>Căn camera</button>` +
       `<button type="button" class="w sm reference-scene" data-scene="${i}" onclick="openArtworkReference(${i})" hidden>Lấy mẫu nhân vật</button>` +
-      `<button type="button" class="w sm review-scene" onclick="openArtworkCandidate(${i})" hidden>Duyệt tranh mới</button>` +
       `<details><summary>Sửa mô tả tranh</summary><textarea id="ed${i}" style="min-height:70px;font-size:13px"></textarea></details>`;
     g.appendChild(d);
     d.querySelector('.cap').textContent = `${i + 1}. ${s.text}`;
@@ -4845,10 +4752,8 @@ function renderGallery() {
     c.width = 240; c.height = Math.round(240 * H / W);
     updateCard(i);
   });
-  updateArtworkReviewButton();
 }
 function updateCard(i) {
-  updateArtworkReviewButton();
   const s = scenes[i], d = $('card' + i);
   if (!s || !d) return;
   const c = d.querySelector('canvas'), ph = d.querySelector('.ph'), note = d.querySelector('.art-note');
@@ -4856,26 +4761,18 @@ function updateCard(i) {
   camera.hidden = !canTuneIllustrationCamera(s);
   camera.disabled = !!s.busy;
   camera.textContent = s.artCamera ? 'Căn lại camera' : 'Căn camera';
-  const reference = d.querySelector('.reference-scene'), review = d.querySelector('.review-scene');
+  const reference = d.querySelector('.reference-scene');
   reference.hidden = !canTuneIllustrationCamera(s) || !!artMoment(s).noPeople;
-  review.hidden = !s.pendingArt;
-  reference.disabled = review.disabled = !!s.busy;
+  reference.disabled = !!s.busy;
   const button = d.querySelector('.motion-preview');
   if (button) {
     button.hidden = !isSvgMode() || !s.motionScene;
     button.disabled = !!s.busy;
     if (s.motionScene && globalThis.StoryMotion) button.textContent = 'Xem động tác · ' + StoryMotion.labels[s.motionScene.action];
   }
-  const picture = d.querySelector('.pending-picture'), label = d.querySelector('.pending-label');
-  const preview = s.pendingArt && !s.cv ? artworkDataUrl(s.pendingArt.photo) : '';
-  picture.hidden = label.hidden = !preview;
-  if (preview) {
-    if (picture.getAttribute('src') !== preview) picture.src = preview;
-  } else picture.removeAttribute('src');
   note.textContent = s.artNote || '';
   note.hidden = !note.textContent;
   if (s.busy) { ph.hidden = false; ph.textContent = '⏳ Đang vẽ lại...'; return; }
-  if (preview) { ph.hidden = true; return; }
   if (!s.cv) {
     c.getContext('2d').clearRect(0, 0, c.width, c.height);
     ph.hidden = false; ph.textContent = s.failed ? '⚠ Lỗi, bấm Vẽ lại' : '⏳ Chờ vẽ...'; return;
@@ -4887,14 +4784,7 @@ function updateCard(i) {
   x.fillStyle = '#fff'; x.fillRect(0, 0, tw, th);
   x.drawImage(s.cv, 0, 0, tw, th);
 }
-function applyArtworkHold(scene, hold) {
-  scene.pendingArt = hold.candidate;
-  scene.artNote = [hold.message,
-    hold.candidate ? 'Bấm Duyệt tranh mới để quyết định có dùng tranh này.' : '',
-    scene.cv ? 'Tranh trước vẫn đang được dùng.' : ''].filter(Boolean).join(' ');
-}
-
-let artReferenceEdit = null, artReviewEdit = null;
+let artReferenceEdit = null;
 function openArtworkReference(i) {
   const scene = scenes[i];
   if (projectBusy() || !activeProject || !scene?.cv || !scene.art || scene.motionScene || $('isrc').value !== 'illustrated') return;
@@ -4986,11 +4876,6 @@ function attachArtworkDialogs() {
     paintArtworkReference(artReferenceEdit);
   });
   $('artReferenceDialog').addEventListener('close', () => { artReferenceEdit = null; });
-  $('artReviewDialog').addEventListener('close', () => {
-    if ($('artReviewDialog').open) return;
-    artReviewEdit = null;
-    $('artReviewPicture').removeAttribute('src');
-  });
 }
 
 function saveArtworkReference() {
@@ -5015,112 +4900,10 @@ function artworkDataUrl(photo) {
   return `data:${mimeType};base64,${data}`;
 }
 
-function updateArtworkReviewButton() {
-  const review = $('reviewPendingArt'), use = $('usePendingArt');
-  const pending = scenes.filter(scene => scene.pendingArt), missing = pending.filter(scene => !scene.cv).length;
-  if (review) {
-    review.hidden = !pending.length;
-    review.textContent = `Duyệt từng tranh (${pending.length})`;
-  }
-  if (use) {
-    use.hidden = !missing;
-    use.textContent = `Dùng ${missing} tranh cho các cảnh còn thiếu`;
-  }
-}
-
-function reviewPendingArtwork() {
-  openArtworkCandidate(scenes.findIndex(scene => scene.pendingArt), true);
-}
-
-function showNextArtwork(i) {
-  openArtworkCandidate(scenes.findIndex((scene, index) => index > i && scene.pendingArt), true);
-}
-
-function skipArtworkCandidate() {
-  if (artReviewEdit?.sequence) showNextArtwork(artReviewEdit.i);
-}
-
-function openArtworkCandidate(i, sequence = false) {
-  const scene = scenes[i], candidate = scene?.pendingArt;
-  if (projectBusy() || !candidate) return;
-  artReviewEdit = { i, scene, candidate, sequence };
-  $('artReviewTitle').textContent = `Duyệt tranh mới · Cảnh ${i + 1}`;
-  $('artReviewNarration').textContent = scene.text || '';
-  $('skipArtReview').hidden = !sequence || !scenes.some((item, index) => index > i && item.pendingArt);
-  $('artReviewReason').textContent = candidate.reason + ' Nhìn lại kiểu vẽ, khuôn mặt và diễn biến trước khi dùng tranh.';
-  $('artReviewPicture').src = artworkDataUrl(candidate.photo);
-  if (!$('artReviewDialog').open) $('artReviewDialog').showModal();
-}
-
-async function applyArtworkCandidate(scene, candidate, i) {
-  const image = await loadImg(artworkDataUrl(candidate.photo));
-  const changes = { image: candidate.imageBrief, visibleCast: candidate.visibleCast };
-  const result = artResult({ ...scene, ...changes }, image, candidate.photo, candidate.style, candidate.roles, candidate.camera, true);
-  Object.assign(scene, changes, result, { ok: true, failed: false });
-  if ($('ed' + i)) $('ed' + i).value = scene.image;
-}
-
-async function approveMissingArtwork() {
-  if (projectBusy()) return false;
-  const pending = scenes.flatMap((scene, i) => !scene.cv && scene.pendingArt ? [{ scene, i }] : []);
-  if (!pending.length || !confirm(`Dùng ${pending.length} tranh đang chờ cho các cảnh còn thiếu? Một số tranh có thể chưa được AI đối chiếu đầy đủ.`)) return false;
-  const button = $('usePendingArt');
-  if (button) button.disabled = true;
-  $('mkBtn').disabled = true;
-  lockDrawingSettings(true);
-  let applied = 0;
-  try {
-    for (const { scene, i } of pending) {
-      try {
-        await applyArtworkCandidate(scene, scene.pendingArt, i);
-        applied++;
-        updateCard(i);
-      } catch (e) {
-        log(`  ⚠ Cảnh ${i + 1}: chưa đọc được tranh đang chờ. Hãy vẽ lại cảnh này.`);
-      }
-    }
-    if (applied) {
-      refreshArtworkProgress();
-      await saveStoryProject();
-      refreshStoryProjects();
-      log(`  ✓ Đã dùng ${applied}/${pending.length} tranh cho các cảnh còn thiếu.`);
-    }
-  } finally {
-    lockDrawingSettings(false);
-    $('mkBtn').disabled = false;
-    if (button) button.disabled = false;
-  }
-  return applied === pending.length;
-}
-
-async function approveArtworkCandidate() {
-  const edit = artReviewEdit;
-  if (!edit || projectBusy() || scenes[edit.i] !== edit.scene || edit.scene.pendingArt !== edit.candidate) return;
-  const { i, scene, candidate } = edit;
-  let approved = false;
-  scene.busy = true;
-  lockDrawingSettings(true);
-  $('artReviewDialog').close();
-  try {
-    await applyArtworkCandidate(scene, candidate, i);
-    refreshArtworkProgress();
-    await saveStoryProject();
-    approved = true;
-    refreshStoryProjects();
-  } catch (e) {
-    log('  ⚠ Chưa áp dụng được tranh đang chờ duyệt: ' + e.message);
-  } finally {
-    scene.busy = false;
-    lockDrawingSettings(false);
-    updateCard(i);
-  }
-  if (approved && edit.sequence) showNextArtwork(i);
-}
-
 function refreshArtworkProgress() {
   const drawn = scenes.filter(scene => scene.cv).length;
   $('bar').style.width = (scenes.length ? 100 * drawn / scenes.length : 0) + '%';
-  $('retryBtn').hidden = !scenes.some(scene => !scene.cv && !scene.pendingArt);
+  $('retryBtn').hidden = !scenes.some(scene => !scene.cv);
 }
 
 function canTuneIllustrationCamera(scene) {
@@ -5129,12 +4912,12 @@ function canTuneIllustrationCamera(scene) {
 async function tuneIllustrationCamera(i) {
   const scene = scenes[i];
   if (projectBusy() || !canTuneIllustrationCamera(scene)) return;
+  if (!keysOk()) return;
   const button = $('card' + i)?.querySelector('.camera-scene');
   scene.busy = true;
   lockDrawingSettings(true);
   if (button) { button.disabled = true; button.textContent = 'Đang căn camera…'; }
   abortGen = false;
-  cloudflareBlocked = null;
   try {
     const w = scene.cv.width, h = Math.min(scene.cv.height, Math.round(fm.ah + 10));
     const scale = Math.min(1, 768 / Math.max(w, h));
@@ -5142,8 +4925,12 @@ async function tuneIllustrationCamera(i) {
     art.width = Math.max(1, Math.round(w * scale));
     art.height = Math.max(1, Math.round(h * scale));
     art.getContext('2d').drawImage(scene.cv, 0, 0, w, h, 0, 0, art.width, art.height);
-    const review = await reviewStoryArt(scene, artPhoto(art), []);
-    const camera = illustrationCamera(scene, review.camera, { x: 0, y: 0, w, h }, w, h);
+    const prompt = `Suggest one camera move for this exact image and narration. Choose reveal (zoom out from a relevant detail), focus (zoom in), or pan (move between two subjects). Pick a unique cue of 2 to 10 consecutive words copied from the Vietnamese narration. Use tight bounding boxes [left,top,right,bottom] as integer coordinates from 0 to 1000, starting at the top left. For a handover, include the object and both hands in the same box. Use a destination box only for pan. If the cue or subject cannot be localized, use camera:null.
+Return JSON only: {"camera":{"move":"reveal","cue":"exact words","subject":[320,420,570,660],"destination":null}}.
+${sceneCtx(scene)}`;
+    const answer = await storyAI({ contents: [{ parts: [artPhoto(art), { text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json' } }, 30000, 1);
+    const camera = illustrationCamera(scene, readGemJson(answer)?.camera, { x: 0, y: 0, w, h }, w, h);
     if (!camera) {
       log(`  ℹ Cảnh ${i + 1}: chưa tìm được điểm camera theo lời kể. Bạn vẫn có thể dùng camera theo bố cục hiện tại.`);
       return;
@@ -5198,7 +4985,7 @@ async function redraw(i) {
     return alert('Chọn một kiểu tranh Cloudflare cho dự án rồi bấm Vẽ lại.');
   }
   keys = $('keys').value.split(/\s+/).filter(k => k.length > 20);
-  if (storyProvider() === 'gemini' && !keys.length) return keysOk();
+  if (imageMode !== 'illustrated' && storyProvider() === 'gemini' && !keys.length) return keysOk();
   if (!scenes.some(q => q.busy)) cloudflareBlocked = null;
   abortGen = false;
   lockDrawingSettings(true);
@@ -5216,13 +5003,12 @@ async function redraw(i) {
       break;
     } catch (e) {
       log(`  ⚠ Cảnh ${i + 1}: ${(e.message || '').slice(0, 180)}`);
-      if (e instanceof ArtworkHold) { applyArtworkHold(s, e); break; }
       if (!(e instanceof CloudflareUnavailable) && t + 1 < attempts) { await sleep(1500); continue; }
       s.artNote = s.cv ? 'Vẽ lại chưa thành công. Tranh trước vẫn đang được dùng.' : 'Vẽ chưa thành công. Có thể bấm Vẽ lại.';
       break;
     }
   }
-  s.failed = !s.cv && !s.pendingArt;
+  s.failed = !s.cv;
   refreshArtworkProgress();
   await saveStoryProject();
   refreshStoryProjects();
@@ -5240,8 +5026,7 @@ function remakeVoices() {
 
 async function makeVideo() {
   if (!scenes.length || projectBusy()) return;
-  const missingArt = scenes.filter(scene => !scene.cv);
-  const undrawn = missingArt.filter(scene => !scene.pendingArt).length;
+  const undrawn = scenes.filter(scene => !scene.cv).length;
   if (undrawn) return alert(`Còn ${undrawn} cảnh chưa tạo được tranh. Bấm Vẽ lại ở các cảnh đó trước nhé.`);
   if (scenes.some(s => s.busy)) return alert('Đang vẽ lại một tranh, đợi vẽ xong rồi bấm nhé.');
   saveSet();
@@ -5251,7 +5036,6 @@ async function makeVideo() {
     $('set').open = true;
     return alert('Điền đủ App ID, Token và mã giọng Vbee trong phần Cài đặt nhé.');
   }
-  if (missingArt.length && !await approveMissingArtwork()) return;
   abortGen = false;
   vbeeDeadInSession = false;
   const wantVoice = $('vsrc').value !== 'none';
@@ -5601,9 +5385,9 @@ const projectManifest = id => projectPrefix(id) + 'manifest';
 const projectAssets = (id, i) => projectPrefix(id) + 'scene:' + i;
 const projectRange = prefix => IDBKeyRange.bound(prefix, prefix + '\uffff');
 const PROJECT_CONTROLS = ['aiProvider', 'fmt', 'nimg', 'isrc', 'cfStyle', 'cmode', 'bgOn', 'motionVid', 'mvCam',
-  'mvTrans', 'trans', 'interaction2d', 'musicOn', 'musicVol', 'musicMood', 'exportSpeed', 'vsrc', 'voice', 'rewriteOn'];
+  'mvTrans', 'trans', 'interaction2d', 'musicOn', 'musicVol', 'musicMood', 'exportSpeed', 'vsrc', 'voice', 'rewriteOn', 'keepNarration'];
 const PROJECT_SCENE = ['text', 'image', 'prev', 'mood', 'ord', 'bgKind', 'art', 'artRoles', 'artStyle', 'artCamera', 'artNote', 'dur',
-  'motionHint', 'motionChoice', 'motionScene', 'frameHeight', 'bakedDate', 'visibleCast', 'artReview'];
+  'motionHint', 'motionChoice', 'motionScene', 'frameHeight', 'bakedDate', 'visibleCast'];
 const PROJECT_ASSETS = ['cv', 'bgL', 'fgL', 'motionBase', 'artRef', 'buf', 'pendingArt'];
 const projectFields = (obj, fields) => Object.fromEntries(fields.map(key => [key, obj[key] ?? null]));
 const PROJECT_CANVASES = PROJECT_ASSETS.slice(0, 4);
@@ -5613,7 +5397,7 @@ function projectBusy() {
   return switchingProject || $('go').disabled || $('mkBtn').disabled || playing || scenes.some(s => s.busy);
 }
 function lockDrawingSettings(locked) {
-  for (const id of ['aiProvider', 'isrc', 'cmode', 'cfStyle', 'interaction2d']) $(id).disabled = locked;
+  for (const id of ['aiProvider', 'isrc', 'cmode', 'cfStyle', 'interaction2d', 'keepNarration']) $(id).disabled = locked;
 }
 function projectName(idea) {
   return String(idea || '').trim().replace(/\s+/g, ' ').slice(0, 96) || 'Video kể chuyện';
@@ -5819,12 +5603,27 @@ async function openStoryProject(id) {
     const [meta, data] = await Promise.all([idb.get(PROJECT_LIST_PREFIX + id), idb.get(projectManifest(id))]);
     if (!meta || !data) throw new Error('Không tìm thấy dự án');
     const restored = [], assetCache = [];
+    const vertical = data.settings?.fmt === 'v';
+    let restoredEmptyScenes = 0;
     for (const [i, info] of data.scenes.entries()) {
       const raw = await idb.get(projectAssets(id, i));
       const asset = { artRef: raw?.artRef || null, buf: restoreProjectAudio(raw?.buf), pendingArt: raw?.pendingArt || null };
       for (const key of PROJECT_CANVASES) asset[key] = await restoreCanvas(raw?.[key]);
-      const scene = { ...info, ...asset, ok: !!asset.cv, failed: !asset.cv && !asset.pendingArt, busy: false };
+      const scene = { ...info, ...asset, ok: !!asset.cv, failed: !asset.cv, busy: false };
       await upgradeSavedArtwork(scene, !!data.sub);
+      const candidate = asset.pendingArt;
+      if (!scene.cv && candidate?.photo?.inlineData) {
+        try {
+          const image = await loadImg(artworkDataUrl(candidate.photo));
+          const changes = { image: candidate.imageBrief || scene.image, visibleCast: candidate.visibleCast ?? scene.visibleCast };
+          const result = artResult({ ...scene, ...changes }, image, candidate.photo, candidate.style || info.artStyle,
+            candidate.roles || info.artRoles, candidate.camera, vertical ? 720 : 1280, vertical ? 1280 : 720);
+          Object.assign(scene, changes, result, { ok: true, failed: false });
+          restoredEmptyScenes++;
+        } catch (e) {
+          scene.artNote = 'Không đọc được tranh từ bản cũ. Bấm Vẽ lại để tạo tranh cho cảnh này.';
+        }
+      }
       restored.push(scene);
       assetCache.push(asset);
     }
@@ -5862,16 +5661,17 @@ async function openStoryProject(id) {
     $('pl').hidden = !(scenes.length && !pending && (data.stage === 'video' || scenes.some(s => s.buf)));
     renderGallery();
     $('galBox').hidden = !scenes.length;
-    const needsDrawing = scenes.some(scene => !scene.cv && !scene.pendingArt);
-    const awaitsApproval = scenes.some(scene => scene.pendingArt);
-    $('retryBtn').hidden = !needsDrawing;
-    $('bar').style.width = scenes.length ? `${100 * meta.drawn / scenes.length}%` : '0%';
+    refreshArtworkProgress();
     const next = [
-      awaitsApproval ? 'Bạn có thể dùng các tranh đang chờ cho cảnh còn thiếu hoặc duyệt từng tranh.' : '',
-      needsDrawing ? 'Bấm Chạy bù để vẽ các cảnh còn thiếu.' : ''
+      restoredEmptyScenes ? `Đã dùng lại ${restoredEmptyScenes} tranh lưu từ bản cũ cho các cảnh chưa có ảnh.` : '',
+      pending ? 'Bấm Chạy bù để vẽ các cảnh còn thiếu.' : ''
     ].filter(Boolean).join(' ');
     $('log').textContent = `Đã mở dự án “${meta.name}”. ${next ||
       (scenes.length ? 'Bạn có thể xem lại các cảnh hoặc tiếp tục tạo giọng đọc.' : 'Bấm Bắt đầu tạo video để tiếp tục từ phần đã lưu.')}`;
+    if (restoredEmptyScenes) {
+      await saveStoryProject();
+      refreshStoryProjects();
+    }
   } catch (e) {
     alert('Chưa mở được dự án: ' + e.message);
   } finally {

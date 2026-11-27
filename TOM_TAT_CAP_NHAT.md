@@ -1,17 +1,11 @@
 # TÓM TẮT DỰ ÁN + LỊCH SỬ CẬP NHẬT (dành cho AI khác đọc nhanh)
 
-## Xem và duyệt tranh đang chờ
+## Gemini soạn cảnh, Cloudflare vẽ
 
-- Cảnh chưa có tranh đã duyệt hiển thị hình mới ngay trong ô xem trước với nhãn **Chờ duyệt**. Nếu cảnh đã có tranh đang dùng, bấm **Duyệt tranh mới** để xem kết quả vẽ lại.
-- Nút **Dùng tranh cho các cảnh còn thiếu** áp dụng các tranh đang chờ trong một lần xác nhận. Chỉ cảnh chưa có tranh được điền. Khi bấm **Tạo giọng đọc và video**, web cũng hỏi một lần nếu những cảnh còn thiếu đều đã có ảnh chờ.
-- **Duyệt từng tranh** mở lần lượt từng cảnh, kèm lời kể và lý do chờ. Bấm **Dùng tranh này** để chấp nhận hoặc **Xem cảnh tiếp theo** để xem sau. Tranh đang chờ được lưu cùng dự án.
-- Web gửi một lượt kiểm tra ngắn trên cùng ảnh khi phản hồi đối chiếu thiếu dữ liệu. Với kịch bản mới, phần lời trùng nguyên văn giữa các cảnh liền nhau được gỡ trước khi vẽ, trừ đoạn lặp trong nội dung gốc.
-
-## Khóa kiểu vẽ, mẫu nhân vật và duyệt tranh Cloudflare
-
-- Cloudflare có ba kiểu **Hoạt hình 3D**, **Anime điện ảnh** và **Ảnh thực (như ảnh chụp)**. Khi bấm **Vẽ lại**, cảnh ưu tiên kiểu đã lưu nếu còn được hỗ trợ. Các cảnh thiếu kiểu hợp lệ dùng kiểu của dự án. Dự án cũ thiếu cấu hình sẽ dùng kiểu chung của các tranh đã lưu khi xác định được, hoặc hiện ô chọn để bạn đặt lại.
-- Trên một tranh ưng ý, bấm **Lấy mẫu nhân vật**, chọn đúng người, khoanh vùng mặt, tóc và vai, rồi bấm **Lưu mẫu**. Có thể lặp lại cho từng nhân vật. Mẫu lưu theo dự án và kiểu vẽ.
-- Bố cục tập trung vào một khoảnh khắc và kết quả mà lời kể mô tả. Tranh mới được đối chiếu kiểu vẽ, người xuất hiện và diễn biến. Nếu sai rõ ràng, web thử sửa một lần. Nếu vẫn sai, web giữ tranh trước. Tranh vẽ dự phòng hoặc chưa xác minh đủ xuất hiện trong **Duyệt tranh mới** để bạn xem và chấp nhận.
+- Chọn **Tranh AI Cloudflare**, nhập API key Gemini để chia cảnh và soạn mô tả tranh. Cloudflare tạo ảnh theo kiểu **Hoạt hình 3D**, **Anime điện ảnh** hoặc **Ảnh thực**. Tranh hiện ngay và có thể dùng làm video. Bấm **Vẽ lại** trên cảnh bạn muốn thay.
+- Với lời kể đã hoàn chỉnh, bật **Giữ nguyên văn lời kể đã nhập**. Gemini chọn điểm ngắt cảnh. Web lấy từng đoạn trực tiếp từ lời kể gốc.
+- Khi mở dự án cũ, ảnh chờ còn lưu được dùng cho cảnh đang trống. Nếu Cloudflare hết hạn mức, kịch bản và tranh đã tạo được lưu. Mở lại dự án rồi bấm **Chạy bù các tranh lỗi** để vẽ những cảnh còn thiếu.
+- Trên một tranh ưng ý, bấm **Lấy mẫu nhân vật**, chọn đúng người, khoanh vùng mặt, tóc và vai, rồi bấm **Lưu mẫu**. Mẫu lưu theo dự án và kiểu vẽ.
 
 ## Khung tranh, phụ đề và mốc trong lời kể
 
@@ -24,7 +18,7 @@
 
 - Bật **Video kể chuyện chuyển động** để camera lia hoặc zoom vào đúng chi tiết được nhận diện trong ảnh. Ví dụ cảnh trao chìa khóa mở cận ở hai bàn tay và chìa khóa, rồi zoom ra để thấy người trao và người nhận nếu tranh có khung đủ rộng.
 - Camera canh theo cụm từ trong lời kể và thời lượng giọng đọc. Nếu chưa có điểm camera phù hợp, công cụ dùng cách lia hoặc zoom theo bố cục chung. Các chế độ **Chuyển động nhẹ** và **Khung hình cố định** điều chỉnh mức chuyển động như trước.
-- Với tranh Cloudflare đã có, **Căn camera** phân tích lại tranh đó để lấy điểm camera. Khi tạo hoặc vẽ lại cảnh Cloudflare, công cụ dùng tranh gốc để lia và zoom.
+- Bấm **Căn camera** khi muốn Gemini xem riêng cảnh đó và chọn điểm lia hoặc zoom theo lời kể. Nút này dùng API key Gemini.
 
 ## Hoạt hình 2D theo lời kể
 
@@ -35,7 +29,7 @@
 
 ## Bản Cloudflare Workers AI
 
-Khi dùng Cloudflare, kịch bản được tạo theo từng nhóm tối đa bốn cảnh, bố cục theo nhóm tối đa năm cảnh. Yêu cầu chữ gặp lỗi tạm thời được thử lại một lần với GLM-4.7 Flash trên Cloudflare. Nếu một phần vẫn thất bại, mở **Dự án cũ → Tiếp tục** rồi bấm **Bắt đầu tạo video** để viết tiếp từ phần kịch bản đã lưu. Khi lỗi ở bước bố cục, web có thể dùng mô tả từ kịch bản cho các cảnh đó. Cập nhật cùng lúc **`index.html`** và **`api/cloudflare-ai.js`**.
+Ở chế độ **Vẽ tay bằng SVG**, bạn vẫn có thể chọn **Cloudflare Workers AI** cho phần chữ trong Cài đặt. Khi chọn cách này, kịch bản được tạo theo từng nhóm tối đa bốn cảnh, bố cục theo nhóm tối đa năm cảnh và phần chữ đang dở được lưu để viết tiếp khi mở lại dự án.
 
 FLUX.2 Klein 4B dùng mô tả, ảnh chân dung người thật và tranh tham chiếu của các cảnh trước khi có. Nếu Cloudflare báo lỗi định dạng, web thử lại ở khung 1024×768 bằng mô tả cảnh. FLUX.1 Schnell là model vẽ dự phòng cho lỗi kỹ thuật phù hợp. Tranh tạo chỉ từ mô tả có thể lệch diện mạo nhân vật so với ảnh mẫu. Nhật ký hiển thị mã Cloudflare hoặc trạng thái HTTP khi có phản hồi lỗi.
 
@@ -45,7 +39,7 @@ FLUX.2 Klein 4B dùng mô tả, ảnh chân dung người thật và tranh tham 
 4. Mở **Cài đặt**, nhập **Account ID** và **API Token** rồi bấm **Kiểm tra kết nối Cloudflare**. Trình duyệt nhớ hai giá trị khi đóng tab và giữ chúng ngoài file sao lưu cài đặt và dữ liệu dự án. Giọng Vbee, giọng Gemini và chép lời dùng thông tin đăng nhập tương ứng.
 5. **Dự án cũ** lưu nhiều video trên trình duyệt này, gồm kịch bản, tranh và giọng đã tạo. Bấm **Tiếp tục** để mở lại, **Chạy bù** nếu còn tranh thiếu, hoặc **Xóa** để bỏ một dự án. Bản Cloudflare tạo dở của phiên bản cũ được chuyển sang danh sách này nếu trình duyệt còn giữ dữ liệu.
 
-Nếu đã đặt `CLOUDFLARE_ACCOUNT_ID` và `CLOUDFLARE_API_TOKEN` trên Vercel, có thể để trống hai ô trong web và mở **Dùng cấu hình Cloudflare trên Vercel** để nhập mã nếu đã bật `CLOUDFLARE_WEB_CODE`. Thông tin nhập trực tiếp trong web được ưu tiên khi có đủ Account ID và API Token. Các cuộc gọi Cloudflare đi qua `api/cloudflare-ai.js`. Model dùng là Gemma 4 26B và FLUX.2 Klein 4B.
+Nếu đã đặt `CLOUDFLARE_ACCOUNT_ID` và `CLOUDFLARE_API_TOKEN` trên Vercel, có thể để trống hai ô trong web và mở **Dùng cấu hình Cloudflare trên Vercel** để nhập mã nếu đã bật `CLOUDFLARE_WEB_CODE`. Thông tin nhập trực tiếp trong web được ưu tiên khi có đủ Account ID và API Token. Các cuộc gọi Cloudflare đi qua `api/cloudflare-ai.js`. Model vẽ chính là FLUX.2 Klein 4B.
 
 ## Bản minh họa vẽ tay
 
