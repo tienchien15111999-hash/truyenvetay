@@ -3,28 +3,28 @@
 ## Hoạt hình 2D theo lời kể
 
 - Bật **Hoạt hình 2D theo hành động trong truyện** trước khi tạo video. Cảnh nào có hành động phù hợp sẽ có nút **Xem động tác**. Có thể đổi mục **Động tác** trong thẻ cảnh và bấm **Vẽ lại**. Dùng **Tranh thường** để bỏ chuyển động của một cảnh.
-- Các động tác có sẵn gồm uống nước, hút thuốc, ăn, nghe điện thoại, đưa nhận đồ, nhặt đồ, chỉ tay, mở cửa, mở hộp hoặc rương, phóng và tách tầng tên lửa. Chuyển động tay, đồ vật, nắp hộp và khói được vẽ thành các lớp riêng. Khi dùng tranh minh họa, API tạo nền và nhân vật được vẽ theo mô tả vai trong kịch bản. Cảnh chưa có động tác phù hợp vẫn dùng cách vẽ đang chọn.
+- Các động tác có sẵn gồm uống nước, hút thuốc, ăn, nghe điện thoại, đưa nhận đồ, nhặt đồ, chỉ tay, mở cửa, mở hộp hoặc rương, vẫy tay, viết trên giấy, phóng và tách tầng tên lửa. Chuyển động tay, đồ vật, nắp hộp và khói được vẽ thành các lớp riêng. Khi dùng tranh minh họa, API tạo nền và nhân vật được vẽ theo mô tả vai trong kịch bản. Cảnh chưa có động tác phù hợp vẫn dùng cách vẽ đang chọn.
 - Hoạt hình dựng trong trình duyệt và dùng chung hàm khung hình cho xem trước và xuất video. Thời điểm động tác ước lượng theo vị trí cụm từ trong lời kể và độ dài giọng đọc. Giọng Vbee giữ cách dùng cũ.
 - Khi cập nhật một bản đã triển khai, đưa **`index.html`** và **`interaction-2d.js`** lên cùng thư mục gốc của repo. Các file API ở trong thư mục **`api/`**.
 
 ## Bản Cloudflare Workers AI
 
-Khi dùng Cloudflare, kịch bản được tạo theo từng nhóm tối đa bốn cảnh, bố cục theo nhóm tối đa năm cảnh. Yêu cầu chữ gặp lỗi tạm thời được thử lại một lần với GLM-4.7 Flash trên Cloudflare. Nếu một phần vẫn thất bại, bấm **Bắt đầu tạo video** với cùng nội dung trong tab hiện tại để dùng lại các phần kịch bản đã xong. Khi lỗi ở bước bố cục, web có thể dùng mô tả từ kịch bản cho các cảnh đó. Cập nhật cùng lúc **`index.html`** và **`api/cloudflare-ai.js`**.
+Khi dùng Cloudflare, kịch bản được tạo theo từng nhóm tối đa bốn cảnh, bố cục theo nhóm tối đa năm cảnh. Yêu cầu chữ gặp lỗi tạm thời được thử lại một lần với GLM-4.7 Flash trên Cloudflare. Nếu một phần vẫn thất bại, mở **Dự án cũ → Tiếp tục** rồi bấm **Bắt đầu tạo video** để viết tiếp từ phần kịch bản đã lưu. Khi lỗi ở bước bố cục, web có thể dùng mô tả từ kịch bản cho các cảnh đó. Cập nhật cùng lúc **`index.html`** và **`api/cloudflare-ai.js`**.
 
-FLUX.2 Klein 4B vẽ bằng mô tả và ảnh mẫu khi có. Nếu Cloudflare báo lỗi định dạng, web thử lại ở khung 1024×768 bằng mô tả cảnh. FLUX.1 Schnell là model vẽ dự phòng cho lỗi kỹ thuật phù hợp. Tranh tạo chỉ từ mô tả có thể lệch diện mạo nhân vật so với ảnh mẫu. Nhật ký hiển thị mã Cloudflare hoặc trạng thái HTTP khi có phản hồi lỗi.
+FLUX.2 Klein 4B dùng mô tả, ảnh chân dung người thật và tranh tham chiếu của các cảnh trước khi có. Nếu Cloudflare báo lỗi định dạng, web thử lại ở khung 1024×768 bằng mô tả cảnh. FLUX.1 Schnell là model vẽ dự phòng cho lỗi kỹ thuật phù hợp. Tranh tạo chỉ từ mô tả có thể lệch diện mạo nhân vật so với ảnh mẫu. Nhật ký hiển thị mã Cloudflare hoặc trạng thái HTTP khi có phản hồi lỗi.
 
 1. Trong Cloudflare, mở **Workers AI → Use REST API** để lấy **Account ID** và tạo **Workers AI API Token**. Gói **Workers Free** dùng hạn mức theo ngày.
 2. Cập nhật các file trong ZIP vào repo hiện tại để Vercel triển khai bản mới.
-3. Mở web → **Cài đặt → API chia cảnh và vẽ tranh → Cloudflare Workers AI**. Nhập **Account ID** và **API Token**, rồi bấm **Kiểm tra kết nối Cloudflare**. Có thể dán riêng token hoặc dòng **Authorization: Bearer** trong lệnh kiểm tra. Trình duyệt nhớ hai giá trị trong phiên của tab và giữ chúng ngoài file sao lưu cài đặt.
-4. Chọn **Cách vẽ tranh → Minh họa truyện vẽ tay** để tạo tranh màu bằng FLUX. Giọng Vbee dùng App ID, token và mã giọng đang cài. Chép lời từ TikTok/video/MP3 và giọng Gemini dùng key Gemini.
-5. Khi tạo ảnh bị gián đoạn, bấm **Chạy bù** hoặc mở lại web, bấm **Mở lại video tạo dở**, rồi bấm **Chạy bù**. Trình duyệt lưu một video đang tạo dở.
+3. Ngoài Cài đặt, chọn **Cách vẽ tranh → Tranh AI Cloudflare** rồi chọn một trong năm phong cách. Có thể dùng SVG với **Màu** hoặc **Đen trắng**.
+4. Mở **Cài đặt**, nhập **Account ID** và **API Token** rồi bấm **Kiểm tra kết nối Cloudflare**. Trình duyệt nhớ hai giá trị khi đóng tab và giữ chúng ngoài file sao lưu cài đặt và dữ liệu dự án. Giọng Vbee, giọng Gemini và chép lời dùng thông tin đăng nhập tương ứng.
+5. **Dự án cũ** lưu nhiều video trên trình duyệt này, gồm kịch bản, tranh và giọng đã tạo. Bấm **Tiếp tục** để mở lại, **Chạy bù** nếu còn tranh thiếu, hoặc **Xóa** để bỏ một dự án. Bản Cloudflare tạo dở của phiên bản cũ được chuyển sang danh sách này nếu trình duyệt còn giữ dữ liệu.
 
 Nếu đã đặt `CLOUDFLARE_ACCOUNT_ID` và `CLOUDFLARE_API_TOKEN` trên Vercel, có thể để trống hai ô trong web và mở **Dùng cấu hình Cloudflare trên Vercel** để nhập mã nếu đã bật `CLOUDFLARE_WEB_CODE`. Thông tin nhập trực tiếp trong web được ưu tiên khi có đủ Account ID và API Token. Các cuộc gọi Cloudflare đi qua `api/cloudflare-ai.js`. Model dùng là Gemma 4 26B và FLUX.2 Klein 4B.
 
 ## Bản minh họa vẽ tay
 
-- Chọn **Minh họa truyện vẽ tay** trong **Cách vẽ tranh** để dùng Gemini tạo tranh nét mực và màu. Chế độ này cần key có quyền tạo ảnh và có thể tính phí theo lượt. Có thể tải ảnh mẫu trong **Cài đặt**. Sau khi tạo, tranh xuất hiện hoàn chỉnh trong video. Bật **Video kể chuyện chuyển động** để thêm chuyển động camera và chuyển cảnh.
-- Storyboard xác định một diễn biến chính cho mỗi cảnh, góc máy và các chi tiết cần thấy. Đối với tranh minh họa, Gemini đối chiếu ảnh với lời kể và thử sửa một lần khi phát hiện sai chi tiết quan trọng. Tranh còn vấn đề có ghi chú ở thẻ xem trước.
+- **Tranh AI Cloudflare** có năm phong cách chọn ngoài phần Cài đặt: Chân dung điện ảnh, Truyện tranh nét mực, Màu nước, Anime điện ảnh và Hoạt hình 3D.
+- Storyboard chọn một diễn biến chính cho mỗi cảnh. Với người thật được nhận diện trong bảng nhân vật, web tìm ảnh chân dung đúng tên và dùng lại ảnh giữa các cảnh. Cloudflare đối chiếu tranh với lời kể và ảnh tham chiếu, rồi thử sửa một lần nếu phát hiện sai chi tiết quan trọng.
 - **Vẽ tay bằng SVG** vẫn dùng bàn tay vẽ từng nét. Chế độ màu mặc định của SVG có nét mặt rõ hơn, ánh nhìn có thể hướng về người hoặc vật đang tương tác, và dùng màu nhấn cho chủ thể.
 - Khi dịch vụ tạo ảnh hết hạn mức hoặc thiếu quyền, công cụ dừng các lượt ảnh còn lại và giữ tranh đã tạo. Nút **Chạy bù các tranh lỗi** dùng chế độ vẽ đang chọn. Các mục bên dưới ghi lại lịch sử của các bản trước.
 
