@@ -246,7 +246,7 @@ summary{cursor:pointer;font-size:17px}.hint{font-size:13px;color:#555;margin:6px
     </select>
     <label class="chk"><input type="checkbox" id="bgOn" checked onchange="saveSet()">Vẽ bối cảnh nền</label>
   </div>
-  <label class="chk" style="margin-top:8px"><input type="checkbox" id="motionVid" onchange="mvUI();saveSet()">🎬 Video kể chuyện chuyển động (camera điện ảnh, ánh sáng, khói/bụi/mưa/tuyết, chuyển cảnh mượt)</label>
+  <label class="chk" style="margin-top:8px"><input type="checkbox" id="motionVid" onchange="mvUI();motion2DUI();saveSet()">Video kể chuyện chuyển động</label>
   <p class="hint" id="mvHint" hidden></p>
   <label class="chk" style="margin-top:8px"><input type="checkbox" id="interaction2d" onchange="motion2DUI();saveSet()">Hoạt hình 2D theo hành động trong truyện</label>
   <p class="hint" id="interactionHint" hidden>Bật trước khi tạo video, hoặc bật rồi bấm Vẽ lại trên cảnh muốn đổi. Có thể chọn động tác cho từng cảnh trong phần xem trước.</p></div>
@@ -518,6 +518,9 @@ function vui() {
   $('spriteBox').hidden = mode === 'illustrated';
   try { mvUI(); } catch (e) { /* ô motionVid chưa có */ }
   motion2DUI();
+  document.querySelectorAll('.camera-scene').forEach(button => {
+    button.hidden = !canTuneIllustrationCamera(scenes[Number(button.dataset.scene)]);
+  });
 }
 try {
   const o = JSON.parse(localStorage.getItem('cfg_v3') || localStorage.getItem('cfg') || '{}');
@@ -918,7 +921,13 @@ function interactionOn() {
   return !!($('interaction2d')?.checked && globalThis.StoryMotion);
 }
 function motion2DUI() {
-  if ($('interactionHint')) $('interactionHint').hidden = !interactionOn();
+  const hint = $('interactionHint');
+  if (hint) {
+    hint.hidden = !interactionOn();
+    hint.textContent = $('isrc').value === 'illustrated' && motionOn()
+      ? 'Camera bám lời kể trên tranh Cloudflare. Để dùng nhân vật 2D ở một cảnh, chọn động tác cụ thể trong phần xem trước rồi bấm Vẽ lại.'
+      : 'Bật trước khi tạo video, hoặc bật rồi bấm Vẽ lại trên cảnh muốn đổi. Có thể chọn động tác cho từng cảnh trong phần xem trước.';
+  }
   document.querySelectorAll('.motion-choice').forEach(select => { select.closest('label').hidden = !interactionOn(); });
 }
 
@@ -3618,18 +3627,49 @@ function drawIllustration(ctx, image, width, height) {
   const cover = Math.max(width / image.width, height / image.height);
   const draw = scale => {
     const w = image.width * scale, h = image.height * scale;
-    ctx.drawImage(image, (width - w) / 2, (height - h) / 2, w, h);
+    const x = (width - w) / 2, y = (height - h) / 2;
+    ctx.drawImage(image, x, y, w, h);
+    return { x, y, w, h };
   };
   ctx.imageSmoothingQuality = 'high';
   if (contain / cover >= 0.92) {
     // Cắt tối đa 4% mỗi mép khi tỉ lệ ảnh chỉ lệch nhẹ so với khung.
-    draw(cover);
+    return draw(cover);
   } else {
     ctx.filter = `blur(${Math.max(14, Math.round(Math.min(width, height) * 0.04))}px)`;
     draw(cover * 1.15);
     ctx.filter = 'none';
-    draw(contain);
+    return draw(contain);
   }
+}
+
+function cameraCue(text, phrase) {
+  const words = value => value.normalize('NFC').toLowerCase().match(/[\p{L}\p{M}\p{N}]+/gu) || [];
+  if (typeof phrase !== 'string' || phrase.length > 180) return null;
+  const cue = words(phrase), narration = words(text || '');
+  if (cue.length < 2 || cue.length > 10 || cue.length > narration.length) return null;
+  const matches = narration.flatMap((_, i) => cue.every((word, n) => word === narration[i + n]) ? [i] : []);
+  if (matches.length !== 1) return null;
+  return { start: matches[0] / narration.length, end: (matches[0] + cue.length) / narration.length };
+}
+
+function illustrationCamera(s, request, rect, width, height) {
+  if (!request || !['reveal', 'focus', 'pan'].includes(request.move)) return null;
+  const cue = cameraCue(s.text, request.cue);
+  if (!cue) return null;
+  const map = box => {
+    if (!Array.isArray(box) || box.length !== 4 || !box.every(n => Number.isFinite(n) && n >= 0 && n <= 1000)) return null;
+    const [left, top, right, bottom] = box;
+    if (right - left < 20 || bottom - top < 20) return null;
+    const coords = [(rect.x + rect.w * left / 1000) / width, (rect.y + rect.h * top / 1000) / height,
+      (rect.x + rect.w * right / 1000) / width, (rect.y + rect.h * bottom / 1000) / height];
+    if (coords.some(n => n < -0.015 || n > 1.015)) return null;
+    return coords.map(n => Math.max(0, Math.min(1, n)));
+  };
+  const subject = map(request.subject);
+  const destination = request.move === 'pan' ? map(request.destination) : null;
+  if (!subject || (request.move === 'pan' && !destination)) return null;
+  return { move: request.move, cue, subject, destination };
 }
 function artPhoto(im, maxSize = 768) {
   const k = Math.min(1, maxSize / Math.max(im.width, im.height));
@@ -3683,12 +3723,18 @@ async function renderStoryArt(parts, aspectRatio, fallbackPrompt) {
   throw error;
 }
 
-async function reviewStoryArt(s, photo, references) {
+async function reviewStoryArt(s, photo, references, handoff = false) {
   const parts = references.flatMap(ref => [{ text: ref.cue }, ref.photo]);
   parts.push({ text: 'The next image is the current scene and the only image to evaluate.' }, photo);
   parts.push({ text: `Compare the current illustration to the current narration and brief below.
 Flag only a material visual error: a wrong actor or recipient, the key action or story clue missing or unreadable, an invented plot event, or an obvious identity mismatch against the labeled references. For a real person, compare face shape, hairline, eyes and other distinctive features even in stylized art. Do not require passing mentions or offscreen actions. A stylized composition, implied action and a deliberate camera crop are valid when the main beat clearly reads. When uncertain return "pass".
-Return only JSON {"status":"pass","fix":"","note":""} or {"status":"revise","fix":"single concrete correction in English","note":"vấn đề nhìn thấy được, một câu tiếng Việt"}.
+${handoff ? 'For this handover, a wider source is needed: try to keep the passed object, both interacting hands and the two people readable in a single image.' : ''}
+If the image passes, optionally choose one camera move that follows the NARRATION and moves within this exact image. Identify the actual visible subject in the current image with a tight bounding box [left,top,right,bottom], all coordinates integers from 0 to 1000, origin at top left. Do not use any earlier reference image for the coordinates.
+- "reveal": start close on the meaningful detail, then pull out to show the people or setting. For a handoff, include the object and BOTH interacting hands in one box. Use this when the wider shot shows the context of the detail.
+- "focus": start wide, then zoom in on the visible detail as the narrator mentions it.
+- "pan": move from the subject to a distinct second detail or person visible in the same image; provide a box for each.
+Choose "cue" as an exact unique phrase of 2 to 10 Vietnamese words copied only from Current Vietnamese narration, at the moment the camera should start to act. If evidence is weak, the detail cannot be localized, or the wider shot adds no information for a reveal, return camera:null or choose a better grounded move. Stay inside the art; never invent details outside the image.
+Return only JSON {"status":"pass","fix":"","note":"","camera":{"move":"reveal","cue":"exact phrase","subject":[320,420,570,660],"destination":null}} or {"status":"revise","fix":"single concrete correction in English","note":"vấn đề nhìn thấy được, một câu tiếng Việt","camera":null}.
 ${sceneCtx(s)}` });
   try {
     const response = await storyAI({ contents: [{ parts }], generationConfig: { responseMimeType: 'application/json' } }, 30000, 1);
@@ -3713,22 +3759,26 @@ async function illustratedImage(s, sceneNo) {
   const parts = [];
   for (const ref of references) parts.push({ text: ref.cue }, ref.photo);
   const dates = parseDates(s.text);
+  const handoff = globalThis.StoryMotion?.plan(s.motionHint, s.text, s.image, chars)?.action === 'give';
+  const framing = handoff ? 'Frame the handover in one medium view, even if the shot brief suggests a close-up. Put the passed object and both interacting hands visibly together, and keep both figures visible around them so the editor can pull back from that detail to the wider interaction.' : 'Use the shot size and exact interaction from the current brief.';
   const publicCast = people.length ? `Recognizable real people present: ${people.map(({ role, name }) => `${role} is ${name}`).join('; ')}. Preserve the distinctive face and hair for each person. Keep important faces readable and use the correct age for the scene.` : '';
   const prompt = `Draw one ${aspect} story frame in full color.
 ${CLOUD_ART_STYLES[style]}
 ${publicCast}
-Use the shot size and exact interaction from the current brief. Give the main face, gesture or held object enough contrast to read at phone size. Make eye-lines, hands, contact points and the direction of motion clear. Keep essential details at least 9% in from the outer edges for framing and camera motion, including close-ups. Give recurring characters the same distinguishing features and keep recurring props identifiable. Keep enough space between faces or hands so the direction of an interaction is clear. Render the right place, era and time of day.
+${framing}
+Give the main face, gesture or held object enough contrast to read at phone size. Make eye-lines, hands, contact points and the direction of motion clear. Keep essential details at least 9% in from the outer edges for framing and camera motion, including close-ups. Give recurring characters the same distinguishing features and keep recurring props identifiable. Keep enough space between faces or hands so the direction of an interaction is clear. Render the right place, era and time of day.
 ${dates.length ? 'Keep the upper-left area visually quiet for a date label added in production.' : ''}
 Artwork only. Keep the image free of captions, speech text, signatures, borders and watermarks.
 ${sceneCtx(s)}`;
   const fallbackPrompt = `Draw one ${aspect} full-color story illustration. ${CLOUD_ART_STYLES[style]} Artwork only, without lettering.
 ${publicCast}
+${handoff ? framing : ''}
 Scene to draw: ${String(s.image || '').slice(0, 780)}
 Vietnamese narration: ${String(s.text || '').slice(0, 350)}
 Cast cues for characters present: ${String(chars || '').split(/[;\n]/).filter(entry => roles.some(role => entry.trimStart().startsWith(role + ' '))).join('; ').slice(0, 300)}`;
   let image = await renderStoryArt([...parts, { text: prompt }], aspect, fallbackPrompt);
   let photo = artPhoto(image);
-  let review = await reviewStoryArt(s, photo, references);
+  let review = await reviewStoryArt(s, photo, references, handoff);
   if (review.status === 'revise') {
     log(`  🎨 Cảnh ${sceneNo}: đang chỉnh lại chi tiết kể chuyện.`);
     try {
@@ -3736,7 +3786,7 @@ Cast cues for characters present: ${String(chars || '').split(/[;\n]/).filter(en
         text: `${prompt}\nCorrect this specific error while preserving the drawing style: ${review.fix}`
       }], aspect, `Correction: ${review.fix}\n${fallbackPrompt}`);
       const revisedPhoto = artPhoto(revised);
-      const check = await reviewStoryArt(s, revisedPhoto, references);
+      const check = await reviewStoryArt(s, revisedPhoto, references, handoff);
       if (check.status === 'pass') {
         image = revised;
         photo = revisedPhoto;
@@ -3754,7 +3804,7 @@ Cast cues for characters present: ${String(chars || '').split(/[;\n]/).filter(en
   x.beginPath();
   x.rect(0, 0, W, h);
   x.clip();
-  drawIllustration(x, image, W, h);
+  const imageRect = drawIllustration(x, image, W, h);
   if (dates.length) {
     const label = dateLabelSvg(dates).replace(' filter="url(#wob)"', '');
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${h}" viewBox="0 0 ${fm.vw} 900">${label}</svg>`;
@@ -3764,6 +3814,7 @@ Cast cues for characters present: ${String(chars || '').split(/[;\n]/).filter(en
   const artNote = review.status === 'revise' ? (review.note || 'Có chi tiết kể chuyện cần xem lại.') :
     review.status === 'unavailable' ? 'Chưa đối chiếu tự động được với lời kể.' : '';
   return { cv, ord: [], art: true, artNote, artRef: review.status === 'pass' && roles.length ? photo : null,
+    artCamera: review.status === 'pass' ? illustrationCamera(s, review.camera, imageRect, W, h) : null,
     artStyle: style, artRoles: roles, bgL: null, fgL: null, bgKind: inferSetting(s), anim: false, bg: null, people: null };
 }
 
@@ -3828,17 +3879,19 @@ Only the environment. No people, silhouettes, animals, rockets, vehicles, doors 
   StoryMotion.paint(x, poster, timing.start + timing.span * (rocket ? 0.68 : 0.48), width, height);
   return {
     cv, ord: [], art: true, artNote: useBackdrop && !aiBackdrop && mode === 'illustrated' ? 'Cảnh 2D dùng nền vẽ sẵn.' : '',
-    artRef: null, artRoles: [], anim: false, bg: null, people: null, bgL: null, fgL: null, bgKind: atmosphere,
+    artRef: null, artCamera: null, artRoles: [], anim: false, bg: null, people: null, bgL: null, fgL: null, bgKind: atmosphere,
     motionScene, motionBase: base
   };
 }
 
 async function makeImage(s, sceneNo, mode = $('isrc').value) {
-  const plan = interactionOn() ? StoryMotion.plan(s.motionHint, s.text, s.image, chars, s.motionChoice) : null;
-  const automaticPortrait = mode === 'illustrated' && (!s.motionChoice || s.motionChoice === 'auto') &&
+  const automatic = !s.motionChoice || s.motionChoice === 'auto';
+  const usesCamera = mode === 'illustrated' && automatic && motionOn();
+  const plan = interactionOn() && !usesCamera ? StoryMotion.plan(s.motionHint, s.text, s.image, chars, s.motionChoice) : null;
+  const automaticPortrait = plan && mode === 'illustrated' && automatic &&
     artPeople(s, artRoles(s)).some(({ role }) => role === plan?.main?.role || role === plan?.other?.role);
   if (plan && !automaticPortrait) return await makeMotionScene(s, plan, mode);
-  return { ...await makeStillImage(s, sceneNo, mode), motionScene: null, motionBase: null };
+  return { artCamera: null, ...await makeStillImage(s, sceneNo, mode), motionScene: null, motionBase: null };
 }
 
 async function makeStillImage(s, sceneNo, mode) {
@@ -4618,6 +4671,7 @@ function renderGallery() {
     d.id = 'card' + i;
     d.innerHTML = '<div class="thumb"><canvas></canvas><span class="ph">⏳ Chờ vẽ...</span></div><div class="cap"></div><p class="hint art-note" hidden></p>' +
       `<button type="button" class="w sm" onclick="redraw(${i})">🔄 Vẽ lại</button>` +
+      `<button type="button" class="w sm camera-scene" data-scene="${i}" onclick="tuneIllustrationCamera(${i})" hidden>Căn camera</button>` +
       `<details><summary>Sửa mô tả tranh</summary><textarea id="ed${i}" style="min-height:70px;font-size:13px"></textarea></details>`;
     g.appendChild(d);
     d.querySelector('.cap').textContent = `${i + 1}. ${s.text}`;
@@ -4655,6 +4709,10 @@ function updateCard(i) {
   const s = scenes[i], d = $('card' + i);
   if (!s || !d) return;
   const c = d.querySelector('canvas'), ph = d.querySelector('.ph'), note = d.querySelector('.art-note');
+  const camera = d.querySelector('.camera-scene');
+  camera.hidden = !canTuneIllustrationCamera(s);
+  camera.disabled = !!s.busy;
+  camera.textContent = s.artCamera ? 'Căn lại camera' : 'Căn camera';
   const button = d.querySelector('.motion-preview');
   if (button) {
     button.hidden = !s.motionScene;
@@ -4671,6 +4729,42 @@ function updateCard(i) {
   const x = c.getContext('2d');
   x.fillStyle = '#fff'; x.fillRect(0, 0, tw, th);
   x.drawImage(s.cv, 0, 0, tw, th);
+}
+function canTuneIllustrationCamera(scene) {
+  return !!(scene?.cv && scene.art && !scene.motionScene && $('isrc').value === 'illustrated');
+}
+async function tuneIllustrationCamera(i) {
+  const scene = scenes[i];
+  if (projectBusy() || !canTuneIllustrationCamera(scene)) return;
+  const button = $('card' + i)?.querySelector('.camera-scene');
+  scene.busy = true;
+  lockDrawingSettings(true);
+  if (button) { button.disabled = true; button.textContent = 'Đang căn camera…'; }
+  abortGen = false;
+  cloudflareBlocked = null;
+  try {
+    const w = scene.cv.width, h = Math.min(scene.cv.height, Math.round(fm.ah + 10));
+    const scale = Math.min(1, 768 / Math.max(w, h));
+    const art = document.createElement('canvas');
+    art.width = Math.max(1, Math.round(w * scale));
+    art.height = Math.max(1, Math.round(h * scale));
+    art.getContext('2d').drawImage(scene.cv, 0, 0, w, h, 0, 0, art.width, art.height);
+    const review = await reviewStoryArt(scene, artPhoto(art), []);
+    const camera = illustrationCamera(scene, review.camera, { x: 0, y: 0, w, h }, w, h);
+    if (!camera) {
+      log(`  ℹ Cảnh ${i + 1}: chưa tìm được điểm camera theo lời kể. Bạn vẫn có thể dùng camera theo bố cục hiện tại.`);
+      return;
+    }
+    scene.artCamera = camera;
+    await saveStoryProject();
+    log(`  🎬 Đã căn camera theo lời kể cho cảnh ${i + 1}. Bật Video kể chuyện chuyển động để xem.`);
+  } catch (e) {
+    log(`  ℹ Cảnh ${i + 1}: chưa căn được camera. ${e.message}`);
+  } finally {
+    scene.busy = false;
+    lockDrawingSettings(false);
+    updateCard(i);
+  }
 }
 let motionPreview = null;
 function previewMotion(i) {
@@ -4929,7 +5023,7 @@ const projectAssets = (id, i) => projectPrefix(id) + 'scene:' + i;
 const projectRange = prefix => IDBKeyRange.bound(prefix, prefix + '\uffff');
 const PROJECT_CONTROLS = ['aiProvider', 'fmt', 'nimg', 'isrc', 'cfStyle', 'cmode', 'bgOn', 'motionVid', 'mvCam',
   'mvTrans', 'trans', 'interaction2d', 'musicOn', 'musicVol', 'musicMood', 'exportSpeed', 'vsrc', 'voice', 'rewriteOn'];
-const PROJECT_SCENE = ['text', 'image', 'prev', 'mood', 'ord', 'bgKind', 'art', 'artRoles', 'artStyle', 'artNote', 'dur',
+const PROJECT_SCENE = ['text', 'image', 'prev', 'mood', 'ord', 'bgKind', 'art', 'artRoles', 'artStyle', 'artCamera', 'artNote', 'dur',
   'motionHint', 'motionChoice', 'motionScene'];
 const PROJECT_ASSETS = ['cv', 'bgL', 'fgL', 'motionBase', 'artRef', 'buf'];
 const projectFields = (obj, fields) => Object.fromEntries(fields.map(key => [key, obj[key] ?? null]));
@@ -5616,8 +5710,8 @@ function mvUI() {
   const h = $('mvHint');
   h.hidden = !motionOn();
   h.textContent = $('isrc').value === 'illustrated'
-    ? 'Camera theo bố cục từng tranh và động tác 2D. Bạn có thể chỉnh camera và kiểu chuyển cảnh trước khi xem thử hoặc xuất.'
-    : 'Tranh hiện với camera và hiệu ứng theo lời kể. Bật trước khi tạo tranh để tách lớp nền và nhân vật cho hiệu ứng chiều sâu.';
+    ? 'Camera lia hoặc zoom vào chi tiết trong tranh theo lời kể, ví dụ mở cận hai bàn tay trao chìa khóa rồi zoom ra. Có thể bấm Căn camera ở cảnh đã có tranh.'
+    : 'Camera và chuyển cảnh có thể đi kèm ánh sáng, mưa, tuyết, khói hoặc bụi theo nội dung. Bật trước khi tạo tranh để tách lớp nền và nhân vật cho hiệu ứng chiều sâu.';
 }
 
 const _mvSeed = str => { let h = 2166136261; str = String(str); for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
@@ -5703,7 +5797,42 @@ function mvPlanCams(vs) {
   return out;
 }
 
+function mvNarrationCamera(scene, width, height) {
+  const plan = scene.artCamera, duration = scene.dur;
+  if (!plan?.subject || !plan.cue || !Number.isFinite(duration) || duration < 1) return null;
+  const zoomFor = ([left, top, right, bottom], limit) =>
+    Math.min(limit, 1 / Math.min(1, right - left + 0.18), 1 / Math.min(1, bottom - top + 0.18));
+  const frame = ([left, top, right, bottom], z) => {
+    const edge = 0.5 / z;
+    return { z, x: width * _mvCl((left + right) / 2, edge, 1 - edge), y: height * _mvCl((top + bottom) / 2, edge, 1 - edge) };
+  };
+  const wide = { z: 1, x: width / 2, y: height / 2 };
+  let from, to;
+  if (plan.move === 'pan' && plan.destination) {
+    const z = Math.min(zoomFor(plan.subject, 1.52), zoomFor(plan.destination, 1.52));
+    from = frame(plan.subject, z);
+    to = frame(plan.destination, z);
+    if (Math.hypot((from.x - to.x) / width, (from.y - to.y) / height) < 0.028) return null;
+  } else if (plan.move === 'reveal' || plan.move === 'focus') {
+    const detail = frame(plan.subject, zoomFor(plan.subject, 1.85));
+    if (detail.z < 1.05) return null;
+    [from, to] = plan.move === 'reveal' ? [detail, wide] : [wide, detail];
+  } else return null;
+
+  const voiceLead = scene.buf ? 0.3 : 0;
+  const speech = Math.max(0, Math.min(scene.buf?.duration ?? duration, duration - voiceLead));
+  const spokenStart = voiceLead + plan.cue.start * speech, spokenEnd = voiceLead + plan.cue.end * speech;
+  const latestEnd = duration - 0.12;
+  const reveal = plan.move === 'reveal';
+  const start = _mvCl(reveal ? spokenStart + Math.min(0.35, (spokenEnd - spokenStart) * 0.3) : spokenStart - 0.36,
+    reveal ? Math.min(0.57, duration * 0.22) : 0, latestEnd - 0.4);
+  const end = _mvCl(spokenEnd + 0.12, start + 0.4, Math.min(latestEnd, start + 1.65));
+  return { z0: from.z, ax: from.x, ay: from.y, z1: to.z, bx: to.x, by: to.y, start, end };
+}
+
 function mvFlatCamera(scene, kind, height) {
+  const narrated = mvNarrationCamera(scene, W, height);
+  if (narrated) return narrated;
   const shot = scene.image || '';
   const cx = W / 2, cy = height / 2;
   const close = /\[(?:CLOSE|XCLOSE)\]/i.test(shot);
@@ -6307,7 +6436,8 @@ function mvCreate(vs, st, x) {
   function pic(g, i, t, lt, xz = 1) {
     const s = vs[i];
     if (!s.cv) return;
-    const inf = info(i), c = inf.cam, e = _es(_mvCl(lt / Math.max(0.5, s.dur), 0, 1));
+    const inf = info(i), c = inf.cam, begin = c.start ?? 0, end = c.end ?? Math.max(0.5, s.dur);
+    const e = _es(_mvCl((lt - begin) / (end - begin), 0, 1));
     const z = _mvLerp(1, _mvLerp(c.z0, c.z1, e), strength);
     const cx = _mvCl(_mvLerp(W / 2, _mvLerp(c.ax, c.bx, e), strength), W / (2 * z), W - W / (2 * z));
     const cy = _mvCl(_mvLerp(AHt / 2, _mvLerp(c.ay, c.by, e), strength), AHt / (2 * z), AHt - AHt / (2 * z));
@@ -6634,7 +6764,7 @@ async function exportFast(speed) {
 
 function play(rec, forceReal, speed = rec ? Number($('exportSpeed').value) || 1 : 1) {
   const validScenes = scenes.filter(s => s.ok || s.cv || s.buf);
-  if (switchingProject || playing || !validScenes.length) return;
+  if (switchingProject || playing || !validScenes.length || validScenes.some(s => s.busy)) return;
   if (rec && !forceReal && fastExportOK()) return exportFast(speed);
   playing = true;
   stopFlag = false;

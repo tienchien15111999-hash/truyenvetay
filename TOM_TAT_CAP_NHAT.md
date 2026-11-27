@@ -1,5 +1,11 @@
 # TÓM TẮT DỰ ÁN + LỊCH SỬ CẬP NHẬT (dành cho AI khác đọc nhanh)
 
+## Camera bám lời kể cho tranh Cloudflare
+
+- Bật **Video kể chuyện chuyển động** để camera lia hoặc zoom vào đúng chi tiết được nhận diện trong ảnh. Ví dụ cảnh trao chìa khóa mở cận ở hai bàn tay và chìa khóa, rồi zoom ra để thấy người trao và người nhận nếu tranh có khung đủ rộng.
+- Camera canh theo cụm từ trong lời kể và thời lượng giọng đọc. Nếu chưa có điểm camera phù hợp, công cụ dùng cách lia hoặc zoom theo bố cục chung. Các chế độ **Chuyển động nhẹ** và **Khung hình cố định** điều chỉnh mức chuyển động như trước.
+- Với tranh Cloudflare đã có, **Căn camera** phân tích lại tranh đó để lấy điểm camera. Khi bật cả hai tùy chọn, các cảnh Cloudflare ở chế độ tự nhận diện ưu tiên giữ tranh gốc để lia và zoom. Có thể chọn một động tác 2D cụ thể rồi bấm **Vẽ lại** cho cảnh muốn dùng hoạt hình 2D.
+
 ## Hoạt hình 2D theo lời kể
 
 - Bật **Hoạt hình 2D theo hành động trong truyện** trước khi tạo video. Cảnh nào có hành động phù hợp sẽ có nút **Xem động tác**. Có thể đổi mục **Động tác** trong thẻ cảnh và bấm **Vẽ lại**. Dùng **Tranh thường** để bỏ chuyển động của một cảnh.
