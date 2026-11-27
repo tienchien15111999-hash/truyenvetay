@@ -1,5 +1,12 @@
 # TÓM TẮT DỰ ÁN + LỊCH SỬ CẬP NHẬT (dành cho AI khác đọc nhanh)
 
+## Xem và duyệt tranh đang chờ
+
+- Cảnh chưa có tranh đã duyệt hiển thị hình mới ngay trong ô xem trước với nhãn **Chờ duyệt**. Nếu cảnh đã có tranh đang dùng, bấm **Duyệt tranh mới** để xem kết quả vẽ lại.
+- Nút **Dùng tranh cho các cảnh còn thiếu** áp dụng các tranh đang chờ trong một lần xác nhận. Chỉ cảnh chưa có tranh được điền. Khi bấm **Tạo giọng đọc và video**, web cũng hỏi một lần nếu những cảnh còn thiếu đều đã có ảnh chờ.
+- **Duyệt từng tranh** mở lần lượt từng cảnh, kèm lời kể và lý do chờ. Bấm **Dùng tranh này** để chấp nhận hoặc **Xem cảnh tiếp theo** để xem sau. Tranh đang chờ được lưu cùng dự án.
+- Web gửi một lượt kiểm tra ngắn trên cùng ảnh khi phản hồi đối chiếu thiếu dữ liệu. Với kịch bản mới, phần lời trùng nguyên văn giữa các cảnh liền nhau được gỡ trước khi vẽ, trừ đoạn lặp trong nội dung gốc.
+
 ## Khóa kiểu vẽ, mẫu nhân vật và duyệt tranh Cloudflare
 
 - Cloudflare có ba kiểu **Hoạt hình 3D**, **Anime điện ảnh** và **Ảnh thực (như ảnh chụp)**. Khi bấm **Vẽ lại**, cảnh ưu tiên kiểu đã lưu nếu còn được hỗ trợ. Các cảnh thiếu kiểu hợp lệ dùng kiểu của dự án. Dự án cũ thiếu cấu hình sẽ dùng kiểu chung của các tranh đã lưu khi xác định được, hoặc hiện ô chọn để bạn đặt lại.

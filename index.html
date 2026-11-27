@@ -31,6 +31,8 @@ canvas.v,video.v{width:auto;max-height:80vh;max-width:100%;margin:0 auto}
 .card{border:1.5px solid #888;border-radius:6px;padding:8px;background:#fafafa}
 .thumb{position:relative;border:1.5px solid #bbb;border-radius:4px;background:#fff}
 .thumb canvas{width:100%;display:block}
+.thumb .pending-picture{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#f1f1ef}
+.thumb .pending-label{position:absolute;top:8px;left:8px;border-radius:4px;padding:3px 7px;background:#664000;color:#fff;font-size:12px;font-weight:700}
 .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:#555;text-align:center;padding:6px}
 .cap{font-size:12.5px;color:#333;margin:6px 0 0;max-height:4.5em;overflow:hidden}
 .ph[hidden],.chk[hidden]{display:none}
@@ -272,6 +274,8 @@ dialog{width:min(520px,calc(100% - 32px));max-height:90vh;border:2px solid #111;
 <div class="box" id="galBox" hidden>
   <b>🖼 Xem trước tranh</b>
   <p class="hint">Tranh nào chưa ưng thì bấm 🔄 Vẽ lại (muốn đổi nội dung tranh thì mở "Sửa mô tả tranh", sửa rồi bấm Vẽ lại). Khi ưng hết thì bấm nút xanh bên dưới để tạo giọng đọc và video.</p>
+  <button type="button" class="w sm" id="usePendingArt" onclick="approveMissingArtwork()" hidden>Dùng tranh cho các cảnh còn thiếu</button>
+  <button type="button" class="w sm" id="reviewPendingArt" onclick="reviewPendingArtwork()" hidden>Duyệt các tranh đang chờ</button>
   <div id="gal" class="gal"></div>
   <button id="mkBtn" onclick="makeVideo()">✅ Ưng rồi, tạo giọng đọc và video</button>
   <button type="button" class="w" onclick="remakeVoices()">🔁 Tạo lại toàn bộ giọng</button>
@@ -358,10 +362,12 @@ dialog{width:min(520px,calc(100% - 32px));max-height:90vh;border:2px solid #111;
   <button type="button" class="w sm" onclick="document.getElementById('artReferenceDialog').close()">Đóng</button>
 </dialog>
 <dialog id="artReviewDialog" aria-labelledby="artReviewTitle">
-  <h2 id="artReviewTitle">Duyệt tranh vẽ lại</h2>
+  <h2 id="artReviewTitle">Duyệt tranh mới</h2>
+  <p id="artReviewNarration"></p>
   <p id="artReviewReason"></p>
   <img id="artReviewPicture" class="review-picture" alt="Tranh mới đang chờ duyệt">
   <button type="button" class="w sm" id="acceptArtReview" onclick="approveArtworkCandidate()">Dùng tranh này</button>
+  <button type="button" class="w sm" id="skipArtReview" onclick="skipArtworkCandidate()" hidden>Xem cảnh tiếp theo</button>
   <button type="button" class="w sm" onclick="document.getElementById('artReviewDialog').close()">Đóng</button>
 </dialog>
 <script>
@@ -759,7 +765,7 @@ Nội dung: ${idea}`;
 Mỗi image là một câu tiếng Anh dưới 35 từ mô tả một khoảnh khắc nhìn thấy được, bắt đầu bằng [PERSON], [OBJECT] hoặc [PLACE]. Dùng vai MAIN, SECOND, THIRD, FOURTH, FIFTH, SIXTH, SEVENTH, EIGHTH trong mô tả. characters liệt kê các vai tiếng Anh ngăn cách bằng chấm phẩy, ví dụ 'MAIN = Lan (job=student): black hair, red shirt; SECOND = Nam: round glasses, blue jacket'. Nếu là người nổi tiếng, thêm who=tên viết liền không dấu sau tên người. Trả JSON {"story":"","setting":"","identity":"","characters":"","scenes":[{"text":"","image":"","mood":"calm"}]}.
 Nội dung: ${idea}` : p;
   const d = await storyAI({
-    contents: [{ parts: [{ text: prompt }] }],
+    contents: [{ parts: [{ text: 'Mỗi cảnh chỉ kể đoạn lời của cảnh đó. Các cảnh phải nối tiếp nhau, mỗi cảnh có lời kể riêng. Giữ đúng thứ tự diễn biến và phân biệt số lần đã thất bại với lần tiếp theo có kết quả khác. Không chép lại cùng một đoạn để đủ số cảnh. Nếu văn bản nguồn có câu lặp có chủ ý thì giữ lại.\n' + prompt }] }],
     generationConfig: { responseMimeType: 'application/json' }
   }, 95000, undefined, { task: 'script', backup: opt.backup });
 
@@ -822,6 +828,35 @@ function fixSceneBreaks(sc) {
   }
   if (moved) log(`  ✂ Đã chỉnh lại ${moved} chỗ ngắt cảnh để không cụt câu.`);
   return out.filter(s => s.text);
+}
+
+function removeRepeatedNarration(scenes, source) {
+  const key = text => text.normalize('NFC').toLocaleLowerCase('vi').replace(/[.!?…]+(?=\s|$)/gu, '').replace(/\s+/g, ' ').trim();
+  const sourceCounts = new Map();
+  for (const sentence of splitSentences(source)) {
+    const normalized = key(sentence);
+    sourceCounts.set(normalized, (sourceCounts.get(normalized) || 0) + 1);
+  }
+  const result = [];
+  let trimmed = 0;
+  for (const scene of scenes) {
+    const current = splitSentences(scene.text), previous = splitSentences(result.at(-1)?.text).map(key);
+    let overlap = 0;
+    for (let count = Math.min(previous.length, current.length); count > 0; count--) {
+      const duplicates = current.slice(0, count).map(key);
+      const significant = duplicates.join(' ').split(/\s+/).length >= 5;
+      if (significant && duplicates.every((sentence, i) => sentence === previous[previous.length - count + i] &&
+          (sourceCounts.get(sentence) || 0) < 2)) {
+        overlap = count;
+        break;
+      }
+    }
+    if (!overlap) { result.push(scene); continue; }
+    trimmed++;
+    if (overlap < current.length) result.push({ ...scene, text: current.slice(overlap).join(' '), image: '' });
+  }
+  if (trimmed) log(`  ✂ Đã bỏ lời kể trùng nguyên văn ở ${trimmed} cảnh liền nhau.`);
+  return result;
 }
 let cloudScriptDraft = null;
 
@@ -3814,12 +3849,13 @@ async function renderStoryArt(parts, aspectRatio, fallbackPrompt) {
 async function reviewStoryArt(s, photo, references, handoff = false, style = '') {
   const parts = references.flatMap(ref => [{ text: ref.cue }, ref.photo]);
   parts.push({ text: 'The next image is the current scene and the only image to evaluate.' }, photo);
+  const styleCheck = style ? 'Required style: ' + CLOUD_ART_STYLES[style] : 'Keep the actual image style when planning the camera.';
   parts.push({ text: `Compare the current illustration to the current narration and brief below.
-${style ? 'Required style: ' + CLOUD_ART_STYLES[style] : 'Keep the actual image style when planning the camera.'}
+${styleCheck}
 Current event and limits: ${artMoment(s).cue}
 Check three things using the actual picture, not the brief alone:
 1. style: the entire image visibly matches the required style. A photograph or CGI in a 2D anime project is a mismatch.
-2. cast: intended people are present when required, and recurring faces, hair and clothing match labeled references when visible. Compare facial structure for real people. Use "pass" if no cast is required and the image respects that constraint.
+2. cast: intended people are present when required, and recognizable features match labeled references when visible. If the narration does not require a recognizable face in this shot, assess only who should be present. With no reference, check who is shown and the visible traits in the cast brief. Use "pass" if no cast is required and the image respects that constraint.
 3. event: the main action and outcome are visually supported by the current narration. Flag a successful liftoff for a failed launch, physically impossible positions, an invented event, unrelated objects that change the meaning, or a panel sequence instead of the single requested moment. Do not require offscreen actions.
 Use exactly "pass", "fail" or "uncertain" for each check. Return status "revise" for any clear failure and provide a concrete correction. Return status "uncertain" if a required check cannot be verified.
 ${handoff ? 'For this handover, a wider source is needed: try to keep the passed object, both interacting hands and the two people readable in a single image.' : ''}
@@ -3830,22 +3866,38 @@ If the image passes, optionally choose one camera move that follows the NARRATIO
 Choose "cue" as an exact unique phrase of 2 to 10 Vietnamese words copied only from Current Vietnamese narration, at the moment the camera should start to act. If evidence is weak, the detail cannot be localized, or the wider shot adds no information for a reveal, return camera:null or choose a better grounded move. Stay inside the art; never invent details outside the image.
 Return only JSON {"status":"pass|revise|uncertain","checks":{"style":"pass","cast":"pass","event":"pass"},"fix":"single concrete correction in English if needed","note":"vấn đề nhìn thấy được, một câu tiếng Việt","camera":{"move":"reveal","cue":"exact phrase","subject":[320,420,570,660],"destination":null}}. Use camera:null if unavailable or the image needs changes.
 ${sceneCtx(s)}` });
-  try {
-    const response = await storyAI({ contents: [{ parts }], generationConfig: { responseMimeType: 'application/json' } }, 30000, 1);
-    const result = readGemJson(response);
-    const checks = ['style', 'cast', 'event'].map(key => result.checks?.[key]);
+  for (let attempt = 0; attempt < (style ? 2 : 1); attempt++) {
+    if (attempt) parts[parts.length - 1] = { text: `Compare the current illustration against the latest picture and this narration.
+${styleCheck}
+${artMoment(s).cue}
+${sceneCtx(s)}
+Return one JSON object only. Required keys: "checks" with "style", "cast", "event" set independently to "pass", "fail" or "uncertain". Check actual drawing style, who should be shown and whether the image depicts the action and outcome. If no people are needed or no face must be seen, evaluate who is shown. Add "fix" (English correction) and "note" (Vietnamese) for any fail. Add no camera instructions.` };
+    let result;
+    try {
+      const response = await storyAI({ contents: [{ parts }], generationConfig: { responseMimeType: 'application/json' } }, 30000, 1);
+      result = readGemJson(response);
+    } catch (e) {
+      if (abortGen) throw e;
+      if (e instanceof SyntaxError) continue;
+      return { status: 'unavailable', note: 'Dịch vụ đối chiếu tranh chưa phản hồi thành công.' };
+    }
+    const checks = ['style', 'cast', 'event'].map(key => result?.checks?.[key]);
+    if (!result || typeof result !== 'object') continue;
     if (result.status === 'revise' || checks.includes('fail')) {
       const fix = typeof result.fix === 'string' ? result.fix.trim().slice(0, 300) : '';
       const note = typeof result.note === 'string' ? result.note.trim().slice(0, 240) : '';
       return { status: 'revise', fix: fix || 'Correct the failed style, cast or event checks using the required style and current narration.', note };
     }
-    if (result.status === 'pass' && (!style || checks.every(check => check === 'pass'))) return result;
+    if ((!style && result.status === 'pass') || (style && (!result.status || result.status === 'pass') && checks.every(check => check === 'pass'))) {
+      return { ...result, status: 'pass' };
+    }
     if (style && checks.includes('uncertain')) {
       const labels = ['kiểu vẽ', 'nhân vật', 'diễn biến'].filter((_, i) => checks[i] === 'uncertain').join(', ');
       return { status: 'unavailable', note: 'Chưa xác minh được ' + labels + '.' };
     }
-  } catch (e) { if (abortGen) throw e; }
-  return { status: 'unavailable' };
+    if (result.status === 'uncertain' && checks.every(check => check === 'pass')) break;
+  }
+  return { status: 'unavailable', note: 'Kết quả đối chiếu chưa đủ thông tin. Bạn có thể xem tranh và quyết định.' };
 }
 
 class ArtworkHold extends Error {
@@ -4614,7 +4666,7 @@ async function start(isRetry = false) {
       const script = activeProject.script || await makeScript(idea, +$('min').value);
       activeProject.script = script;
       await saveStoryProject();
-      const sc = { ...script, scenes: fixSceneBreaks(script.scenes.map(scene => ({ ...scene }))) };
+      const sc = { ...script, scenes: fixSceneBreaks(removeRepeatedNarration(script.scenes, idea)) };
       chars = sc.characters || '';
       parseCast(chars);
       storyCtx = sc.story || '';
@@ -4700,6 +4752,7 @@ async function start(isRetry = false) {
         await imgTask;
         if (!s.cv) {
           if (abortGen) break;
+          if (s.pendingArt) await saveStoryProject();
           continue;
         }
 
@@ -4719,7 +4772,7 @@ async function start(isRetry = false) {
       log(provider === 'cloudflare'
         ? '  ⚠ ' + (cloudflareBlocked?.message || 'Cloudflare chưa tạo được tranh.') + ' Tranh đã có được giữ lại.'
         : '  ⚠ Gemini tạo ảnh chưa khả dụng. Kiểm tra quyền tạo ảnh hoặc hạn mức, rồi bấm Chạy bù. Có thể chọn SVG để vẽ các cảnh còn thiếu.');
-      scenes.forEach((s, i) => { if (!s.cv) { s.failed = true; updateCard(i); } });
+      scenes.forEach((s, i) => { if (!s.cv && !s.pendingArt) { s.failed = true; updateCard(i); } });
     }
     const badImg = scenes.filter(s => !s.cv).length;
     if (scenes.some(s => !s.cv && !s.pendingArt)) $('retryBtn').hidden = false;
@@ -4754,7 +4807,7 @@ function renderGallery() {
     const d = document.createElement('div');
     d.className = 'card';
     d.id = 'card' + i;
-    d.innerHTML = '<div class="thumb"><canvas></canvas><span class="ph">⏳ Chờ vẽ...</span></div><div class="cap"></div><p class="hint art-note" hidden></p>' +
+    d.innerHTML = '<div class="thumb"><canvas></canvas><img class="pending-picture" alt="Tranh mới chờ duyệt" hidden><span class="pending-label" hidden>Chờ duyệt</span><span class="ph">⏳ Chờ vẽ...</span></div><div class="cap"></div><p class="hint art-note" hidden></p>' +
       `<button type="button" class="w sm" onclick="redraw(${i})">🔄 Vẽ lại</button>` +
       `<button type="button" class="w sm camera-scene" data-scene="${i}" onclick="tuneIllustrationCamera(${i})" hidden>Căn camera</button>` +
       `<button type="button" class="w sm reference-scene" data-scene="${i}" onclick="openArtworkReference(${i})" hidden>Lấy mẫu nhân vật</button>` +
@@ -4792,8 +4845,10 @@ function renderGallery() {
     c.width = 240; c.height = Math.round(240 * H / W);
     updateCard(i);
   });
+  updateArtworkReviewButton();
 }
 function updateCard(i) {
+  updateArtworkReviewButton();
   const s = scenes[i], d = $('card' + i);
   if (!s || !d) return;
   const c = d.querySelector('canvas'), ph = d.querySelector('.ph'), note = d.querySelector('.art-note');
@@ -4811,10 +4866,20 @@ function updateCard(i) {
     button.disabled = !!s.busy;
     if (s.motionScene && globalThis.StoryMotion) button.textContent = 'Xem động tác · ' + StoryMotion.labels[s.motionScene.action];
   }
+  const picture = d.querySelector('.pending-picture'), label = d.querySelector('.pending-label');
+  const preview = s.pendingArt && !s.cv ? artworkDataUrl(s.pendingArt.photo) : '';
+  picture.hidden = label.hidden = !preview;
+  if (preview) {
+    if (picture.getAttribute('src') !== preview) picture.src = preview;
+  } else picture.removeAttribute('src');
   note.textContent = s.artNote || '';
-  note.hidden = !s.artNote;
+  note.hidden = !note.textContent;
   if (s.busy) { ph.hidden = false; ph.textContent = '⏳ Đang vẽ lại...'; return; }
-  if (!s.cv) { ph.hidden = false; ph.textContent = s.pendingArt ? 'Chờ duyệt tranh' : s.failed ? '⚠ Lỗi, bấm Vẽ lại' : '⏳ Chờ vẽ...'; return; }
+  if (preview) { ph.hidden = true; return; }
+  if (!s.cv) {
+    c.getContext('2d').clearRect(0, 0, c.width, c.height);
+    ph.hidden = false; ph.textContent = s.failed ? '⚠ Lỗi, bấm Vẽ lại' : '⏳ Chờ vẽ...'; return;
+  }
   ph.hidden = true;
   const tw = fm.v ? 220 : 360, th = Math.round(tw * H / W);
   c.width = tw; c.height = th;
@@ -4825,7 +4890,7 @@ function updateCard(i) {
 function applyArtworkHold(scene, hold) {
   scene.pendingArt = hold.candidate;
   scene.artNote = [hold.message,
-    hold.candidate ? 'Mở Duyệt tranh mới để xem.' : '',
+    hold.candidate ? 'Bấm Duyệt tranh mới để quyết định có dùng tranh này.' : '',
     scene.cv ? 'Tranh trước vẫn đang được dùng.' : ''].filter(Boolean).join(' ');
 }
 
@@ -4922,6 +4987,7 @@ function attachArtworkDialogs() {
   });
   $('artReferenceDialog').addEventListener('close', () => { artReferenceEdit = null; });
   $('artReviewDialog').addEventListener('close', () => {
+    if ($('artReviewDialog').open) return;
     artReviewEdit = null;
     $('artReviewPicture').removeAttribute('src');
   });
@@ -4949,30 +5015,97 @@ function artworkDataUrl(photo) {
   return `data:${mimeType};base64,${data}`;
 }
 
-function openArtworkCandidate(i) {
+function updateArtworkReviewButton() {
+  const review = $('reviewPendingArt'), use = $('usePendingArt');
+  const pending = scenes.filter(scene => scene.pendingArt), missing = pending.filter(scene => !scene.cv).length;
+  if (review) {
+    review.hidden = !pending.length;
+    review.textContent = `Duyệt từng tranh (${pending.length})`;
+  }
+  if (use) {
+    use.hidden = !missing;
+    use.textContent = `Dùng ${missing} tranh cho các cảnh còn thiếu`;
+  }
+}
+
+function reviewPendingArtwork() {
+  openArtworkCandidate(scenes.findIndex(scene => scene.pendingArt), true);
+}
+
+function showNextArtwork(i) {
+  openArtworkCandidate(scenes.findIndex((scene, index) => index > i && scene.pendingArt), true);
+}
+
+function skipArtworkCandidate() {
+  if (artReviewEdit?.sequence) showNextArtwork(artReviewEdit.i);
+}
+
+function openArtworkCandidate(i, sequence = false) {
   const scene = scenes[i], candidate = scene?.pendingArt;
   if (projectBusy() || !candidate) return;
-  artReviewEdit = { i, scene, candidate };
+  artReviewEdit = { i, scene, candidate, sequence };
+  $('artReviewTitle').textContent = `Duyệt tranh mới · Cảnh ${i + 1}`;
+  $('artReviewNarration').textContent = scene.text || '';
+  $('skipArtReview').hidden = !sequence || !scenes.some((item, index) => index > i && item.pendingArt);
   $('artReviewReason').textContent = candidate.reason + ' Nhìn lại kiểu vẽ, khuôn mặt và diễn biến trước khi dùng tranh.';
   $('artReviewPicture').src = artworkDataUrl(candidate.photo);
-  $('artReviewDialog').showModal();
+  if (!$('artReviewDialog').open) $('artReviewDialog').showModal();
+}
+
+async function applyArtworkCandidate(scene, candidate, i) {
+  const image = await loadImg(artworkDataUrl(candidate.photo));
+  const changes = { image: candidate.imageBrief, visibleCast: candidate.visibleCast };
+  const result = artResult({ ...scene, ...changes }, image, candidate.photo, candidate.style, candidate.roles, candidate.camera, true);
+  Object.assign(scene, changes, result, { ok: true, failed: false });
+  if ($('ed' + i)) $('ed' + i).value = scene.image;
+}
+
+async function approveMissingArtwork() {
+  if (projectBusy()) return false;
+  const pending = scenes.flatMap((scene, i) => !scene.cv && scene.pendingArt ? [{ scene, i }] : []);
+  if (!pending.length || !confirm(`Dùng ${pending.length} tranh đang chờ cho các cảnh còn thiếu? Một số tranh có thể chưa được AI đối chiếu đầy đủ.`)) return false;
+  const button = $('usePendingArt');
+  if (button) button.disabled = true;
+  $('mkBtn').disabled = true;
+  lockDrawingSettings(true);
+  let applied = 0;
+  try {
+    for (const { scene, i } of pending) {
+      try {
+        await applyArtworkCandidate(scene, scene.pendingArt, i);
+        applied++;
+        updateCard(i);
+      } catch (e) {
+        log(`  ⚠ Cảnh ${i + 1}: chưa đọc được tranh đang chờ. Hãy vẽ lại cảnh này.`);
+      }
+    }
+    if (applied) {
+      refreshArtworkProgress();
+      await saveStoryProject();
+      refreshStoryProjects();
+      log(`  ✓ Đã dùng ${applied}/${pending.length} tranh cho các cảnh còn thiếu.`);
+    }
+  } finally {
+    lockDrawingSettings(false);
+    $('mkBtn').disabled = false;
+    if (button) button.disabled = false;
+  }
+  return applied === pending.length;
 }
 
 async function approveArtworkCandidate() {
   const edit = artReviewEdit;
   if (!edit || projectBusy() || scenes[edit.i] !== edit.scene || edit.scene.pendingArt !== edit.candidate) return;
   const { i, scene, candidate } = edit;
+  let approved = false;
   scene.busy = true;
   lockDrawingSettings(true);
   $('artReviewDialog').close();
   try {
-    const image = await loadImg(artworkDataUrl(candidate.photo));
-    const changes = { image: candidate.imageBrief, visibleCast: candidate.visibleCast };
-    const result = artResult({ ...scene, ...changes }, image, candidate.photo, candidate.style, candidate.roles, candidate.camera, true);
-    Object.assign(scene, changes, result, { ok: true, failed: false });
-    if ($('ed' + i)) $('ed' + i).value = scene.image;
+    await applyArtworkCandidate(scene, candidate, i);
     refreshArtworkProgress();
     await saveStoryProject();
+    approved = true;
     refreshStoryProjects();
   } catch (e) {
     log('  ⚠ Chưa áp dụng được tranh đang chờ duyệt: ' + e.message);
@@ -4981,6 +5114,7 @@ async function approveArtworkCandidate() {
     lockDrawingSettings(false);
     updateCard(i);
   }
+  if (approved && edit.sequence) showNextArtwork(i);
 }
 
 function refreshArtworkProgress() {
@@ -5106,8 +5240,9 @@ function remakeVoices() {
 
 async function makeVideo() {
   if (!scenes.length || projectBusy()) return;
-  const miss = scenes.filter(s => !s.cv).length;
-  if (miss) return alert(`Còn ${miss} cảnh chưa có tranh. Dùng Duyệt tranh mới hoặc Vẽ lại ở các cảnh đó trước nhé.`);
+  const missingArt = scenes.filter(scene => !scene.cv);
+  const undrawn = missingArt.filter(scene => !scene.pendingArt).length;
+  if (undrawn) return alert(`Còn ${undrawn} cảnh chưa tạo được tranh. Bấm Vẽ lại ở các cảnh đó trước nhé.`);
   if (scenes.some(s => s.busy)) return alert('Đang vẽ lại một tranh, đợi vẽ xong rồi bấm nhé.');
   saveSet();
   keys = $('keys').value.split(/\s+/).filter(k => k.length > 20);
@@ -5116,6 +5251,7 @@ async function makeVideo() {
     $('set').open = true;
     return alert('Điền đủ App ID, Token và mã giọng Vbee trong phần Cài đặt nhé.');
   }
+  if (missingArt.length && !await approveMissingArtwork()) return;
   abortGen = false;
   vbeeDeadInSession = false;
   const wantVoice = $('vsrc').value !== 'none';
@@ -5687,7 +5823,7 @@ async function openStoryProject(id) {
       const raw = await idb.get(projectAssets(id, i));
       const asset = { artRef: raw?.artRef || null, buf: restoreProjectAudio(raw?.buf), pendingArt: raw?.pendingArt || null };
       for (const key of PROJECT_CANVASES) asset[key] = await restoreCanvas(raw?.[key]);
-      const scene = { ...info, ...asset, ok: !!asset.cv, failed: !asset.cv, busy: false };
+      const scene = { ...info, ...asset, ok: !!asset.cv, failed: !asset.cv && !asset.pendingArt, busy: false };
       await upgradeSavedArtwork(scene, !!data.sub);
       restored.push(scene);
       assetCache.push(asset);
@@ -5726,10 +5862,16 @@ async function openStoryProject(id) {
     $('pl').hidden = !(scenes.length && !pending && (data.stage === 'video' || scenes.some(s => s.buf)));
     renderGallery();
     $('galBox').hidden = !scenes.length;
-    $('retryBtn').hidden = !scenes.some(scene => !scene.cv && !scene.pendingArt);
+    const needsDrawing = scenes.some(scene => !scene.cv && !scene.pendingArt);
+    const awaitsApproval = scenes.some(scene => scene.pendingArt);
+    $('retryBtn').hidden = !needsDrawing;
     $('bar').style.width = scenes.length ? `${100 * meta.drawn / scenes.length}%` : '0%';
-    $('log').textContent = `Đã mở dự án “${meta.name}”. ${pending ? 'Bấm Chạy bù để vẽ các cảnh còn thiếu.' :
-      scenes.length ? 'Bạn có thể xem lại các cảnh hoặc tiếp tục tạo giọng đọc.' : 'Bấm Bắt đầu tạo video để tiếp tục từ phần đã lưu.'}`;
+    const next = [
+      awaitsApproval ? 'Bạn có thể dùng các tranh đang chờ cho cảnh còn thiếu hoặc duyệt từng tranh.' : '',
+      needsDrawing ? 'Bấm Chạy bù để vẽ các cảnh còn thiếu.' : ''
+    ].filter(Boolean).join(' ');
+    $('log').textContent = `Đã mở dự án “${meta.name}”. ${next ||
+      (scenes.length ? 'Bạn có thể xem lại các cảnh hoặc tiếp tục tạo giọng đọc.' : 'Bấm Bắt đầu tạo video để tiếp tục từ phần đã lưu.')}`;
   } catch (e) {
     alert('Chưa mở được dự án: ' + e.message);
   } finally {
