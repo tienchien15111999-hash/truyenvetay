@@ -6,6 +6,7 @@
 - Với lời kể đã hoàn chỉnh, bật **Giữ nguyên văn lời kể đã nhập**. Gemini chọn điểm ngắt cảnh. Web lấy từng đoạn trực tiếp từ lời kể gốc.
 - Khi mở dự án cũ, ảnh chờ còn lưu được dùng cho cảnh đang trống. Nếu Cloudflare hết hạn mức, kịch bản và tranh đã tạo được lưu. Mở lại dự án rồi bấm **Chạy bù các tranh lỗi** để vẽ những cảnh còn thiếu.
 - Trên một tranh ưng ý, bấm **Lấy mẫu nhân vật**, chọn đúng người, khoanh vùng mặt, tóc và vai, rồi bấm **Lưu mẫu**. Mẫu lưu theo dự án và kiểu vẽ.
+- Khi vẽ mới hoặc vẽ lại bằng Cloudflare, mẫu đã chọn được ưu tiên. Nếu chưa có mẫu, công cụ tra chân dung Wikipedia theo tên người nổi tiếng. Chỉ khi thiếu ảnh chân dung phù hợp, công cụ mới dùng tranh cũ cùng kiểu vẽ cho nhân vật đó.
 
 ## Vẽ tiếp bằng AI Horde
 

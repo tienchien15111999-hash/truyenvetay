@@ -245,7 +245,7 @@ dialog{width:min(520px,calc(100% - 32px));max-height:90vh;border:2px solid #111;
       <option value="anime" selected>Anime điện ảnh</option>
       <option value="portrait">Ảnh thực (như ảnh chụp)</option>
     </select>
-    <p class="hint">Khi vẽ lại, cảnh dùng kiểu vẽ đã lưu. Với Cloudflare, chọn <strong>Lấy mẫu nhân vật</strong> trên cảnh ưng ý để dùng lại khuôn mặt và trang phục.</p>
+    <p class="hint">Khi vẽ lại, cảnh dùng kiểu vẽ đã lưu. Cloudflare dùng ảnh chân dung tìm được cho người nổi tiếng. Mẫu bạn chọn bằng <strong>Lấy mẫu nhân vật</strong> trên cảnh ưng ý được ưu tiên.</p>
     <p id="cloudStyleNotice" class="hint" hidden>Dự án cũ chưa có kiểu vẽ thống nhất. Hãy chọn một kiểu cho các cảnh chưa có thông tin hoặc dùng kiểu đã bỏ.</p>
   </div>
   <div id="svgStyleBox">
@@ -3766,7 +3766,7 @@ function artPortrait(name) {
   }
   return artPortraits.get(name);
 }
-function artReferences(sceneNo, roles, style, limit) {
+async function artReferences(sceneNo, roles, style, limit) {
   const uncovered = new Set(roles), references = [];
   const pinned = activeProject?.castRefs?.[style];
   for (const role of roles) {
@@ -3779,11 +3779,29 @@ function artReferences(sceneNo, roles, style, limit) {
     });
     uncovered.delete(role);
   }
-  // The first verified frame for a shared role is more stable than reusing the most recent redraw.
+  const available = limit - references.length;
+  if (available > 0) {
+    const portraits = await Promise.all(artPeople([...uncovered]).map(async ({ name, role }) => {
+      const photo = await artPortrait(name);
+      return photo && {
+        roles: [role],
+        cue: `Real portrait of ${name}, role ${role}. Match the person's face shape, eyes, brows, nose, jaw and hairline in the chosen illustration style. Adapt clothing and age only as the scene requires.`,
+        photo
+      };
+    }));
+    for (const portrait of portraits.filter(Boolean).slice(0, available)) {
+      references.push(portrait);
+      uncovered.delete(portrait.roles[0]);
+    }
+  }
+  const anchored = new Set(references.flatMap(ref => ref.roles));
+  // A saved group image can reintroduce an inaccurate face already covered by a better reference.
   for (let i = 0; i < scenes.length && uncovered.size && references.length < limit; i++) {
     const scene = scenes[i];
     if (i === sceneNo - 1 || !scene?.artRef || scene.artStyle !== style) continue;
-    const shared = (scene.artRoles || []).filter(role => uncovered.has(role));
+    const savedRoles = scene.artRoles || [];
+    if (savedRoles.some(role => anchored.has(role))) continue;
+    const shared = savedRoles.filter(role => uncovered.has(role));
     if (!shared.length) continue;
     references.push({
       roles: shared,
@@ -3792,7 +3810,7 @@ function artReferences(sceneNo, roles, style, limit) {
     });
     shared.forEach(role => uncovered.delete(role));
   }
-  return { references, uncovered };
+  return references;
 }
 
 function drawIllustration(ctx, image, width, height) {
@@ -3947,12 +3965,7 @@ async function illustratedImage(s, sceneNo, mode = $('isrc').value) {
   const style = cloudArtStyle(s), aspect = fm.ar;
   if (!style) throw new Error('Chọn phong cách tranh AI cho dự án rồi bấm Vẽ lại.');
   const roles = artRoles(s), people = artPeople(roles);
-  const { references, uncovered } = artReferences(sceneNo, roles, style, mode === 'horde' ? 0 : 4);
-  const portraits = await Promise.all(people.filter(person => mode !== 'horde' && uncovered.has(person.role)).slice(0, Math.min(2, 4 - references.length)).map(async ({ name, role }) => {
-    const photo = await artPortrait(name);
-    return photo && { cue: `Real portrait of ${name}, role ${role}. Use face shape, eyes, brows, nose, jaw and hairline for identity only. Render in the locked project style and story era.`, photo };
-  }));
-  references.push(...portraits.filter(Boolean));
+  const references = mode === 'horde' ? [] : await artReferences(sceneNo, roles, style, 4);
   const parts = references.flatMap(ref => [{ text: ref.cue }, ref.photo]);
   const hasFacts = storyFacts(s.text).length > 0;
   const moment = artMoment(s);
