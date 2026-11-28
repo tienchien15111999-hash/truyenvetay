@@ -7,6 +7,12 @@
 - Khi mở dự án cũ, ảnh chờ còn lưu được dùng cho cảnh đang trống. Nếu Cloudflare hết hạn mức, kịch bản và tranh đã tạo được lưu. Mở lại dự án rồi bấm **Chạy bù các tranh lỗi** để vẽ những cảnh còn thiếu.
 - Trên một tranh ưng ý, bấm **Lấy mẫu nhân vật**, chọn đúng người, khoanh vùng mặt, tóc và vai, rồi bấm **Lưu mẫu**. Mẫu lưu theo dự án và kiểu vẽ.
 
+## Vẽ tiếp bằng AI Horde
+
+- Khi Cloudflare hết hạn mức, web dừng lượt vẽ và lưu số cảnh đã xong. Chọn **Cách vẽ tranh → Tranh AI Horde** rồi bấm **Chạy bù các tranh lỗi** để vẽ các cảnh còn thiếu trong dự án.
+- AI Horde dùng mô tả cảnh và phong cách đã chọn. Ảnh có thể khác đôi chút giữa hai dịch vụ. Dịch vụ xử lý từng cảnh theo hàng đợi và web có nút **Dừng** để hủy cảnh đang chờ.
+- API key AI Horde là tùy chọn trong **Cài đặt**. Chế độ khách có ưu tiên thấp và AI Horde chia sẻ ảnh tạo ở chế độ khách với LAION. Key được lưu riêng trên trình duyệt. Để dùng tính năng sau khi cập nhật, đưa cả **`index.html`** và **`api/horde-image.js`** lên Vercel.
+
 ## Khung tranh, phụ đề và mốc trong lời kể
 
 - Tranh dùng trọn khung 16:9 hoặc 9:16 khi xem thử và xuất video. Nếu tỉ lệ ảnh khác khung video, ảnh gốc được giữ đủ mép trên nền mở rộng làm mờ. Camera chuyển động vẫn có thể chủ động lấy cận chi tiết.

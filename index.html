@@ -72,6 +72,11 @@ dialog{width:min(520px,calc(100% - 32px));max-height:90vh;border:2px solid #111;
     <button type="button" class="w sm" id="cfCheck" onclick="testCloudflare()">Kiểm tra kết nối Cloudflare</button>
     <div id="cfResult" class="hint" role="status"></div>
   </div>
+  <div id="hordeSettings" hidden>
+    <label for="hordeApiKey">API key AI Horde (không bắt buộc)</label>
+    <input id="hordeApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Để trống để dùng chế độ khách">
+    <p class="hint">Chế độ khách có hàng đợi ưu tiên thấp. AI Horde chia sẻ ảnh tạo ở chế độ khách với LAION.</p>
+  </div>
   <label id="gemKeyLabel" for="keys">API key Gemini (nhiều key thì mỗi key một dòng)</label>
   <textarea id="keys" style="min-height:60px" placeholder="AIzaSy..."></textarea>
   <button type="button" class="w sm" onclick="testGemini()">🔍 Kiểm tra key Gemini</button>
@@ -229,17 +234,18 @@ dialog{width:min(520px,calc(100% - 32px));max-height:90vh;border:2px solid #111;
   <select id="isrc" onchange="vui();saveSet()">
     <option value="svg_ink">Vẽ tay bằng SVG · có bàn tay vẽ từng nét</option>
     <option value="illustrated">Tranh AI Cloudflare</option>
+    <option value="horde">Tranh AI Horde</option>
   </select>
   <div id="cloudStyleBox" hidden>
-    <p class="hint">Gemini chia cảnh và soạn mô tả. Cloudflare vẽ tranh.</p>
-    <label for="cfStyle">Phong cách tranh Cloudflare</label>
+    <p id="cloudArtHint" class="hint">Gemini chia cảnh và soạn mô tả. Cloudflare vẽ tranh.</p>
+    <label for="cfStyle">Phong cách tranh AI</label>
     <select id="cfStyle" onchange="saveSet()">
       <option value="" disabled hidden>Chọn một kiểu vẽ cho dự án</option>
       <option value="threeD">Hoạt hình 3D</option>
       <option value="anime" selected>Anime điện ảnh</option>
       <option value="portrait">Ảnh thực (như ảnh chụp)</option>
     </select>
-    <p class="hint">Khi vẽ lại, cảnh dùng kiểu vẽ đã lưu. Chọn <strong>Lấy mẫu nhân vật</strong> trên cảnh ưng ý để dùng lại khuôn mặt và trang phục.</p>
+    <p class="hint">Khi vẽ lại, cảnh dùng kiểu vẽ đã lưu. Với Cloudflare, chọn <strong>Lấy mẫu nhân vật</strong> trên cảnh ưng ý để dùng lại khuôn mặt và trang phục.</p>
     <p id="cloudStyleNotice" class="hint" hidden>Dự án cũ chưa có kiểu vẽ thống nhất. Hãy chọn một kiểu cho các cảnh chưa có thông tin hoặc dùng kiểu đã bỏ.</p>
   </div>
   <div id="svgStyleBox">
@@ -436,6 +442,7 @@ function updStat() {
   const parts = [];
   parts.push(storyProvider() === 'cloudflare' ? 'Cloudflare Workers AI' : (n ? `${n} key Gemini` : 'chưa có key Gemini'));
   if ($('isrc').value === 'illustrated') parts.push('Cloudflare Workers AI');
+  if ($('isrc').value === 'horde') parts.push('AI Horde');
   if (o.vapp && o.vtok) parts.push('Vbee (App ID + Token)');
   if (o.hftok) parts.push('token Hugging Face');
   const t = o._t ? new Date(o._t).toLocaleString('vi-VN') : null;
@@ -471,7 +478,7 @@ function importSet(inp) {
         }
       });
       if (!n) throw new Error('không thấy mục cài đặt nào');
-      if ($('isrc').value !== 'illustrated') $('isrc').value = 'svg_ink'; $('style').value = 'ref';
+      if (!isIllustratedMode()) $('isrc').value = 'svg_ink'; $('style').value = 'ref';
       vui(); nimgHint(); if (typeof styleUI === 'function') styleUI(); saveSet();
       alert('Đã nạp cài đặt từ file sao lưu.');
     } catch (e) { alert('File này không đọc được: ' + e.message); }
@@ -503,25 +510,43 @@ for (const [id, key] of Object.entries(cfFields)) {
 }
 if ($('cfWebCode').value) $('cfServerSettings').open = true;
 
+const hordeKeyField = $('hordeApiKey');
+try { hordeKeyField.value = localStorage.getItem('horde_api_key') || ''; } catch (e) {}
+hordeKeyField.addEventListener('input', () => {
+  try {
+    if (hordeKeyField.value.trim()) localStorage.setItem('horde_api_key', hordeKeyField.value.trim());
+    else localStorage.removeItem('horde_api_key');
+  } catch (e) {}
+});
+
 function clearKeys() {
-  if (!confirm('Xóa toàn bộ key/token đã lưu (Gemini, Cloudflare, Vbee, Hugging Face) khỏi trình duyệt này?')) return;
+  if (!confirm('Xóa toàn bộ key/token đã lưu (Gemini, Cloudflare, AI Horde, Vbee, Hugging Face) khỏi trình duyệt này?')) return;
   for (const id of ['keys', 'vapp', 'vtok', 'hftok', ...Object.keys(cfFields)]) $(id).value = '';
   for (const id of Object.keys(cfFields)) rememberCloudflareField(id, '');
   $('cfResult').textContent = '';
   cloudflareBlocked = null;
+  hordeKeyField.value = '';
+  try { localStorage.removeItem('horde_api_key'); } catch (e) {}
   saveSet();
 }
+function isIllustratedMode(mode = $('isrc').value) {
+  return mode === 'illustrated' || mode === 'horde';
+}
 function storyProvider() {
-  return $('isrc').value !== 'illustrated' && $('aiProvider').value === 'cloudflare' ? 'cloudflare' : 'gemini';
+  return !isIllustratedMode() && $('aiProvider').value === 'cloudflare' ? 'cloudflare' : 'gemini';
 }
 function vui() {
-  const mode = $('isrc').value, cloudArt = mode === 'illustrated', cloud = storyProvider() === 'cloudflare';
+  const mode = $('isrc').value, cloudArt = isIllustratedMode(mode), cloud = storyProvider() === 'cloudflare';
   $('svgProviderBox').hidden = cloudArt;
   $('cloudStyleBox').hidden = !cloudArt;
   $('svgStyleBox').hidden = cloudArt;
   if (!$('cmode').value) $('cmode').value = 'vivid';
   if ($('cloudStyleNotice')) $('cloudStyleNotice').hidden = !cloudArt || !!$('cfStyle').value;
-  $('cloudflareSettings').hidden = !(cloudArt || cloud);
+  $('cloudflareSettings').hidden = !(mode === 'illustrated' || cloud);
+  if ($('hordeSettings')) $('hordeSettings').hidden = mode !== 'horde';
+  if ($('cloudArtHint')) $('cloudArtHint').textContent = mode === 'horde'
+    ? 'AI Horde vẽ theo mô tả cảnh và có thể phải xếp hàng. Chọn xong, bấm Chạy bù để vẽ các cảnh còn thiếu.'
+    : 'Gemini chia cảnh và soạn mô tả. Cloudflare vẽ tranh.';
   $('gemKeyLabel').textContent = cloudArt
     ? 'API key Gemini dùng để chia cảnh và soạn mô tả tranh (mỗi key một dòng)'
     : cloud
@@ -532,13 +557,13 @@ function vui() {
   $('hfBox').hidden = !(mode === 'free_img' || mode === 'img' || mode === 'ai3d');
   $('ai3dHint').hidden = mode !== 'ai3d';
   $('aiRefBox').hidden = mode !== 'ai3d';
-  if ($('styleHint')) $('styleHint').hidden = mode === 'ai3d' || mode === 'illustrated';
-  $('spriteBox').hidden = mode === 'illustrated';
+  if ($('styleHint')) $('styleHint').hidden = mode === 'ai3d' || cloudArt;
+  $('spriteBox').hidden = cloudArt;
   try { mvUI(); } catch (e) { /* ô motionVid chưa có */ }
   motion2DUI();
   document.querySelectorAll('.camera-scene, .reference-scene').forEach(button => {
     const scene = scenes[Number(button.dataset.scene)];
-    button.hidden = !canTuneIllustrationCamera(scene) || (button.classList.contains('reference-scene') && artMoment(scene).noPeople === true);
+    button.hidden = button.classList.contains('reference-scene') ? !canPinArtwork(scene) : !canTuneIllustrationCamera(scene);
   });
 }
 try {
@@ -551,7 +576,7 @@ try {
   });
   if (o.keys || o.aiProvider === 'cloudflare' || $('cfAccountId').value) $('set').open = false;
 } catch (e) {}
-if ($('isrc').value !== 'illustrated') $('isrc').value = 'svg_ink'; $('style').value = 'ref';
+if (!isIllustratedMode()) $('isrc').value = 'svg_ink'; $('style').value = 'ref';
 if (!validCloudStyle($('cfStyle').value)) $('cfStyle').value = 'anime';
 vui();
 $('set').addEventListener('input', saveSet);
@@ -693,6 +718,7 @@ async function cfCall(payload, timeout = 95000) {
       const msg = (data.error?.message || 'Không gọi được /api/cloudflare-ai. Hãy mở bản web đã triển khai trên Vercel.') + diagnostic;
       if (CF_BLOCKING_CODES.includes(data.error?.code) || response.status === 429 || response.status === 404) {
         const e = new CloudflareUnavailable(msg);
+        e.code = data.error?.code;
         if (!payload.probe) cloudflareBlocked = e;
         throw e;
       }
@@ -3846,6 +3872,66 @@ async function renderStoryArt(parts, aspectRatio, fallbackPrompt) {
   return image;
 }
 
+class HordeUnavailable extends Error {}
+
+async function hordeCall(payload, key) {
+  const cancelling = payload.action === 'cancel';
+  if (abortGen && !cancelling) throw new Error('Đã dừng');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), cancelling ? 4000 : 18000);
+  if (!cancelling) ctl.add(controller);
+  try {
+    const response = await fetch('/api/horde-image', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Horde-API-Key': key },
+      body: JSON.stringify(payload), signal: controller.signal
+    });
+    const json = await response.json().catch(() => null);
+    if (!response.ok || !json || json.error) {
+      const message = json?.error || 'Chưa gọi được API AI Horde. Kiểm tra file api/horde-image.js trên Vercel.';
+      if (response.status === 422) throw new Error(message);
+      throw new HordeUnavailable(message);
+    }
+    return json;
+  } catch (e) {
+    if (abortGen && !cancelling) throw new Error('Đã dừng');
+    if (e instanceof TypeError || e.name === 'AbortError') throw new HordeUnavailable('Kết nối AI Horde bị gián đoạn.');
+    throw e;
+  } finally {
+    clearTimeout(timer);
+    ctl.delete(controller);
+  }
+}
+
+async function renderHordeArt(prompt, aspect, style, sceneNo) {
+  const key = $('hordeApiKey').value.trim();
+  const { id } = await hordeCall({ action: 'submit', prompt: prompt.slice(0, 2000), aspect, style }, key);
+  if (typeof id !== 'string' || !id) throw new HordeUnavailable('AI Horde chưa nhận yêu cầu vẽ.');
+  log(`  ⏳ Cảnh ${sceneNo}: đang chờ AI Horde vẽ…`);
+  const deadline = Date.now() + 8 * 60 * 1000;
+  let finished = false;
+  try {
+    for (let check = 1; Date.now() < deadline && !abortGen; check++) {
+      await nap(6000);
+      const state = await hordeCall({ action: 'check', id }, key);
+      if (abortGen) throw new Error('Đã dừng');
+      if (state.faulted) throw new HordeUnavailable('AI Horde không xử lý được yêu cầu vẽ này.');
+      if (state.done) {
+        finished = true;
+        const { image } = await hordeCall({ action: 'result', id }, key);
+        if (!image?.data) throw new Error('AI Horde chưa trả ảnh hợp lệ.');
+        const decoded = await loadImg(artworkDataUrl({ inlineData: image }));
+        if (abortGen) throw new Error('Đã dừng');
+        return decoded;
+      }
+      if (check % 5 === 0 && state.wait > 0) log(`  ⏳ Cảnh ${sceneNo}: AI Horde báo còn khoảng ${state.wait} giây.`);
+    }
+    if (abortGen) throw new Error('Đã dừng');
+    throw new HordeUnavailable('AI Horde chưa có ảnh sau 8 phút. Bấm Chạy bù để thử lại sau.');
+  } finally {
+    if (!finished) await hordeCall({ action: 'cancel', id }, key).catch(() => {});
+  }
+}
+
 function artResult(scene, image, photo, style, roles, camera, width = W, height = H) {
   const cv = document.createElement('canvas');
   cv.width = width;
@@ -3857,12 +3943,12 @@ function artResult(scene, image, photo, style, roles, camera, width = W, height 
     motionScene: null, motionBase: null, frameHeight: height, bakedDate: false };
 }
 
-async function illustratedImage(s, sceneNo) {
+async function illustratedImage(s, sceneNo, mode = $('isrc').value) {
   const style = cloudArtStyle(s), aspect = fm.ar;
-  if (!style) throw new Error('Chọn kiểu vẽ Cloudflare cho dự án rồi bấm Vẽ lại.');
+  if (!style) throw new Error('Chọn phong cách tranh AI cho dự án rồi bấm Vẽ lại.');
   const roles = artRoles(s), people = artPeople(roles);
-  const { references, uncovered } = artReferences(sceneNo, roles, style, 4);
-  const portraits = await Promise.all(people.filter(person => uncovered.has(person.role)).slice(0, Math.min(2, 4 - references.length)).map(async ({ name, role }) => {
+  const { references, uncovered } = artReferences(sceneNo, roles, style, mode === 'horde' ? 0 : 4);
+  const portraits = await Promise.all(people.filter(person => mode !== 'horde' && uncovered.has(person.role)).slice(0, Math.min(2, 4 - references.length)).map(async ({ name, role }) => {
     const photo = await artPortrait(name);
     return photo && { cue: `Real portrait of ${name}, role ${role}. Use face shape, eyes, brows, nose, jaw and hairline for identity only. Render in the locked project style and story era.`, photo };
   }));
@@ -3892,7 +3978,9 @@ ${handoff ? framing : ''} ${graphics}
 One shot, no collage or text. Follow this narration: ${String(s.text || '').slice(0, 420)}
 Visual brief (use only where consistent with narration): ${String(s.image || '').slice(0, 460)}
 Cast cues: ${String(chars || '').split(/[;\n]/).filter(entry => roles.some(role => entry.trimStart().startsWith(role + ' '))).join('; ').slice(0, 180)}`;
-  const image = await renderStoryArt([...parts, { text: prompt }], aspect, fallbackPrompt);
+  const image = mode === 'horde'
+    ? await renderHordeArt(fallbackPrompt, aspect, style, sceneNo)
+    : await renderStoryArt([...parts, { text: prompt }], aspect, fallbackPrompt);
   return artResult(s, image, artPhoto(image), style, roles);
 }
 
@@ -3938,7 +4026,7 @@ async function makeImage(s, sceneNo, mode = $('isrc').value) {
 }
 
 async function makeStillImage(s, sceneNo, mode) {
-  if (mode === 'illustrated') return await illustratedImage(s, sceneNo);
+  if (isIllustratedMode(mode)) return await illustratedImage(s, sceneNo, mode);
   if (mode === 'ai3d') {
     try { return await aiColorImage(s, sceneNo); }
     catch (e) {
@@ -4243,7 +4331,7 @@ async function testGemini() {
   const out = $('gtestResult');
   const ks = $('keys').value.split(/\s+/).filter(k => k.length > 20);
   if (!ks.length) { out.style.color = '#dc2626'; out.textContent = 'Chưa nhập API key Gemini.'; return; }
-  const mode = $('isrc').value, needImg = mode === 'illustrated' || mode === 'img' || mode === 'free_img', needVoice = $('vsrc').value === 'gem';
+  const mode = $('isrc').value, needImg = mode === 'img' || mode === 'free_img', needVoice = $('vsrc').value === 'gem';
   out.style.color = '#1d4ed8';
   out.textContent = 'Đang kiểm tra ' + ks.length + ' key...';
   const lines = [];
@@ -4546,13 +4634,13 @@ async function start(isRetry = false) {
   const needsScript = !isRetry || !scenes.length;
   saveSet();
   keys = $('keys').value.split(/\s+/).filter(k => k.length > 20);
-  if (provider === 'gemini' && (needsScript || imageMode !== 'illustrated') && !keys.length) return keysOk();
+  if (provider === 'gemini' && (needsScript || !isIllustratedMode(imageMode)) && !keys.length) return keysOk();
   const idea = $('idea').value.trim();
   if (!idea && (!isRetry || !scenes.length)) return alert('Nhập câu chuyện hoặc ý tưởng nhé.');
   beginStoryProject(idea, isRetry);
-  if (imageMode === 'illustrated' && !cloudArtStyle() && (!isRetry || !scenes.some(scene => !scene.cv && validCloudStyle(scene.artStyle)))) {
+  if (isIllustratedMode(imageMode) && !cloudArtStyle() && (!isRetry || !scenes.some(scene => !scene.cv && validCloudStyle(scene.artStyle)))) {
     $('cfStyle').focus();
-    return alert('Chọn một kiểu tranh Cloudflare cho dự án nhé.');
+    return alert('Chọn phong cách tranh AI cho dự án nhé.');
   }
 
   abortGen = false;
@@ -4584,7 +4672,7 @@ async function start(isRetry = false) {
       storyCtx = sc.story || '';
       settingCtx = sc.setting || '';
       identityCtx = sc.identity || '';
-      if (imageMode !== 'illustrated') {
+      if (!isIllustratedMode(imageMode)) {
         try { await learnCastPeople(); } catch (e) { if (abortGen) throw e; log('  ⚠ Chưa học được nhân vật nổi tiếng: ' + e.message); }
       }
       try {
@@ -4628,7 +4716,7 @@ async function start(isRetry = false) {
       log('\n🔄 Đang chạy bù các cảnh còn thiếu...');
     }
 
-    let idx = 0, imageUnavailable = false;
+    let idx = 0, imageUnavailable = null;
     let done = scenes.filter(s => s.cv).length;
     $('bar').style.width = (done / scenes.length * 100) + '%';
 
@@ -4641,7 +4729,7 @@ async function start(isRetry = false) {
 
         const imgTask = (async () => {
           if (!needImg) return;
-          const attempts = imageMode === 'illustrated' ? 1 : 3;
+          const attempts = isIllustratedMode(imageMode) ? 1 : 3;
           for (let t = 0; t < attempts && !s.cv && !abortGen; t++) {
             try {
               Object.assign(s, await makeImage(s, no, imageMode));
@@ -4650,8 +4738,8 @@ async function start(isRetry = false) {
             } catch (e) {
               if (abortGen) break;
               log(`  ⚠ Cảnh ${no} (thử ${t + 1}/${attempts}) lỗi vẽ: ${e.message.slice(0, 110)}`);
-              if (e instanceof CloudflareUnavailable) {
-                imageUnavailable = true;
+              if (e instanceof CloudflareUnavailable || e instanceof HordeUnavailable) {
+                imageUnavailable = e;
                 break;
               }
               if (t + 1 < attempts) await nap(2500 * (t + 1));
@@ -4675,13 +4763,14 @@ async function start(isRetry = false) {
       }
     };
 
-    if (imageMode === 'illustrated') await worker();
+    if (isIllustratedMode(imageMode)) await worker();
     else await Promise.all([worker(), worker()]);
 
     if (imageUnavailable) {
-      log(imageMode === 'illustrated' || provider === 'cloudflare'
-        ? '  ⚠ ' + (cloudflareBlocked?.message || 'Cloudflare chưa tạo được tranh.') + ' Tranh đã có được giữ lại.'
-        : '  ⚠ Gemini tạo ảnh chưa khả dụng. Kiểm tra quyền tạo ảnh hoặc hạn mức, rồi bấm Chạy bù. Có thể chọn SVG để vẽ các cảnh còn thiếu.');
+      log('  ⚠ ' + imageUnavailable.message + ' Tranh đã có được giữ lại.');
+      if (imageMode === 'illustrated' && ['CF_DAILY_LIMIT', 'CF_RATE_LIMIT'].includes(imageUnavailable.code)) {
+        log('  ↪ Muốn vẽ tiếp ngay, chọn Tranh AI Horde rồi bấm Chạy bù các tranh lỗi.');
+      }
       scenes.forEach((s, i) => { if (!s.cv) { s.failed = true; updateCard(i); } });
     }
     const badImg = scenes.filter(s => !s.cv).length;
@@ -4762,7 +4851,7 @@ function updateCard(i) {
   camera.disabled = !!s.busy;
   camera.textContent = s.artCamera ? 'Căn lại camera' : 'Căn camera';
   const reference = d.querySelector('.reference-scene');
-  reference.hidden = !canTuneIllustrationCamera(s) || !!artMoment(s).noPeople;
+  reference.hidden = !canPinArtwork(s);
   reference.disabled = !!s.busy;
   const button = d.querySelector('.motion-preview');
   if (button) {
@@ -4907,7 +4996,10 @@ function refreshArtworkProgress() {
 }
 
 function canTuneIllustrationCamera(scene) {
-  return !!(scene?.cv && scene.art && !scene.motionScene && $('isrc').value === 'illustrated');
+  return !!(scene?.cv && scene.art && !scene.motionScene && isIllustratedMode());
+}
+function canPinArtwork(scene) {
+  return $('isrc').value === 'illustrated' && canTuneIllustrationCamera(scene) && !artMoment(scene).noPeople;
 }
 async function tuneIllustrationCamera(i) {
   const scene = scenes[i];
@@ -4980,21 +5072,23 @@ async function redraw(i) {
   const s = scenes[i];
   if (!s || s.busy || switchingProject || $('go').disabled || $('mkBtn').disabled || playing) return;
   const imageMode = $('isrc').value;
-  if (imageMode === 'illustrated' && !cloudArtStyle(s)) {
+  if (imageMode === 'horde' && scenes.some(scene => scene.busy)) return;
+  if (isIllustratedMode(imageMode) && !cloudArtStyle(s)) {
     $('cfStyle').focus();
-    return alert('Chọn một kiểu tranh Cloudflare cho dự án rồi bấm Vẽ lại.');
+    return alert('Chọn phong cách tranh AI cho dự án rồi bấm Vẽ lại.');
   }
   keys = $('keys').value.split(/\s+/).filter(k => k.length > 20);
-  if (imageMode !== 'illustrated' && storyProvider() === 'gemini' && !keys.length) return keysOk();
+  if (!isIllustratedMode(imageMode) && storyProvider() === 'gemini' && !keys.length) return keysOk();
   if (!scenes.some(q => q.busy)) cloudflareBlocked = null;
   abortGen = false;
   lockDrawingSettings(true);
+  if (imageMode === 'horde') $('stp').hidden = false;
   const image = $('ed' + i)?.value.trim() || s.image;
   const motionChoice = $('motionChoice' + i)?.value || 'auto';
   const changes = { image, motionChoice, visibleCast: image === s.image ? s.visibleCast : null };
   const request = { ...s, ...changes, prev: scenes[i - 1]?.image || s.prev };
   s.busy = true; s.failed = false; updateCard(i);
-  const attempts = imageMode === 'illustrated' ? 1 : 2;
+  const attempts = isIllustratedMode(imageMode) ? 1 : 2;
   for (let t = 0; t < attempts; t++) {
     try {
       const result = await makeImage(request, i + 1, imageMode);
@@ -5002,7 +5096,11 @@ async function redraw(i) {
       log(`🔄 Đã vẽ lại tranh cảnh ${i + 1}`);
       break;
     } catch (e) {
+      if (abortGen) break;
       log(`  ⚠ Cảnh ${i + 1}: ${(e.message || '').slice(0, 180)}`);
+      if (imageMode === 'illustrated' && ['CF_DAILY_LIMIT', 'CF_RATE_LIMIT'].includes(e.code)) {
+        log('  ↪ Bạn có thể chọn Tranh AI Horde để vẽ lại cảnh này.');
+      }
       if (!(e instanceof CloudflareUnavailable) && t + 1 < attempts) { await sleep(1500); continue; }
       s.artNote = s.cv ? 'Vẽ lại chưa thành công. Tranh trước vẫn đang được dùng.' : 'Vẽ chưa thành công. Có thể bấm Vẽ lại.';
       break;
@@ -5013,7 +5111,10 @@ async function redraw(i) {
   await saveStoryProject();
   refreshStoryProjects();
   s.busy = false;
-  if (!scenes.some(q => q.busy)) lockDrawingSettings(false);
+  if (!scenes.some(q => q.busy)) {
+    lockDrawingSettings(false);
+    if (imageMode === 'horde') $('stp').hidden = true;
+  }
   updateCard(i);
 }
 function remakeVoices() {
@@ -5397,7 +5498,7 @@ function projectBusy() {
   return switchingProject || $('go').disabled || $('mkBtn').disabled || playing || scenes.some(s => s.busy);
 }
 function lockDrawingSettings(locked) {
-  for (const id of ['aiProvider', 'isrc', 'cmode', 'cfStyle', 'interaction2d', 'keepNarration']) $(id).disabled = locked;
+  for (const id of ['aiProvider', 'isrc', 'cmode', 'cfStyle', 'interaction2d', 'keepNarration', 'hordeApiKey']) $(id).disabled = locked;
 }
 function projectName(idea) {
   return String(idea || '').trim().replace(/\s+/g, ' ').slice(0, 96) || 'Video kể chuyện';
@@ -6167,7 +6268,7 @@ function motionOn() { return !!($('motionVid') && $('motionVid').checked); }
 function mvUI() {
   const h = $('mvHint');
   h.hidden = !motionOn();
-  h.textContent = $('isrc').value === 'illustrated'
+  h.textContent = isIllustratedMode()
     ? 'Camera lia hoặc zoom vào chi tiết trong tranh theo lời kể, ví dụ mở cận hai bàn tay trao chìa khóa rồi zoom ra. Có thể bấm Căn camera ở cảnh đã có tranh.'
     : 'Camera và chuyển cảnh có thể đi kèm ánh sáng, mưa, tuyết, khói hoặc bụi theo nội dung. Bật trước khi tạo tranh để tách lớp nền và nhân vật cho hiệu ứng chiều sâu.';
 }
